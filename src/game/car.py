@@ -15,6 +15,7 @@ class Car:
     self.size = size
 
     self.angle_rad = math.radians(angle_deg)
+    self.angle_deg = angle_deg
     self.prev_angle = self.angle_rad
 
     self.direction = pr.Vector2(math.sin(self.angle_rad), -math.cos(self.angle_rad))
@@ -26,19 +27,19 @@ class Car:
 
     self.air_resist = 0.0005
 
-    self.flw = Wheel(
+    self.fl = Wheel(
       pos_center_offset=pr.Vector2(-size.x / 2, -size.y / 2),
       size=pr.Vector2(8, 15),
     )
-    self.frw = Wheel(
+    self.fr = Wheel(
       pos_center_offset=pr.Vector2(size.x / 2, -size.y / 2),
       size=pr.Vector2(8, 15),
     )
-    self.rlw = Wheel(
+    self.rl = Wheel(
       pos_center_offset=pr.Vector2(-size.x / 2, size.y / 2),
       size=pr.Vector2(12, 15),
     )
-    self.rrw = Wheel(
+    self.rr = Wheel(
       pos_center_offset=pr.Vector2(size.x / 2, size.y / 2),
       size=pr.Vector2(12, 15),
     )
@@ -91,17 +92,17 @@ class Car:
   def draw(self, alpha):
     self.render_pos = pr.vector2_lerp(self.prev_pos, self.pos, alpha)
 
-    angle_deg = math.degrees(self.angle_rad)
+    self.angle_deg = math.degrees(self.angle_rad)
 
     # Change to an actual texture
     rec = pr.Rectangle(self.render_pos.x, self.render_pos.y, self.size.x, self.size.y)
     pr.draw_rectangle_pro(
-      rec, pr.Vector2(self.size.x / 2, self.size.y / 2), angle_deg, pr.RED
+      rec, pr.Vector2(self.size.x / 2, self.size.y / 2), self.angle_deg, pr.RED
     )
-    self.flw.draw(self.render_pos, angle_deg)
-    self.frw.draw(self.render_pos, angle_deg)
-    self.rlw.draw(self.render_pos, angle_deg)
-    self.rrw.draw(self.render_pos, angle_deg)
+    self.fl.draw(self.render_pos, self.angle_deg)
+    self.fr.draw(self.render_pos, self.angle_deg)
+    self.rl.draw(self.render_pos, self.angle_deg)
+    self.rr.draw(self.render_pos, self.angle_deg)
 
 
 class Wheel:

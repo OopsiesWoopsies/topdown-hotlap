@@ -28,10 +28,10 @@ while not pr.window_should_close():
 
   alpha = accumulator / fixed_dt
 
-  render_pos = pr.vector2_lerp(world.car.prev_pos, world.car.pos, alpha)
-  renderer.camera.target = renderer.camera.target = pr.vector2_lerp(
+  renderer.camera.target = pr.vector2_lerp(
     renderer.camera.target, world.car.render_pos, 0.15
   )
+  renderer.camera.rotation = -world.car.angle_deg
 
   pr.begin_drawing()
   pr.clear_background(pr.DARKGRAY)
