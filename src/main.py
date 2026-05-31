@@ -28,11 +28,6 @@ while not pr.window_should_close():
 
   alpha = accumulator / fixed_dt
 
-  renderer.camera.target = pr.vector2_lerp(
-    renderer.camera.target, world.car.render_pos, 0.15
-  )
-  renderer.camera.rotation = -world.car.angle_deg
-
   pr.begin_drawing()
   pr.clear_background(pr.DARKGRAY)
 
@@ -40,6 +35,12 @@ while not pr.window_should_close():
   pr.draw_rectangle(0, 0, 100, 100, pr.WHITE)
 
   renderer.draw(world, alpha)
+
+  renderer.camera.target = pr.vector2_lerp(
+    renderer.camera.target, world.car.render_pos, 0.15
+  )
+  renderer.camera.rotation = -world.car.angle_deg
+
   for x in range(-5000, 5000, 100):
     pr.draw_line(x, -5000, x, 5000, pr.GRAY)
 

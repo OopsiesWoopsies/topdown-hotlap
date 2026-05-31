@@ -16,6 +16,7 @@ class Car:
 
     self.angle_rad = math.radians(angle_deg)
     self.angle_deg = angle_deg
+    self.render_angle = angle_deg
     self.prev_angle = self.angle_rad
 
     self.direction = pr.Vector2(math.sin(self.angle_rad), -math.cos(self.angle_rad))
@@ -91,8 +92,9 @@ class Car:
 
   def draw(self, alpha):
     self.render_pos = pr.vector2_lerp(self.prev_pos, self.pos, alpha)
+    self.render_angle = self.lerp_angle(self.prev_angle, self.angle_rad, alpha)
 
-    self.angle_deg = math.degrees(self.angle_rad)
+    self.angle_deg = math.degrees(self.render_angle)
 
     # Change to an actual texture
     rec = pr.Rectangle(self.render_pos.x, self.render_pos.y, self.size.x, self.size.y)
@@ -103,6 +105,11 @@ class Car:
     self.fr.draw(self.render_pos, self.angle_deg)
     self.rl.draw(self.render_pos, self.angle_deg)
     self.rr.draw(self.render_pos, self.angle_deg)
+
+
+  def lerp_angle(self, a: float, b: float, t:float):
+    diff = (b - a + math.pi) % (2 * math.pi) - math.pi
+    return a + diff * t
 
 
 class Wheel:
