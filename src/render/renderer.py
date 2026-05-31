@@ -6,7 +6,7 @@ from game.world import World
 class Renderer:
   def __init__(self, screen_width, screen_height):
     self.camera = pr.Camera2D(
-      pr.Vector2(screen_width / 2, screen_height * 0.6),
+      pr.Vector2(screen_width / 2, screen_height * 0.7),
       pr.Vector2(0, 0),
       0,
       1.0

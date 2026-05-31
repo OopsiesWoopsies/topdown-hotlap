@@ -36,9 +36,7 @@ while not pr.window_should_close():
 
   renderer.draw(world, alpha)
 
-  renderer.camera.target = pr.vector2_lerp(
-    renderer.camera.target, world.car.render_pos, 0.15
-  )
+  renderer.camera.target = world.car.render_pos
   renderer.camera.rotation = -world.car.angle_deg
 
   for x in range(-5000, 5000, 100):
