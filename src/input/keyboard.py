@@ -18,7 +18,7 @@ class Keyboard:
   def get_steering(self):
     center_x = pr.get_screen_width() / 2
     steer = self.sens * (pr.get_mouse_position().x - center_x) / center_x
-    
+
     if abs(steer) < self.straight:
       steer = 0
-    return max(-1, min(1, steer))
+    return pr.clamp(steer, -1, 1)
