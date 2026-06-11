@@ -39,11 +39,11 @@ while not pr.window_should_close():
   renderer.camera.target = world.car.pos
   renderer.camera.rotation = -world.car.angle_deg
 
-  for x in range(-5000, 5000, 100):
-    pr.draw_line(x, -5000, x, 5000, pr.GRAY)
+  for x in range(-50000, 50000, 100):
+    pr.draw_line(x, -50000, x, 50000, pr.GRAY)
 
-  for y in range(-5000, 5000, 100):
-    pr.draw_line(-5000, y, 5000, y, pr.GRAY)
+  for y in range(-50000, 50000, 100):
+    pr.draw_line(-50000, y, 50000, y, pr.GRAY)
 
   renderer.end_world()
 
