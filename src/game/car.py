@@ -7,6 +7,7 @@ class Car:
   def __init__(self, pos: pr.Vector2, angle_deg: float, size: pr.Vector2):
     self.pos = pos
     self.size = size
+    self.mass = 1200.0
     self.angle_deg = angle_deg
 
     self.vel = pr.Vector2(0, 0)
@@ -14,9 +15,18 @@ class Car:
     self.max_lateral_accel = 10.0
 
     self.wheelbase = 60.0
+    self.front_axle = self.wheelbase * 0.5
+    self.rear_axle = self.wheelbase * 0.5
+
+    self.inertia = self.mass * (self.wheelbase**2) * 0.001
+
     self.max_steer = 50.0
+    self.steer_angle = 0.0
+    self.steer_speed = math.radians(90)
+
     self.grip = 5.0
-    self.cornering_stiffness = 10.0
+    self.front_stiffness = 1200.0
+    self.rear_stiffness = 800.0
 
     self.engine_power = 800.0
     self.brake_power = 600.0
@@ -24,27 +34,26 @@ class Car:
     self.air_resist = 0.3
 
   def update(self, dt: float, throttle: bool, brake: bool, steer: float):
-    self.update_steering(dt, steer)
-    self.update_physics(dt, throttle, brake)
+    yaw_torque = self.update_physics(dt, throttle, brake, steer)
+    self.integrate_rotation(dt, yaw_torque)
     self.update_pos(dt)
 
-  def update_steering(self, dt: float, steer: float):
-    angle_rad = math.radians(self.angle_deg)
-    forward = pr.Vector2(math.sin(angle_rad), -math.cos(angle_rad))
-    forward_speed = pr.vector2_dot_product(self.vel, forward)
-
-    steer_angle = math.radians(self.max_steer) * steer
-    target_yaw_rate = forward_speed / self.wheelbase * math.tan(steer_angle)
-
-    yaw_response = 1
-    self.angular_velocity += (
-      (target_yaw_rate - self.angular_velocity) * yaw_response * dt
-    )
+  def integrate_rotation(self, dt: float, yaw_torque: float):
+    angular_accel = yaw_torque / self.inertia
+    self.angular_velocity += angular_accel * dt
+    self.angular_velocity -= self.angular_velocity * 1.5 * dt
 
     self.angle_deg += math.degrees(self.angular_velocity) * dt
 
-  def update_physics(self, dt: float, throttle: bool, brake: bool):
+  def update_physics(self, dt: float, throttle: bool, brake: bool, steer: float):
     tire_fric = 2
+    target_steer = math.radians(self.max_steer) * steer
+
+    if self.steer_angle < target_steer:
+      self.steer_angle = min(self.steer_angle + self.steer_speed * dt, target_steer)
+    else:
+      self.steer_angle = max(self.steer_angle - self.steer_speed * dt, target_steer)
+
     angle_rad = math.radians(self.angle_deg)
     forward = pr.Vector2(math.sin(angle_rad), -math.cos(angle_rad))
     right = pr.Vector2(math.cos(angle_rad), math.sin(angle_rad))
@@ -67,27 +76,45 @@ class Car:
 
     lateral_speed -= lateral_speed * tire_fric * dt
 
-    if forward_speed < 0:
-      forward_speed = 0
-
-    slip_angle = math.atan2(lateral_speed, max(abs(forward_speed), 1.0))
-    lateral_force = -slip_angle * self.cornering_stiffness
-    lateral_force = pr.clamp(
-      lateral_force, -self.max_lateral_accel, self.max_lateral_accel
+    front_slip_angle = (
+      math.atan2(
+        lateral_speed + self.angular_velocity * self.front_axle,
+        max(abs(forward_speed), 1.0),
+      )
+      - self.steer_angle
     )
 
-    lateral_speed += lateral_force * dt
+    rear_slip_angle = math.atan2(
+      lateral_speed - self.angular_velocity * self.rear_axle,
+      max(abs(forward_speed), 1.0),
+    )
+    front_force = -front_slip_angle * self.front_stiffness
+    rear_force = -rear_slip_angle * self.rear_stiffness
+
+    total_lateral_force = front_force + rear_force
+    lateral_accel = total_lateral_force / self.mass
+    lateral_speed += lateral_accel * dt
 
     self.vel.x = forward.x * forward_speed + right.x * lateral_speed
     self.vel.y = forward.y * forward_speed + right.y * lateral_speed
 
     speed = pr.vector2_length(self.vel)
 
+    yaw_torque = front_force * self.front_axle - rear_force * self.rear_axle
+
     print(
-      f"{[f'{self.vel.x:<20.5f}', f'{self.vel.y:<20.5f}']} {
-        [f'{speed:<20.5f}', f'{forward_speed:<20.5f}', f'{lateral_speed:<20.5f}']
-      } {math.degrees(slip_angle):<20.5f} {self.angular_velocity:<20.5f}"
+      f"{[f'VX {self.vel.x:<20.5f}', f'VY {self.vel.y:<20.5f}']} {
+        [f'S {speed:<20.5f}', f'F {forward_speed:<20.5f}', f'L {lateral_speed:<20.5f}']
+      } {
+        [
+          f'FSA {math.degrees(front_slip_angle):<20.5f}',
+          f'RSA {math.degrees(rear_slip_angle):<20.5f}'
+        ]
+      } {[f'AV {self.angular_velocity:<20.5f}', f'YT {yaw_torque:<20.5f}']}, SA {
+        self.steer_angle:<20.5f}"
     )
+
+    return yaw_torque
 
   def update_pos(self, dt: float):
     self.pos.x += self.vel.x * dt
