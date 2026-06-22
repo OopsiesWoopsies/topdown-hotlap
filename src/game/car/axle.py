@@ -1,0 +1,57 @@
+import math
+
+import pyray as pr
+
+from game.car.tire import Tire
+from game.constants import PIXELS_PER_METER
+
+
+class Axle:
+  def __init__(
+    self,
+    pos: pr.Vector2,
+    distance_to_center: float,
+    track_width: float,
+    angle_rad: float,
+    tire_width: float,
+    tire_mass: float,
+    tire_weight: float
+  ):
+    self.pos = pos
+    self.distance_to_center = distance_to_center
+    self.track_width = track_width
+    self.axle_width = 0.05
+
+    right = pr.Vector2(-math.sin(angle_rad), math.cos(angle_rad))
+
+    left_tire_pos = pr.vector2_subtract(
+      self.pos, pr.vector2_scale(right, self.track_width / 2)
+    )
+    right_tire_pos = pr.vector2_add(
+      self.pos, pr.vector2_scale(right, self.track_width / 2)
+    )
+    self.left_tire = Tire(left_tire_pos, tire_width, tire_mass, tire_weight)
+    self.right_tire = Tire(right_tire_pos, tire_width, tire_mass, tire_weight)
+
+  def update_position(self, car_pos: pr.Vector2, forward: float, right: float):
+    self.pos = pr.vector2_add(
+      car_pos, pr.vector2_scale(forward, self.distance_to_center)
+    )
+
+    self.left_tire.update_position(
+      pr.vector2_subtract, self.pos, right, self.track_width
+    )
+    self.right_tire.update_position(pr.vector2_add, self.pos, right, self.track_width)
+
+  def draw(self, angle_deg: float):
+    pos_draw = pr.vector2_scale(self.pos, PIXELS_PER_METER)
+    axle_width_draw = self.axle_width * PIXELS_PER_METER
+    track_width_draw = self.track_width * PIXELS_PER_METER
+
+    rec = pr.Rectangle(pos_draw.x, pos_draw.y, axle_width_draw, track_width_draw)
+    origin = pr.Vector2(axle_width_draw / 2, track_width_draw / 2)
+
+    pr.draw_rectangle_pro(rec, origin, angle_deg, pr.BLACK)
+
+    self.left_tire.draw(angle_deg)
+    self.right_tire.draw(angle_deg)

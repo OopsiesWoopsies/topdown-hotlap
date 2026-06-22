@@ -1,13 +1,13 @@
 import pyray as pr
 
-from game.car import Car
+from game.car.car_body import Car
 from input.keyboard import Keyboard
 
 
 class World:
   def __init__(self):
     self.keyboard = Keyboard()
-    self.car = Car(pos=pr.Vector2(0, 0), angle_deg=180, size=pr.Vector2(30, 60))
+    self.car = Car(pos=pr.Vector2(0, 0), angle_deg=180, size=pr.Vector2(5.2, 1.9))
     # timer, track, ghost, collision
 
   def update(self, dt):

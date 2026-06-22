@@ -9,13 +9,13 @@ class Keyboard:
 
     self.straight = 0.05
 
-  def get_inputs(self):
+  def get_inputs(self) -> dict[str]:
     throttle = pr.is_mouse_button_down(self.throttle_keybind)
     brake = pr.is_mouse_button_down(self.brake_keybind)
 
     return {"throttle": throttle, "brake": brake}
 
-  def get_steering(self):
+  def get_steering(self) -> float:
     center_x = pr.get_screen_width() / 2
     steer = self.sens * (pr.get_mouse_position().x - center_x) / center_x
 
