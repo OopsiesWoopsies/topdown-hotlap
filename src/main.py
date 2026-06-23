@@ -57,7 +57,7 @@ while not pr.window_should_close():
   print(debug_vals)
   text1 = f"Accel: {debug_vals['Accel']}\nLocal Accel: {debug_vals['LAccel']}\nVelo: {debug_vals['Velo']}\nLocal Velo: {debug_vals['LVelo']}\n"
   text2 = f"Speed: {debug_vals['Speed']}\nLongF: {debug_vals['LongF']}\nTractionF: {debug_vals['TractionF']}\nDragF: {debug_vals['DragF']}\n"
-  text3 = f"DriveT: {debug_vals['DriveT']}\nBrakeT: {debug_vals['BrakeT']}\nAvgOmega: {debug_vals['AvgOmg']}\n"
+  text3 = f"DriveT: {debug_vals['DriveT']}\nBrakeT: {debug_vals['BrakeF']}\n"
   text4 = f"FLTire: {debug_vals['FLTire']}\nFRTire: {debug_vals['FRTire']}\nRLTire: {debug_vals['RLTire']}\nRRTire: {debug_vals['RRTire']}\n"
   text5 = f"EngRPM: {debug_vals['EngRPM']}\nGear: {debug_vals['Gear']}"
   text = text1 + text2 + text3 + text4 + text5

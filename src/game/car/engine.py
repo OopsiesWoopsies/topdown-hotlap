@@ -5,21 +5,11 @@ import pyray as pr
 ENGINE_BRAKE = 75.0  # Nm
 
 
-def torque_curve(rpm: float) -> float:
-  peak_rpm = 12000.0  # RPM
-  max_torque = 400.0  # Nm
-
-  x = rpm / peak_rpm
-  x = pr.clamp(x, 0.0, 1.0)
-
-  return max_torque * x * (2 - x)
-
-
 class Engine:
   def __init__(self):
     # Engine constants
     self.trans_efficiency = 0.95
-    self.gear_ratios = [3.3, 2.4, 1.85, 1.5, 1.15, 0.97, 0.8, 0.68]
+    self.gear_ratios = [3.5, 2.9, 2.4, 2.0, 1.7, 1.46, 1.28, 1.13]
     self.final_drive = 4.0
     self.gear = 0
     self.clutch = 1.0
@@ -27,6 +17,7 @@ class Engine:
 
     # Limits
     self.redline = 15000.0  # RPM
+    self.peak_rpm = 12000.0  # RPM
     self.idle_rpm = 5000.0  # RPM
 
     self.rpm = self.idle_rpm
@@ -35,19 +26,26 @@ class Engine:
   def get_rpm(self) -> float:
     return self.rpm
 
-  def get_drive_torque(self, dt: float, wheel_omega: float, throttle: bool) -> float:
+  def torque_curve(self, rpm: float) -> float:
+    max_torque = 400.0  # Nm
+
+    x = rpm / self.peak_rpm
+    x = max(0.0, x)
+
+    return max_torque * ( 1.0 - (x - 1.0) ** 2)
+
+  def get_drive_torque(
+    self, dt: float, throttle: float, long_velo: float, tire_radius: float
+  ) -> float:
     gear_ratio = self.gear_ratios[self.gear]
-    target_rpm = wheel_omega * gear_ratio * self.final_drive * 60 / (2 * math.pi)
-    if wheel_omega < 5.0 and self.rpm > 3000:
-      self.clutch = 0.0
-    else:
-      self.clutch = 1.0
+    wheel_rpm = abs(long_velo) / tire_radius * 60 / (2 * math.pi)
+    target_rpm = wheel_rpm * gear_ratio * self.final_drive
 
-    self.rpm += (target_rpm - self.rpm) * self.clutch * 10.0 * dt
+    self.rpm += (target_rpm - self.rpm) * 10.0 * dt
+    self.rpm = pr.clamp(self.rpm, self.idle_rpm, self.redline)
 
-    self.rpm = max(self.rpm, self.idle_rpm)
-    if throttle:
-      engine_torque = torque_curve(self.rpm)
+    if throttle > 0:
+      engine_torque = self.torque_curve(self.rpm) * throttle
     else:
       engine_torque = -ENGINE_BRAKE
 

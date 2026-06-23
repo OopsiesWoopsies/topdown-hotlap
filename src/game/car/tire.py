@@ -1,3 +1,4 @@
+import math
 from collections.abc import Callable
 
 import pyray as pr
@@ -8,59 +9,23 @@ from game.constants import PIXELS_PER_METER
 class Tire:
   def __init__(self, pos: pr.Vector2, width: float, mass: float, weight: float):
     self.pos = pos
-    self.grip = 2.0
     self.radius = 0.35  # m
     self.width = width
     self.mass = mass  # kg
     self.weight = weight  # N
-    self.traction_stiffness = 3000
+    self.mu = 1.9
 
-    self.omega = 0.0  # rad/s
-    self.inertia = self.mass * self.radius**2 / 2  # kg * m^2
-    self.slip_ratio = 0.0
+    self.traction_ratio = 0.0
     self.traction_f = 0.0
 
-  def update_slip_ratio(self, long_velo: float):
-    self.slip_ratio = (self.omega * self.radius - long_velo) / max(abs(long_velo), 1.0)
+  def update_traction_ratio(self, torque: float):
+    desired_f = torque / self.radius
+    max_force = self.mu * self.weight
+    self.traction_ratio = desired_f / max_force
+    self.traction_ratio = pr.clamp(self.traction_ratio, -2.0, 2.0)
 
-  def update_motorized_omega(
-    self,
-    dt: float,
-    drive_torque: float,
-    brake_torque: float,
-    long_velo: float,
-    throttle: bool,
-  ):
-    if not throttle and abs(long_velo) < 0.5:
-      self.omega = 0.0
-      return
-
-    traction_t = self.traction_f * self.radius
-    net_torque = drive_torque - traction_t - brake_torque
-    new_omega = self.omega + net_torque / self.inertia * dt
-
-    # Prevent brakes from instantly reversing wheel direction
-    if self.omega > 0 and new_omega < 0:
-      new_omega = 0.0
-
-    elif self.omega < 0 and new_omega > 0:
-      new_omega = 0.0
-
-    self.omega = new_omega
-
-  def update_reg_omega(self, long_velo: float, throttle: bool):
-    if not throttle and abs(long_velo) < 0.5:
-      self.omega = 0.0
-    else:
-      self.omega = long_velo / self.radius
-
-  def update_traction_force(self, mu: float):
-    traction_f = self.traction_stiffness * self.slip_ratio
-    raw = mu * self.weight
-    self.traction_f = pr.clamp(traction_f, -raw, raw)
-
-  def get_traction_torque(self) -> float:
-    return self.traction_f * self.radius
+  def update_traction_force(self):
+    self.traction_f = self.mu * self.weight * math.tanh(2.0 * self.traction_ratio)
 
   def get_traction_force(self) -> float:
     return self.traction_f
