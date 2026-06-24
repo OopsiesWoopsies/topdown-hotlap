@@ -17,7 +17,7 @@ class Engine:
 
     # Limits
     self.redline = 15000.0  # RPM
-    self.peak_rpm = 12000.0  # RPM
+    self.peak_rpm = 10000.0  # RPM
     self.idle_rpm = 5000.0  # RPM
 
     self.rpm = self.idle_rpm

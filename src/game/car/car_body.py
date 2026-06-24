@@ -18,7 +18,7 @@ DEBUG_VALS = {
   "TractionF": 0,
   "DragF": 0,
   "DriveT": 0,
-  "BrakeF": 0,
+  "BrakeT": 0,
   "AvgOmg": 0,
   "EngRPM": 0,
   "Gear": 0,
@@ -88,9 +88,10 @@ class Car:
     self.velo = pr.Vector2(0, 0)
 
     # Movement constants
-    self.brake_c = 12000 * 1  # Nm
+    self.brake_c = 4000 * 1  # N
     self.drag_c = 0.7
     self.roll_resist = 0.015
+    self.downforce_c = 3.5
 
   def update(self, dt: float, throttle: bool, brake: bool, steer: float):
     self.update_physics(dt, throttle, brake)
@@ -102,8 +103,13 @@ class Car:
     # Update velocity (car)
     self.local_velo.x = self.velo.x * forward.x + self.velo.y * forward.y
     self.local_velo.y = self.velo.y * forward.x - self.velo.x * forward.y
+    speed = pr.vector2_length(self.local_velo)
 
     # Weight transfer
+    downforce = self.downforce_c * speed * speed
+    front_downforce_tire = downforce * self.cg_to_front / 2
+    rear_downforce_tire = downforce * self.cg_to_rear / 2
+
     temp = self.weight_transfer * self.cg_height * self.mass
     transfer_x = temp * self.local_accel.x / self.wheelbase / 2
     transfer_y = temp * self.local_accel.y / self.track_width / 2
@@ -111,26 +117,35 @@ class Car:
     weight_front = self.front_static - transfer_x
     weight_rear = self.rear_static + transfer_x
 
-    self.front_axle.left_tire.weight = weight_front - transfer_y
-    self.front_axle.right_tire.weight = weight_front + transfer_y
-    self.rear_axle.left_tire.weight = weight_rear - transfer_y
-    self.rear_axle.right_tire.weight = weight_rear + transfer_y
+    self.front_axle.left_tire.weight = weight_front - transfer_y + front_downforce_tire
+    self.front_axle.right_tire.weight = weight_front + transfer_y + front_downforce_tire
+    self.rear_axle.left_tire.weight = weight_rear - transfer_y + rear_downforce_tire
+    self.rear_axle.right_tire.weight = weight_rear + transfer_y + rear_downforce_tire
 
     # Building longitudinal force
-    drive_t = self.engine.get_drive_torque(dt, throttle, self.velo.x, self.rear_axle.left_tire.radius)
-    brake_f = self.brake_c * brake * math.copysign(1, self.local_velo.x)
+    drive_t = self.engine.get_drive_torque(
+      dt, throttle, self.local_velo.x, self.rear_axle.left_tire.radius
+    )
+    brake_t = self.brake_c * brake * math.copysign(1, self.local_velo.x)
 
     drive_t /= 2
+    brake_t /= 2
 
     # Compute slip ratios for each tire and traction forces and tire omegas for motorized tires
     for tire in [self.rear_axle.left_tire, self.rear_axle.right_tire]:
       tire.update_traction_ratio(drive_t)
       tire.update_traction_force()
+      tire.update_brake_ratio(brake_t)
 
     # Update gear
     self.engine.update_shift(self.engine.get_rpm())
 
-    # Compute long traction force
+    brake_f = (
+      self.rear_axle.left_tire.get_brake_force()
+      + self.rear_axle.right_tire.get_brake_force()
+    )
+
+    # Compute long force
     drive_f = (
       self.rear_axle.left_tire.get_traction_force()
       + self.rear_axle.right_tire.get_traction_force()
@@ -139,7 +154,6 @@ class Car:
     traction_f_x = drive_f - brake_f
     traction_f_y = 0
 
-    speed = pr.vector2_length(self.local_velo)
     drag_f_x = (
       -self.roll_resist * self.local_velo.x - self.drag_c * self.local_velo.x * speed
     )
@@ -180,7 +194,7 @@ class Car:
       "TractionF": [f"{traction_f_x:>12.5f}", f"{traction_f_y:>12.5f}"],
       "DragF": [f"{drag_f_x:>12.5f}", f"{drag_f_y:>12.5f}"],
       "DriveT": f"{drive_t:>13.5f}",
-      "BrakeF": f"{brake_f:>13.5f}",
+      "BrakeT": f"{brake_t:>13.5f}",
       "EngRPM": f"{self.engine.rpm:>12.5f}",
       "Gear": f"{self.engine.gear + 1:>12.5f}",
     }
@@ -225,21 +239,25 @@ class Car:
 
   def get_debug_vals(self) -> dict:
     debug_fl_tire = {
+      "BrakeR": f"{self.front_axle.left_tire.brake_ratio:>12.5f}",
       "TractionR": f"{self.front_axle.left_tire.traction_ratio:>12.5f}",
       "TracF": f"{self.front_axle.left_tire.traction_f:>12.5f}",
       "Weight": f"{self.front_axle.left_tire.weight:>12.5f}",
     }
     debug_fr_tire = {
+      "BrakeR": f"{self.front_axle.right_tire.brake_ratio:>12.5f}",
       "TractionR": f"{self.front_axle.right_tire.traction_ratio:>12.5f}",
       "TracF": f"{self.front_axle.right_tire.traction_f:>12.5f}",
       "Weight": f"{self.front_axle.right_tire.weight:>12.5f}",
     }
     debug_rl_tire = {
+      "BrakeR": f"{self.rear_axle.left_tire.brake_ratio:>12.5f}",
       "TractionR": f"{self.rear_axle.left_tire.traction_ratio:>12.5f}",
       "TracF": f"{self.rear_axle.left_tire.traction_f:>12.5f}",
       "Weight": f"{self.rear_axle.left_tire.weight:>12.5f}",
     }
     debug_rr_tire = {
+      "BrakeR": f"{self.rear_axle.right_tire.brake_ratio:>12.5f}",
       "TractionR": f"{self.rear_axle.right_tire.traction_ratio:>12.5f}",
       "TracF": f"{self.rear_axle.right_tire.traction_f:>12.5f}",
       "Weight": f"{self.rear_axle.right_tire.weight:>12.5f}",

@@ -15,20 +15,31 @@ class Tire:
     self.weight = weight  # N
     self.mu = 1.9
 
+    self.omega = 0.0  # Rad/s
     self.traction_ratio = 0.0
+    self.brake_ratio = 0.0
     self.traction_f = 0.0
 
   def update_traction_ratio(self, torque: float):
     desired_f = torque / self.radius
     max_force = self.mu * self.weight
-    self.traction_ratio = desired_f / max_force
-    self.traction_ratio = pr.clamp(self.traction_ratio, -2.0, 2.0)
+    traction_ratio = desired_f / max_force
+    self.traction_ratio = pr.clamp(traction_ratio, -2.0, 2.0)
+
+  def update_brake_ratio(self, torque: float):
+    desired_f = torque / self.radius
+    max_force = self.mu * self.weight
+    brake_ratio = desired_f / max_force
+    self.brake_ratio = pr.clamp(brake_ratio, -2.0, 2.0)
 
   def update_traction_force(self):
-    self.traction_f = self.mu * self.weight * math.tanh(2.0 * self.traction_ratio)
+    self.traction_f = self.mu * self.weight * math.tanh(1.8 * self.traction_ratio)
 
   def get_traction_force(self) -> float:
     return self.traction_f
+
+  def get_brake_force(self) -> float:
+    return self.mu * self.weight * math.tanh(3.0 * self.brake_ratio)
 
   def update_position(
     self,
