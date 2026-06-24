@@ -34,12 +34,14 @@ class Car:
     self.render_pos = pr.vector2_scale(pos, PIXELS_PER_METER)
     self.mass = 750  # kg
     self.cg_to_front = 0.45  # %
-    self.cg_to_rear = 0.55  # %
+    self.cg_to_rear = 1 - self.cg_to_front  # %
     self.cg_height = 0.3  # m
     self.cg = pr.Vector2(0, (self.size.x * 0.45 - self.size.x / 2))  # m
     self.angle_rad = math.radians(angle_deg)
     self.weight_transfer = 1.0
     self.track_width = 1.9  # m
+    self.brake_bias_front = 0.65  # %
+    self.brake_bias_rear = 1 - self.brake_bias_front  # %
 
     self.front_dist_from_center = self.size.x * 0.26  # m
     self.rear_dist_from_center = -self.size.x * 0.43  # m
@@ -50,6 +52,12 @@ class Car:
 
     self.front_static = self.mass * -_GRAVITY * dist_cg_front_axle / self.wheelbase / 2
     self.rear_static = self.mass * -_GRAVITY * dist_cg_rear_axle / self.wheelbase / 2
+
+    # Movement constants
+    self.brake_c = 10000 * 1  # N
+    self.drag_c = 0.7
+    self.roll_resist = 0.015
+    self.downforce_c = 3.5
 
     # Axles
     forward = pr.Vector2(math.cos(self.angle_rad), math.sin(self.angle_rad))
@@ -86,12 +94,6 @@ class Car:
     self.accel = pr.Vector2(0, 0)
     self.local_velo = pr.Vector2(0, 0)
     self.velo = pr.Vector2(0, 0)
-
-    # Movement constants
-    self.brake_c = 4000 * 1  # N
-    self.drag_c = 0.7
-    self.roll_resist = 0.015
-    self.downforce_c = 3.5
 
   def update(self, dt: float, throttle: bool, brake: bool, steer: float):
     self.update_physics(dt, throttle, brake)
@@ -131,26 +133,33 @@ class Car:
     drive_t /= 2
     brake_t /= 2
 
+    drive_f = 0
+    brake_f = 0
+
     # Compute slip ratios for each tire and traction forces and tire omegas for motorized tires
     for tire in [self.rear_axle.left_tire, self.rear_axle.right_tire]:
       tire.update_traction_ratio(drive_t)
       tire.update_traction_force()
-      tire.update_brake_ratio(brake_t)
+      tire.update_brake_ratio(brake_t * self.brake_bias_rear)
+
+      # Accumulate drive force
+      drive_f += tire.get_traction_force()
+
+    for tire in [self.front_axle.left_tire, self.front_axle.right_tire]:
+      tire.update_brake_ratio(brake_t * self.brake_bias_front)
+
+      # Accumulate brake force
+      brake_f += tire.get_brake_force()
 
     # Update gear
     self.engine.update_shift(self.engine.get_rpm())
 
-    brake_f = (
-      self.rear_axle.left_tire.get_brake_force()
-      + self.rear_axle.right_tire.get_brake_force()
+    brake_f += (
+      self.front_axle.left_tire.get_brake_force()
+      + self.front_axle.right_tire.get_brake_force()
     )
 
     # Compute long force
-    drive_f = (
-      self.rear_axle.left_tire.get_traction_force()
-      + self.rear_axle.right_tire.get_traction_force()
-    )
-
     traction_f_x = drive_f - brake_f
     traction_f_y = 0
 

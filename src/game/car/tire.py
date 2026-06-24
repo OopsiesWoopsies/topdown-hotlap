@@ -39,7 +39,7 @@ class Tire:
     return self.traction_f
 
   def get_brake_force(self) -> float:
-    return self.mu * self.weight * math.tanh(3.0 * self.brake_ratio)
+    return self.mu * self.weight * math.tanh(1.0 * self.brake_ratio)
 
   def update_position(
     self,
