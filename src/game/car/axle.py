@@ -33,6 +33,9 @@ class Axle:
     self.left_tire = Tire(left_tire_pos, tire_width, tire_mass, tire_weight)
     self.right_tire = Tire(right_tire_pos, tire_width, tire_mass, tire_weight)
 
+  def get_weight(self) -> float:
+    return self.left_tire.weight + self.right_tire.weight
+
   def update_position(self, car_pos: pr.Vector2, forward: float, right: float):
     self.pos = pr.vector2_add(
       car_pos, pr.vector2_scale(forward, self.distance_to_center)
