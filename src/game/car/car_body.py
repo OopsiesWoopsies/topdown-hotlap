@@ -58,8 +58,8 @@ class Car:
     self.max_steer_angle = 30  # Deg
     self.steer_angle = 0.0  # Deg
     self.steer_step = 0.7  # Deg
-    self.front_stiffness = 40000  # unit?
-    self.rear_stiffness = 50000  # unit?
+    self.front_stiffness = 40000  # N/rad
+    self.rear_stiffness = 50000  # N/rad
 
     self.front_dist_from_center = self.size.x * 0.26  # m
     self.rear_dist_from_center = -self.size.x * 0.43  # m
@@ -157,7 +157,7 @@ class Car:
 
     temp = self.weight_transfer * self.cg_height * self.mass
     transfer_x = temp * self.local_accel.x / self.wheelbase / 2
-    transfer_y = temp * self.local_accel.y / self.track_width / 2
+    transfer_y = -temp * self.local_accel.y / self.track_width / 2
 
     weight_front = self.front_static - transfer_x
     weight_rear = self.rear_static + transfer_x
