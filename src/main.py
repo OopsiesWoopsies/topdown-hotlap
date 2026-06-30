@@ -54,15 +54,15 @@ while not pr.window_should_close():
   pr.draw_text(text, 5, 30, 20, pr.BLACK)
 
   debug_vals = world.car.get_debug_vals()
-  print(debug_vals)
+  # print(debug_vals)
   text1 = f"Accel: {debug_vals['Accel']}\nLocal Accel: {debug_vals['LAccel']}\nVelo: {debug_vals['Velo']}\nLocal Velo: {debug_vals['LVelo']}\n"
   text2 = f"Speed: {debug_vals['Speed']}\nLongF: {debug_vals['LongF']}\nTractionF: {debug_vals['TractionF']}\nDragF: {debug_vals['DragF']}\n"
   text3 = f"DriveT: {debug_vals['DriveT']}\nBrakeT: {debug_vals['BrakeT']}\n"
   text4 = f"FLTire: {debug_vals['FLTire']}\nFRTire: {debug_vals['FRTire']}\nRLTire: {debug_vals['RLTire']}\nRRTire: {debug_vals['RRTire']}\n"
-  text5 = f"EngRPM: {debug_vals['EngRPM']}\nGear: {debug_vals['Gear']}\nSlip FnR: {debug_vals['SlipF']} | {debug_vals['SlipR']}\n"
+  text5 = f"EngRPM: {debug_vals['EngRPM']}\nGear: {debug_vals['Gear']}\n"
   text6 = f"SteerDeg: {debug_vals['SteerDeg']}\nYawRate: {debug_vals['YawRate']}\nLatF FnR: {debug_vals['LatFF']} | {debug_vals['LatFR']}\n"
   text = text1 + text2 + text3 + text4 + text5 + text6
-  pr.draw_text(text, 5, 90, 20, pr.BLACK)
+  pr.draw_text(text, 5, 100, 15, pr.BLACK)
 
   pr.draw_fps(0, 0)
   pr.end_drawing()

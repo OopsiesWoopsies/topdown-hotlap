@@ -30,8 +30,8 @@ class Axle:
     right_tire_pos = pr.vector2_add(
       self.pos, pr.vector2_scale(right, self.track_width / 2)
     )
-    self.left_tire = Tire(left_tire_pos, tire_width, tire_mass, tire_weight)
-    self.right_tire = Tire(right_tire_pos, tire_width, tire_mass, tire_weight)
+    self.left_tire = Tire(left_tire_pos, tire_width, tire_mass, tire_weight, 30000)
+    self.right_tire = Tire(right_tire_pos, tire_width, tire_mass, tire_weight, 40000)
 
   def get_weight(self) -> float:
     return self.left_tire.weight + self.right_tire.weight
@@ -46,7 +46,7 @@ class Axle:
     )
     self.right_tire.update_position(pr.vector2_add, self.pos, right, self.track_width)
 
-  def draw(self, angle_deg: float):
+  def draw(self, angle_deg: float, steer_deg: float):
     pos_draw = pr.vector2_scale(self.pos, PIXELS_PER_METER)
     axle_width_draw = self.axle_width * PIXELS_PER_METER
     track_width_draw = self.track_width * PIXELS_PER_METER
@@ -56,5 +56,5 @@ class Axle:
 
     pr.draw_rectangle_pro(rec, origin, angle_deg, pr.BLACK)
 
-    self.left_tire.draw(angle_deg)
-    self.right_tire.draw(angle_deg)
+    self.left_tire.draw(angle_deg, steer_deg)
+    self.right_tire.draw(angle_deg, steer_deg)
