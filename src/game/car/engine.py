@@ -32,7 +32,7 @@ class Engine:
     x = rpm / self.peak_rpm
     x = max(0.0, x)
 
-    return max_torque * ( 1.0 - (x - 1.0) ** 2)
+    return max_torque * (1.0 - (x - 1.0) ** 2)
 
   def get_drive_torque(
     self, dt: float, throttle: float, long_velo: float, tire_radius: float
