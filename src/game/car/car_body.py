@@ -52,8 +52,6 @@ class Car:
     self.max_steer_angle = 25  # Deg
     self.steer_angle = 0.0  # Deg
     self.steer_step = 0.7  # Deg
-    self.front_stiffness = 50000  # N/rad
-    self.rear_stiffness = 35000  # N/rad
 
     self.front_dist_from_center = self.size.x * 0.26  # m
     self.rear_dist_from_center = -self.size.x * 0.43  # m
@@ -71,7 +69,7 @@ class Car:
     )
 
     # Movement constants
-    self.brake_c = 10000 * 1  # N
+    self.brake_c = 10000  # N
     self.drag_c = 0.7
     self.roll_resist = 0.015
     self.downforce_c = 3.5
@@ -105,7 +103,6 @@ class Car:
       0.275,
       18.0,
       self.front_static,
-      self.front_stiffness,
     )
     self.rear_axle = Axle(
       rear_axle_pos,
@@ -116,7 +113,6 @@ class Car:
       0.375,
       21.0,
       self.rear_static,
-      self.rear_stiffness,
     )
 
   def update(self, dt: float, throttle: bool, brake: bool, steer: float):

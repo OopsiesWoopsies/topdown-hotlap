@@ -17,7 +17,6 @@ class Axle:
     tire_width: float,
     tire_mass: float,
     tire_weight: float,
-    stiffness: float
   ):
     self.local_pos = local_pos
     self.distance_to_center = distance_to_center
@@ -32,8 +31,8 @@ class Axle:
     right_tire_pos = pr.vector2_add(
       self.local_pos, pr.vector2_scale(right, self.track_width / 2)
     )
-    self.left_tire = Tire(left_tire_pos, tire_width, tire_mass, tire_weight, stiffness, pr.Vector2(distance_to_cg, -track_width / 2))
-    self.right_tire = Tire(right_tire_pos, tire_width, tire_mass, tire_weight, stiffness, pr.Vector2(distance_to_cg, track_width / 2))
+    self.left_tire = Tire(left_tire_pos, tire_width, tire_mass, tire_weight, pr.Vector2(distance_to_cg, -track_width / 2))
+    self.right_tire = Tire(right_tire_pos, tire_width, tire_mass, tire_weight, pr.Vector2(distance_to_cg, track_width / 2))
 
   def get_weight(self) -> float:
     return self.left_tire.weight + self.right_tire.weight

@@ -1,13 +1,13 @@
 import pyray as pr
 
 
-class Keyboard:
+class Control:
   def __init__(self):
     self.throttle_keybind = pr.MOUSE_LEFT_BUTTON
     self.brake_keybind = pr.MOUSE_RIGHT_BUTTON
     self.sens = 1
 
-    self.straight = 0.05
+    self.straight = 0.01
 
   def get_inputs(self) -> dict[str]:
     throttle = pr.is_mouse_button_down(self.throttle_keybind)

@@ -6,6 +6,30 @@ import pyray as pr
 from game.constants import PIXELS_PER_METER
 
 
+def pacejka_model(
+  B: float,
+  C: float,
+  D: float,
+  E: float,
+  angle_rad: float,
+) -> float:
+  """Uses the 5.2 magic formula for realistic tire physics.
+
+  Args:
+    B: The stiffness factor. Determines the slope of the curve at the origin.
+    C: The shape factor. Defines the limits of the sine function (dictates the peak value).
+    D: The peak factor. The maximum force (or whatever unit) the tire can generate.
+    E: The curvature factor. Controls the curvature and location of the peak force relative to slip.
+    angle: The slip angle in radians.
+
+  Returns:
+    float: A force (or whatever unit) the tires produces relative to the slip angle.
+  """
+  return D * math.sin(
+    C * math.atan(B * angle_rad - E * (B * angle_rad - math.atan(B * angle_rad)))
+  )
+
+
 class Tire:
   def __init__(
     self,
@@ -13,7 +37,6 @@ class Tire:
     width: float,
     mass: float,
     weight: float,
-    stiffness: float,
     local_coord: pr.Vector2,
   ):
     self.local_pos = local_pos
@@ -22,7 +45,6 @@ class Tire:
     self.width = width
     self.mass = mass  # kg
     self.weight = weight  # N
-    self.stiffness = stiffness
     self.mu = 1.9
 
     self.omega = 0.0  # Rad/s
@@ -38,8 +60,7 @@ class Tire:
     self.slip_angle = math.atan2(tire_velo.y, tire_velo.x)
 
   def update_lateral_force(self, max_force: float):
-    self.lateral_f = -self.stiffness * self.slip_angle
-    self.lateral_f = max_force * math.tanh(self.lateral_f / max_force)
+    self.lateral_f = -pacejka_model(10.3, 1.9, max_force, -0.7, self.slip_angle)
 
   def update_traction_ratio(self, torque: float, max_force: float):
     desired_f = torque / self.radius
