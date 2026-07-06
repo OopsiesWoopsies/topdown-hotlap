@@ -42,11 +42,11 @@ while not pr.window_should_close():
   angle_deg = math.degrees(world.car.angle_rad) + 90
   renderer.camera.rotation = -angle_deg
 
-  for x in range(-50000, 50000, 100):
-    pr.draw_line(x, -50000, x, 50000, pr.GRAY)
+  for x in range(-100000, 100000, 100):
+    pr.draw_line(x, -100000, x, 100000, pr.GRAY)
 
-  for y in range(-50000, 50000, 100):
-    pr.draw_line(-50000, y, 50000, y, pr.GRAY)
+  for y in range(-100000, 100000, 100):
+    pr.draw_line(-100000, y, 100000, y, pr.GRAY)
 
   renderer.end_world()
 
@@ -61,8 +61,9 @@ while not pr.window_should_close():
   text4 = f"FLTire: {debug_vals['FLTire']}\nFRTire: {debug_vals['FRTire']}\nRLTire: {debug_vals['RLTire']}\nRRTire: {debug_vals['RRTire']}\n"
   text5 = f"EngRPM: {debug_vals['EngRPM']}\nGear: {debug_vals['Gear']}\n"
   text6 = f"SteerDeg: {debug_vals['SteerDeg']}\nYawRate: {debug_vals['YawRate']}\n"
-  text = text1 + text2 + text3 + text4 + text5 + text6
-  pr.draw_text(text, 5, 100, 15, pr.BLACK)
+  text = text1 + text2 + text3 + text5 + text6
+  pr.draw_text(text, 5, 90, 20, pr.BLACK)
+  pr.draw_text(text4, 5, 400, 15, pr.BLACK)
 
   pr.draw_fps(0, 0)
   pr.end_drawing()

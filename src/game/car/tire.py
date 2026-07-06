@@ -38,7 +38,10 @@ class Tire:
     mass: float,
     weight: float,
     local_coord: pr.Vector2,
+    powered: bool,
   ):
+    # Constants
+    self.powered = powered
     self.local_pos = local_pos
     self.local_coord = local_coord
     self.radius = 0.35  # m
@@ -47,42 +50,53 @@ class Tire:
     self.weight = weight  # N
     self.mu = 1.9
 
+    # Variables
     self.omega = 0.0  # Rad/s
-    self.traction_ratio = 0.0
-    self.brake_ratio = 0.0
+    self.next_omega = 0.0  # Rad/s
+    self.velo = pr.Vector2(0, 0)  # m/s
+    self.inertia = mass * self.radius**2 / 2  # kg * m^2
+    self.drive_t = 0.0  # Nm
+    self.brake_t = 0.0  # Nm
+    self.slip_ratio = 0.0
     self.slip_angle = 0.0  # Rad
-    self.traction_f = 0.0  # N
-    self.brake_f = 0.0  # N
+    self.long_f = 0.0  # N
     self.lateral_f = 0.0  # N
     self.steer_rad = 0.0  # Rad
 
-  def update_slip_angle(self, tire_velo: pr.Vector2):
-    self.slip_angle = math.atan2(tire_velo.y, tire_velo.x)
+  def update_slip_ratio(self, dt: float):
+    wheel_speed = self.omega * self.radius
+    denom = max(abs(self.velo.x), 1.0)
+    target_slip = (wheel_speed - self.velo.x) / denom
+    dx = denom * dt
+    blend = dx / (0.3 + dx)
+
+    self.slip_ratio += (target_slip - self.slip_ratio) * blend
+
+  def update_slip_angle(self):
+    self.slip_angle = math.atan2(self.velo.y, self.velo.x)
 
   def update_lateral_force(self, max_force: float):
     self.lateral_f = -pacejka_model(10.3, 1.9, max_force, -0.7, self.slip_angle)
 
-  def update_traction_ratio(self, torque: float, max_force: float):
-    desired_f = torque / self.radius
-    traction_ratio = desired_f / max_force
-    self.traction_ratio = pr.clamp(traction_ratio, -2.0, 2.0)
+  def update_long_force(self, max_force: float):
+    self.long_f = pacejka_model(8, 1.6, max_force, -0.5, self.slip_ratio)
 
-  def update_brake_ratio(self, torque: float, max_force: float):
-    desired_f = torque / self.radius
-    brake_ratio = desired_f / max_force
-    self.brake_ratio = pr.clamp(brake_ratio, -2.0, 2.0)
+  def update_omega(self, dt: float, car_speed: float, throttle: bool, brake: bool):
+    net_torque = self.drive_t - self.brake_t - self.long_f * self.radius
+    alpha = net_torque / self.inertia
 
-  def update_traction_force(self, max_force: float):
-    self.traction_f = max_force * math.tanh(1.8 * self.traction_ratio)
+    omega = self.omega
+    if not throttle and car_speed < 0.1:
+      next_omega = 0.0
+    else:
+      next_omega = omega + alpha * dt
+    if brake and next_omega < 0:
+      next_omega = 0
 
-  def update_brake_force(self, max_force: float):
-    self.brake_f = max_force * math.tanh(1.0 * self.brake_ratio)
-
-  def update_steer_rad(self, steer_rad: float):
-    self.steer_rad = steer_rad
+    self.next_omega = next_omega
 
   def get_local_force(self, max_force: float) -> pr.Vector2:
-    fx = self.traction_f - self.brake_f
+    fx = self.long_f
     fy = self.lateral_f
 
     req_force = math.sqrt(fx**2 + fy**2)

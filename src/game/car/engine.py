@@ -35,11 +35,12 @@ class Engine:
     return max_torque * (1.0 - (x - 1.0) ** 2)
 
   def get_drive_torque(
-    self, dt: float, throttle: float, long_velo: float, tire_radius: float
+    self, dt: float, throttle: float, avg_tire_omega: float
   ) -> float:
     gear_ratio = self.gear_ratios[self.gear]
-    wheel_rpm = abs(long_velo) / tire_radius * 60 / (2 * math.pi)
-    target_rpm = wheel_rpm * gear_ratio * self.final_drive
+    target_rpm = (
+      abs(avg_tire_omega) * gear_ratio * self.final_drive * 60 / (2 * math.pi)
+    )
 
     self.rpm += (target_rpm - self.rpm) * 10.0 * dt
     self.rpm = pr.clamp(self.rpm, self.idle_rpm, self.redline)
