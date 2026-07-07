@@ -18,7 +18,7 @@ def pacejka_model(
   Args:
     B: The stiffness factor. Determines the slope of the curve at the origin.
     C: The shape factor. Defines the limits of the sine function (dictates the peak value).
-    D: The peak factor. The maximum force (or whatever unit) the tire can generate.
+    D: The peak factor. The maximum 'grip' the tire can provide.
     E: The curvature factor. Controls the curvature and location of the peak force relative to slip.
     angle: The slip angle in radians.
 
@@ -36,9 +36,11 @@ class Tire:
     local_pos: pr.Vector2,
     width: float,
     mass: float,
-    weight: float,
+    load: float,
     local_coord: pr.Vector2,
     powered: bool,
+    lat_pacejka_consts: dict[str, float],
+    long_pacejka_consts: dict[str, float],
   ):
     # Constants
     self.powered = powered
@@ -47,10 +49,11 @@ class Tire:
     self.radius = 0.35  # m
     self.width = width
     self.mass = mass  # kg
-    self.weight = weight  # N
-    self.mu = 1.9
+    self.lat_pacejka_consts = lat_pacejka_consts
+    self.long_pacejka_consts = long_pacejka_consts
 
     # Variables
+    self.load = load  # N
     self.omega = 0.0  # Rad/s
     self.next_omega = 0.0  # Rad/s
     self.velo = pr.Vector2(0, 0)  # m/s
@@ -75,11 +78,21 @@ class Tire:
   def update_slip_angle(self):
     self.slip_angle = math.atan2(self.velo.y, self.velo.x)
 
-  def update_lateral_force(self, max_force: float):
-    self.lateral_f = -pacejka_model(10.3, 1.9, max_force, -0.7, self.slip_angle)
+  def update_lateral_force(self):
+    B = self.lat_pacejka_consts["B"]
+    C = self.lat_pacejka_consts["C"]
+    D = self.lat_pacejka_consts["D"]
+    E = self.lat_pacejka_consts["E"]
 
-  def update_long_force(self, max_force: float):
-    self.long_f = pacejka_model(8, 1.6, max_force, -0.5, self.slip_ratio)
+    self.lateral_f = -pacejka_model(B, C, D, E, self.slip_angle) * self.load
+
+  def update_long_force(self):
+    B = self.long_pacejka_consts["B"]
+    C = self.long_pacejka_consts["C"]
+    D = self.long_pacejka_consts["D"]
+    E = self.long_pacejka_consts["E"]
+
+    self.long_f = pacejka_model(B, C, D, E, self.slip_ratio) * self.load
 
   def update_omega(self, dt: float, car_speed: float, throttle: bool, brake: bool):
     net_torque = self.drive_t - self.brake_t - self.long_f * self.radius
@@ -95,13 +108,16 @@ class Tire:
 
     self.next_omega = next_omega
 
-  def get_local_force(self, max_force: float) -> pr.Vector2:
+  def get_local_force(self) -> pr.Vector2:
     fx = self.long_f
     fy = self.lateral_f
 
-    req_force = math.sqrt(fx**2 + fy**2)
-    if req_force > max_force:
-      scale = max_force / req_force
+    max_fx = self.long_pacejka_consts["D"] * self.load
+    max_fy = self.lat_pacejka_consts["D"] * self.load
+
+    ellipse_ratio = (fx / max_fx)**2 + (fy / max_fy)**2
+    if ellipse_ratio > 1.0:
+      scale = 1.0 / math.sqrt(ellipse_ratio)
       fx *= scale
       fy *= scale
 
