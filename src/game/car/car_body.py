@@ -24,8 +24,10 @@ DEBUG_VALS = {
   "BrakeT": 0,
   "EngRPM": 0,
   "Gear": 0,
-  "SteerDeg": 0,
+  "YawTq": 0,
+  "YawAccel": 0,
   "YawRate": 0,
+  "Iner": 0,
 }
 
 
@@ -45,7 +47,6 @@ class Car:
     self.cg_height = 0.3  # m
     self.cg = pr.Vector2(0, (self.size.x * self.cg_to_front - self.size.x / 2))  # m
 
-    self.weight_transfer = 0.65
     self.brake_bias_front = 0.6  # %
     self.brake_bias_rear = 1 - self.brake_bias_front  # %
 
@@ -85,10 +86,26 @@ class Car:
 
     # Axles
     forward = pr.Vector2(math.cos(self.angle_rad), math.sin(self.angle_rad))
-    f_ax_lat_pacejka_consts = {"B": 10, "C": 1.9, "D": 1.7, "E": -0.7}
-    f_ax_long_pacejka_consts = {"B": 12, "C": 1.6, "D": 1.7, "E": -0.5}
-    r_ax_lat_pacejka_consts = {"B": 11.5, "C": 1.9, "D": 1.6, "E": -0.6}
-    r_ax_long_pacejka_consts = {"B": 14, "C": 1.6, "D": 1.6, "E": -0.4}
+    f_ax_lat_config = {
+      "pacejka": {"B": 10, "C": 1.9, "D": 1.6, "E": 0.9},
+      "load": self.front_static,
+      "sens": 0.09,
+    }
+    f_ax_long_config = {
+      "pacejka": {"B": 12, "C": 1.6, "D": 1.6, "E": -0.5},
+      "load": self.front_static,
+      "sens": 0.09,
+    }
+    r_ax_lat_config = {
+      "pacejka": {"B": 10, "C": 1.9, "D": 1.55, "E": 0.8},
+      "load": self.rear_static,
+      "sens": 0.09,
+    }
+    r_ax_long_config = {
+      "pacejka": {"B": 12, "C": 1.5, "D": 1.5, "E": -0.5},
+      "load": self.rear_static,
+      "sens": 0.09,
+    }
 
     front_axle_pos = pr.Vector2(
       self.pos.x + forward.x * self.front_dist_from_center,
@@ -108,8 +125,8 @@ class Car:
       18.0,
       self.front_static,
       False,
-      f_ax_lat_pacejka_consts,
-      f_ax_long_pacejka_consts,
+      f_ax_lat_config,
+      f_ax_long_config,
     )
     self.rear_axle = Axle(
       rear_axle_pos,
@@ -121,8 +138,8 @@ class Car:
       21.0,
       self.rear_static,
       True,
-      r_ax_lat_pacejka_consts,
-      r_ax_long_pacejka_consts,
+      r_ax_lat_config,
+      r_ax_long_config,
     )
 
   def update(self, dt: float, throttle: bool, brake: bool, steer: float):
@@ -146,19 +163,19 @@ class Car:
     # Update slip angles through tire ground speed calculations
     half_track = self.track_width / 2
     fl_velo = pr.Vector2(
-      self.local_velo.x + self.yaw_rate * half_track,
+      self.local_velo.x - self.yaw_rate * half_track,
       self.local_velo.y + self.yaw_rate * self.dist_cg_front_axle,
     )
     fr_velo = pr.Vector2(
-      self.local_velo.x - self.yaw_rate * half_track,
+      self.local_velo.x + self.yaw_rate * half_track,
       self.local_velo.y + self.yaw_rate * self.dist_cg_front_axle,
     )
     rl_velo = pr.Vector2(
-      self.local_velo.x + self.yaw_rate * half_track,
+      self.local_velo.x - self.yaw_rate * half_track,
       self.local_velo.y - self.yaw_rate * self.dist_cg_rear_axle,
     )
     rr_velo = pr.Vector2(
-      self.local_velo.x - self.yaw_rate * half_track,
+      self.local_velo.x + self.yaw_rate * half_track,
       self.local_velo.y - self.yaw_rate * self.dist_cg_rear_axle,
     )
 
@@ -180,7 +197,7 @@ class Car:
     front_downforce_tire = downforce * self.cg_to_front / 2
     rear_downforce_tire = downforce * self.cg_to_rear / 2
 
-    temp = self.weight_transfer * self.cg_height * self.mass
+    temp = self.cg_height * self.mass
     transfer_x = temp * self.local_accel.x / self.wheelbase / 2
     transfer_y = temp * self.local_accel.y / self.track_width / 2
 
@@ -194,22 +211,20 @@ class Car:
 
     # Building longitudinal force
     avg_tire_omega = (
-      abs(self.rear_axle.left_tire.omega) + abs(self.rear_axle.right_tire.omega)
+      self.rear_axle.left_tire.omega + self.rear_axle.right_tire.omega
     ) / 2
     drive_t = self.engine.get_drive_torque(
       dt,
       throttle,
       avg_tire_omega,
     )
-    brake_t = self.brake_c * brake * math.copysign(1, self.local_velo.x)
+    brake_t = self.brake_c * brake
 
     drive_t /= 2
-    brake_t /= 2
+    brake_t /= 4
 
     total_force = pr.Vector2(0, 0)
     yaw_torque = 0.0
-
-    sub_dt = dt / 4
 
     # Compute traction forces & ratios, brake ratios, and accumulate yaw torque and forces for each tire
     for tire in rear_tires:
@@ -217,7 +232,7 @@ class Car:
       tire.brake_t = brake_t
 
       tire.update_slip_angle()
-      tire.update_slip_ratio(sub_dt)
+      tire.update_slip_ratio(dt)
       tire.update_lateral_force()
       tire.update_long_force()
       tire.steer_rad = 0
@@ -225,14 +240,14 @@ class Car:
       force = tire.get_local_force()
       total_force = pr.vector2_add(force, total_force)
       yaw_torque += tire.local_coord.x * force.y - tire.local_coord.y * force.x
-      tire.update_omega(sub_dt, speed, throttle, brake)
+      tire.update_omega(dt, speed, throttle, brake)
 
     for tire in front_tires:
       tire.drive_t = 0.0
       tire.brake_t = brake_t
 
       tire.update_slip_angle()
-      tire.update_slip_ratio(sub_dt)
+      tire.update_slip_ratio(dt)
       tire.update_lateral_force()
       tire.update_long_force()
       tire.steer_rad = steer_rad
@@ -240,7 +255,7 @@ class Car:
       force = tire.get_local_force()
       total_force = pr.vector2_add(force, total_force)
       yaw_torque += tire.local_coord.x * force.y - tire.local_coord.y * force.x
-      tire.update_omega(sub_dt, speed, throttle, brake)
+      tire.update_omega(dt, speed, throttle, brake)
 
     for tire in front_tires + rear_tires:
       tire.omega = tire.next_omega
@@ -249,17 +264,24 @@ class Car:
     self.engine.update_shift(self.engine.get_rpm())
 
     # Compute long force
-    drag_f_x = (
-      -self.roll_resist * self.local_velo.x - self.drag_c * self.local_velo.x * speed
-    )
-    drag_f_y = (
-      -self.roll_resist * self.local_velo.y - self.drag_c * self.local_velo.y * speed
-    )
+    if speed > 0.01:
+      roll_f = self.roll_resist * self.mass * -_GRAVITY
+      drag_f = self.drag_c * speed * speed
+
+      total_drag = roll_f + drag_f
+
+      drag_f_x = -self.local_velo.x / speed * total_drag
+      drag_f_y = -self.local_velo.y / speed * total_drag
+    else:
+      drag_f_x = 0.0
+      drag_f_y = 0.0
 
     long_f_x = total_force.x + drag_f_x
     long_f_y = total_force.y + drag_f_y
 
     # Rotate car
+    yaw_damping = 300.0  # N*m*s/rad
+    yaw_torque -= yaw_damping * self.yaw_rate
     yaw_accel = yaw_torque / self.inertia
     self.yaw_rate += yaw_accel * dt
     self.angle_rad += self.yaw_rate * dt
@@ -302,8 +324,10 @@ class Car:
     DEBUG_VALS["EngRPM"] = f"{self.engine.rpm:>12.3f}"
     DEBUG_VALS["Gear"] = f"{self.engine.gear + 1:>1}"
     DEBUG_VALS["Steer"] = f"{steer:>12.3f}"
-    DEBUG_VALS["SteerDeg"] = f"{math.degrees(self.angle_rad):>12.3f}"
     DEBUG_VALS["YawRate"] = f"{math.degrees(self.yaw_rate):>12.3f}"
+    DEBUG_VALS["YawTq"] = f"{yaw_torque:>12.3f}"
+    DEBUG_VALS["YawAccel"] = f"{yaw_accel:>12.3f}"
+    DEBUG_VALS["Iner"] = f"{self.inertia:>12.3f}"
 
   def update_positions(self, dt):
     forward = pr.Vector2(math.cos(self.angle_rad), math.sin(self.angle_rad))
@@ -354,7 +378,7 @@ class Car:
         "LtF": 0,
         "Wt": 0,
         "WS": 0,
-        "GS": 0,
+        "TV": 0,
         "GU": 0,
       }
 
@@ -375,19 +399,19 @@ class Car:
       tire = tires[i]
       d_t = debug_tires[i]
       grip_usage = (
-        tire.lateral_f / (tire.lat_pacejka_consts["D"] * tire.load)
-      ) ** 2 + (tire.long_f / (tire.long_pacejka_consts["D"] * tire.load)) ** 2
+        tire.lateral_f / (tire.max_lat_D * tire.load)
+      ) ** 2 + (tire.long_f / (tire.max_long_D * tire.load)) ** 2
 
-      force = tire.get_local_force()
+      # force = tire.get_local_force()
       d_t["Omg"] = f"{tire.omega:>7.3f}"
       d_t["SpA"] = f"{math.degrees(tire.slip_angle):>7.3f}"
       d_t["SpR"] = f"{tire.slip_ratio:>7.3f}"
       d_t["LgF"] = f"{tire.long_f:>9.3f}"
       d_t["LtF"] = f"{tire.lateral_f:>9.3f}"
       d_t["Wt"] = f"{tire.load:>7.3f}"
-      d_t["F"] = [f"{force.x:>9.3f}", f"{force.y:>9.3f}"]
+      # d_t["F"] = [f"{force.x:>9.3f}", f"{force.y:>9.3f}"]
       d_t["WS"] = f"{(tire.omega * tire.radius):>7.3f}"
-      d_t["GS"] = f"{tire.velo.x:>7.3f}"
+      d_t["TV"] = [f"{tire.velo.x:>7.3f}", f"{tire.velo.y:>7.3f}"]
       d_t["GU"] = f"{grip_usage:>7.3f}"
 
     DEBUG_VALS["FLTire"] = debug_fl_tire

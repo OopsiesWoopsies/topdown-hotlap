@@ -60,10 +60,10 @@ while not pr.window_should_close():
   text3 = f"DriveT: {debug_vals['DriveT']}\nBrakeT: {debug_vals['BrakeT']}\n"
   text4 = f"FLTire: {debug_vals['FLTire']}\nFRTire: {debug_vals['FRTire']}\nRLTire: {debug_vals['RLTire']}\nRRTire: {debug_vals['RRTire']}\n"
   text5 = f"EngRPM: {debug_vals['EngRPM']}\nGear: {debug_vals['Gear']}\n"
-  text6 = f"SteerDeg: {debug_vals['SteerDeg']}\nYawRate: {debug_vals['YawRate']}\n"
+  text6 = f"YawRate: {debug_vals['YawRate']}\n"
   text = text1 + text2 + text3 + text5 + text6
   pr.draw_text(text, 5, 90, 20, pr.BLACK)
-  pr.draw_text(text4, 5, 400, 15, pr.BLACK)
+  pr.draw_text(text4, 5, 380, 15, pr.BLACK)
 
   pr.draw_fps(0, 0)
   pr.end_drawing()

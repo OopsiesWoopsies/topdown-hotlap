@@ -39,8 +39,8 @@ class Tire:
     load: float,
     local_coord: pr.Vector2,
     powered: bool,
-    lat_pacejka_consts: dict[str, float],
-    long_pacejka_consts: dict[str, float],
+    lat_config: dict[str, float],
+    long_config: dict[str, float],
   ):
     # Constants
     self.powered = powered
@@ -49,8 +49,8 @@ class Tire:
     self.radius = 0.35  # m
     self.width = width
     self.mass = mass  # kg
-    self.lat_pacejka_consts = lat_pacejka_consts
-    self.long_pacejka_consts = long_pacejka_consts
+    self.lat_config = lat_config
+    self.long_config = long_config
 
     # Variables
     self.load = load  # N
@@ -68,43 +68,85 @@ class Tire:
 
   def update_slip_ratio(self, dt: float):
     wheel_speed = self.omega * self.radius
-    denom = max(abs(self.velo.x), 1.0)
+    denom = max(abs(self.velo.x), 0.001)
     target_slip = (wheel_speed - self.velo.x) / denom
     dx = denom * dt
     blend = dx / (0.3 + dx)
 
     self.slip_ratio += (target_slip - self.slip_ratio) * blend
+    if target_slip == 0:
+      self.slip_ratio = 0
 
   def update_slip_angle(self):
-    self.slip_angle = math.atan2(self.velo.y, self.velo.x)
+    speed = pr.vector2_length(self.velo)
+    if abs(self.velo.x) < 0.1:
+      x_anchor = 0.1 if self.velo.x >= 0 else -0.1
+
+      self.slip_angle = math.atan2(self.velo.y, x_anchor) * (speed / 0.1)
+    else:
+      self.slip_angle = math.atan2(self.velo.y, self.velo.x)
+
+    right_ang = math.pi / 2
+
+    if self.slip_angle > right_ang:
+      self.slip_angle -= math.pi
+      self.slip_angle *= -1
+    elif self.slip_angle < -right_ang:
+      self.slip_angle += math.pi
+      self.slip_angle *= -1
 
   def update_lateral_force(self):
-    B = self.lat_pacejka_consts["B"]
-    C = self.lat_pacejka_consts["C"]
-    D = self.lat_pacejka_consts["D"]
-    E = self.lat_pacejka_consts["E"]
+    B = self.lat_config["pacejka"]["B"]
+    C = self.lat_config["pacejka"]["C"]
+    D = self.lat_config["pacejka"]["D"]
+    E = self.lat_config["pacejka"]["E"]
+    f_nom = self.lat_config["load"]
+    sens_lat = self.lat_config["sens"]
 
-    self.lateral_f = -pacejka_model(B, C, D, E, self.slip_angle) * self.load
+    load_ratio = self.load / max(f_nom, 1.0)
+    D_scaled = D * (1.0 / (1.0 + sens_lat * (load_ratio - 1.0)))
+    D_scaled = max(D_scaled, 0.5 * D)
+
+    self.lateral_f = -pacejka_model(B, C, D_scaled, E, self.slip_angle) * self.load
 
   def update_long_force(self):
-    B = self.long_pacejka_consts["B"]
-    C = self.long_pacejka_consts["C"]
-    D = self.long_pacejka_consts["D"]
-    E = self.long_pacejka_consts["E"]
+    B = self.long_config["pacejka"]["B"]
+    C = self.long_config["pacejka"]["C"]
+    D = self.long_config["pacejka"]["D"]
+    E = self.long_config["pacejka"]["E"]
+    f_nom = self.long_config["load"]
+    sens_long = self.long_config["sens"]
 
-    self.long_f = pacejka_model(B, C, D, E, self.slip_ratio) * self.load
+    load_ratio = self.load / max(f_nom, 1.0)
+    D_scaled = D * (1.0 - sens_long * (load_ratio - 1.0))
+    D_scaled = max(D_scaled, 0.5 * D)
+
+    self.long_f = pacejka_model(B, C, D_scaled, E, self.slip_ratio) * self.load
 
   def update_omega(self, dt: float, car_speed: float, throttle: bool, brake: bool):
-    net_torque = self.drive_t - self.brake_t - self.long_f * self.radius
-    alpha = net_torque / self.inertia
+    active_t = self.drive_t - self.long_f * self.radius
+    max_brake_t = self.brake_t
 
-    omega = self.omega
-    if not throttle and car_speed < 0.1:
-      next_omega = 0.0
+    if abs(self.omega) > 0.01:
+      applied_brake = math.copysign(max_brake_t, self.omega)
+      net_torque = active_t - applied_brake
+      alpha = net_torque / self.inertia
+      next_omega = self.omega + alpha * dt
+
+      if (
+        math.copysign(1, self.omega) != math.copysign(1, next_omega) and next_omega != 0
+      ):
+        next_omega = 0.0
     else:
-      next_omega = omega + alpha * dt
-    if brake and next_omega < 0:
-      next_omega = 0
+      if abs(active_t) <= max_brake_t:
+        next_omega = 0.0
+      else:
+        remaining_t = active_t - math.copysign(max_brake_t, active_t)
+        alpha = remaining_t / self.inertia
+        next_omega = self.omega + alpha * dt
+
+    if not throttle and car_speed < 0.1 and abs(next_omega) < 0.1:
+      next_omega = 0.0
 
     self.next_omega = next_omega
 
@@ -112,14 +154,26 @@ class Tire:
     fx = self.long_f
     fy = self.lateral_f
 
-    max_fx = self.long_pacejka_consts["D"] * self.load
-    max_fy = self.lat_pacejka_consts["D"] * self.load
+    SHxa = 0.0
+    bxa = 1.2
+    cxa = 1.0
 
-    ellipse_ratio = (fx / max_fx)**2 + (fy / max_fy)**2
-    if ellipse_ratio > 1.0:
-      scale = 1.0 / math.sqrt(ellipse_ratio)
-      fx *= scale
-      fy *= scale
+    SHyk = 0.0
+    byk = 1.1
+    cyk = 1.0
+
+    gx = math.cos(cxa * math.atan(bxa * (abs(self.slip_angle) + SHxa))) / math.cos(
+      cxa * math.atan(bxa * SHxa)
+    )
+    gy = math.cos(cyk * math.atan(byk * (abs(self.slip_ratio) + SHyk))) / math.cos(
+      cyk * math.atan(byk * SHyk)
+    )
+
+    fx *= gx
+    fy *= gy
+
+    self.long_f = fx
+    self.lateral_f = fy
 
     return pr.Vector2(
       fx * math.cos(self.steer_rad) - fy * math.sin(self.steer_rad),

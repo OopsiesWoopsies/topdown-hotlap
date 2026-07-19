@@ -1,4 +1,5 @@
 import math
+import numpy as np
 
 import pyray as pr
 
@@ -48,7 +49,7 @@ class Engine:
     if throttle > 0:
       engine_torque = self.torque_curve(self.rpm) * throttle
     else:
-      engine_torque = -ENGINE_BRAKE
+      engine_torque = -ENGINE_BRAKE * np.sign(avg_tire_omega)
 
     return engine_torque * gear_ratio * self.final_drive * self.trans_efficiency
 
