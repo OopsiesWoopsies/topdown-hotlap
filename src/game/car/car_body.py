@@ -221,7 +221,8 @@ class Car:
     brake_t = self.brake_c * brake
 
     drive_t /= 2
-    brake_t /= 4
+    front_brake_t = brake_t * self.brake_bias_front
+    rear_brake_t = brake_t * self.brake_bias_rear
 
     total_force = pr.Vector2(0, 0)
     yaw_torque = 0.0
@@ -229,7 +230,7 @@ class Car:
     # Compute traction forces & ratios, brake ratios, and accumulate yaw torque and forces for each tire
     for tire in rear_tires:
       tire.drive_t = drive_t
-      tire.brake_t = brake_t
+      tire.brake_t = front_brake_t
 
       tire.update_slip_angle()
       tire.update_slip_ratio(dt)
@@ -244,7 +245,7 @@ class Car:
 
     for tire in front_tires:
       tire.drive_t = 0.0
-      tire.brake_t = brake_t
+      tire.brake_t = rear_brake_t
 
       tire.update_slip_angle()
       tire.update_slip_ratio(dt)
@@ -398,9 +399,9 @@ class Car:
     for i in range(4):
       tire = tires[i]
       d_t = debug_tires[i]
-      grip_usage = (
-        tire.lateral_f / (tire.max_lat_D * tire.load)
-      ) ** 2 + (tire.long_f / (tire.max_long_D * tire.load)) ** 2
+      grip_usage = (tire.lateral_f / (tire.max_lat_D * tire.load)) ** 2 + (
+        tire.long_f / (tire.max_long_D * tire.load)
+      ) ** 2
 
       # force = tire.get_local_force()
       d_t["Omg"] = f"{tire.omega:>7.3f}"

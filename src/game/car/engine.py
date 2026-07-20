@@ -28,7 +28,7 @@ class Engine:
     return self.rpm
 
   def torque_curve(self, rpm: float) -> float:
-    max_torque = 400.0  # Nm
+    max_torque = 600.0  # Nm
 
     x = rpm / self.peak_rpm
     x = max(0.0, x)

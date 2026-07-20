@@ -65,6 +65,8 @@ class Tire:
     self.long_f = 0.0  # N
     self.lateral_f = 0.0  # N
     self.steer_rad = 0.0  # Rad
+    self.max_lat_D = self.lat_config["pacejka"]["D"]
+    self.max_long_D = self.long_config["pacejka"]["D"]
 
   def update_slip_ratio(self, dt: float):
     wheel_speed = self.omega * self.radius
@@ -74,8 +76,8 @@ class Tire:
     blend = dx / (0.3 + dx)
 
     self.slip_ratio += (target_slip - self.slip_ratio) * blend
-    if target_slip == 0:
-      self.slip_ratio = 0
+    if target_slip == 0.0:
+      self.slip_ratio = 0.0
 
   def update_slip_angle(self):
     speed = pr.vector2_length(self.velo)
@@ -104,10 +106,12 @@ class Tire:
     sens_lat = self.lat_config["sens"]
 
     load_ratio = self.load / max(f_nom, 1.0)
-    D_scaled = D * (1.0 / (1.0 + sens_lat * (load_ratio - 1.0)))
-    D_scaled = max(D_scaled, 0.5 * D)
+    D_lat_scaled = D * (1.0 / (1.0 + sens_lat * (load_ratio - 1.0)))
+    self.max_lat_D = max(D_lat_scaled, 0.5 * D)
 
-    self.lateral_f = -pacejka_model(B, C, D_scaled, E, self.slip_angle) * self.load
+    self.lateral_f = (
+      -pacejka_model(B, C, self.max_lat_D, E, self.slip_angle) * self.load
+    )
 
   def update_long_force(self):
     B = self.long_config["pacejka"]["B"]
@@ -118,10 +122,10 @@ class Tire:
     sens_long = self.long_config["sens"]
 
     load_ratio = self.load / max(f_nom, 1.0)
-    D_scaled = D * (1.0 - sens_long * (load_ratio - 1.0))
-    D_scaled = max(D_scaled, 0.5 * D)
+    D_long_scaled = D * (1.0 - sens_long * (load_ratio - 1.0))
+    self.max_long_D = max(D_long_scaled, 0.5 * D)
 
-    self.long_f = pacejka_model(B, C, D_scaled, E, self.slip_ratio) * self.load
+    self.long_f = pacejka_model(B, C, self.max_long_D, E, self.slip_ratio) * self.load
 
   def update_omega(self, dt: float, car_speed: float, throttle: bool, brake: bool):
     active_t = self.drive_t - self.long_f * self.radius
@@ -145,7 +149,7 @@ class Tire:
         alpha = remaining_t / self.inertia
         next_omega = self.omega + alpha * dt
 
-    if not throttle and car_speed < 0.1 and abs(next_omega) < 0.1:
+    if not throttle and not brake and car_speed < 0.1:
       next_omega = 0.0
 
     self.next_omega = next_omega
