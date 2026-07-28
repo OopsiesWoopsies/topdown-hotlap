@@ -5,6 +5,7 @@ import pyray as pr
 
 from game.constants import PIXELS_PER_METER
 
+RIGHT_ANGLE = math.pi / 2
 
 def pacejka_model(
   B: float,
@@ -67,17 +68,19 @@ class Tire:
     self.steer_rad = 0.0  # Rad
     self.max_lat_D = self.lat_config["pacejka"]["D"]
     self.max_long_D = self.long_config["pacejka"]["D"]
+    self.grip_usage = 0.0
 
-  def update_slip_ratio(self, dt: float):
+  def update_slip_ratio(self):
     wheel_speed = self.omega * self.radius
-    denom = max(abs(self.velo.x), 0.001)
-    target_slip = (wheel_speed - self.velo.x) / denom
-    dx = denom * dt
-    blend = dx / (0.3 + dx)
+    vehicle_speed = self.velo.x
 
-    self.slip_ratio += (target_slip - self.slip_ratio) * blend
-    if target_slip == 0.0:
-      self.slip_ratio = 0.0
+    denom = max(
+      abs(vehicle_speed),
+      abs(wheel_speed),
+      1.0,
+    )
+
+    self.slip_ratio = (wheel_speed - vehicle_speed) / denom
 
   def update_slip_angle(self):
     speed = pr.vector2_length(self.velo)
@@ -88,12 +91,10 @@ class Tire:
     else:
       self.slip_angle = math.atan2(self.velo.y, self.velo.x)
 
-    right_ang = math.pi / 2
-
-    if self.slip_angle > right_ang:
+    if self.slip_angle > RIGHT_ANGLE:
       self.slip_angle -= math.pi
       self.slip_angle *= -1
-    elif self.slip_angle < -right_ang:
+    elif self.slip_angle < -RIGHT_ANGLE:
       self.slip_angle += math.pi
       self.slip_angle *= -1
 
@@ -129,25 +130,24 @@ class Tire:
 
   def update_omega(self, dt: float, car_speed: float, throttle: bool, brake: bool):
     active_t = self.drive_t - self.long_f * self.radius
-    max_brake_t = self.brake_t
 
-    if abs(self.omega) > 0.01:
-      applied_brake = math.copysign(max_brake_t, self.omega)
-      net_torque = active_t - applied_brake
-      alpha = net_torque / self.inertia
-      next_omega = self.omega + alpha * dt
+    if abs(self.omega) < 0.1 and abs(active_t) <= self.brake_t:
+      self.next_omega = 0.0
+      return
 
-      if (
-        math.copysign(1, self.omega) != math.copysign(1, next_omega) and next_omega != 0
-      ):
-        next_omega = 0.0
+    if abs(self.omega) > 0.1:
+      brake_sign = math.copysign(1.0, self.omega)
     else:
-      if abs(active_t) <= max_brake_t:
-        next_omega = 0.0
-      else:
-        remaining_t = active_t - math.copysign(max_brake_t, active_t)
-        alpha = remaining_t / self.inertia
-        next_omega = self.omega + alpha * dt
+      brake_sign = math.copysign(1.0, active_t)
+
+    brake_torque = self.brake_t * brake_sign
+    net_torque = active_t - brake_torque
+
+    alpha = net_torque / self.inertia
+    next_omega = self.omega + alpha * dt
+
+    if self.omega * next_omega < 0.0:
+      next_omega = 0.0
 
     if not throttle and not brake and car_speed < 0.1:
       next_omega = 0.0
@@ -178,6 +178,10 @@ class Tire:
 
     self.long_f = fx
     self.lateral_f = fy
+
+    self.grip_usage = (self.lateral_f / (self.max_lat_D * self.load)) ** 2 + (
+      self.long_f / (self.max_long_D * self.load)
+    ) ** 2
 
     return pr.Vector2(
       fx * math.cos(self.steer_rad) - fy * math.sin(self.steer_rad),
