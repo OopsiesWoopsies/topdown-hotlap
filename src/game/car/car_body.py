@@ -228,12 +228,12 @@ class Car:
     for _ in range(num_steps):
       step_total_force = pr.Vector2(0, 0)
       step_yaw_torque = 0.0
-      self.engine.update_clutch_torque(sub_dt, throttle, avg_tire_omega)
-
-      drive_t = self.engine.get_drive_torque() / 2
 
       # --- REAR TIRES ---
       for tire in rear_tires:
+        self.engine.update_clutch_torque(sub_dt, throttle, avg_tire_omega)
+        drive_t = self.engine.get_drive_torque() / 2
+
         tire.drive_t = drive_t
         tire.brake_t = rear_brake_t
         tire.steer_rad = 0.0
