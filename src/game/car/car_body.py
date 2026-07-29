@@ -213,10 +213,6 @@ class Car:
     num_steps = 8
     sub_dt = dt / num_steps
 
-    avg_tire_omega = (
-      self.rear_axle.left_tire.omega + self.rear_axle.right_tire.omega
-    ) / 2
-
     brake_t = self.brake_c * brake
     front_brake_t = brake_t * self.brake_bias_front
     rear_brake_t = brake_t * self.brake_bias_rear
@@ -228,12 +224,14 @@ class Car:
     for _ in range(num_steps):
       step_total_force = pr.Vector2(0, 0)
       step_yaw_torque = 0.0
+      avg_tire_omega = (
+        self.rear_axle.left_tire.omega + self.rear_axle.right_tire.omega
+      ) / 2
+      self.engine.update_clutch_torque(sub_dt, throttle, avg_tire_omega)
+      drive_t = self.engine.get_drive_torque() / 2
 
       # --- REAR TIRES ---
       for tire in rear_tires:
-        self.engine.update_clutch_torque(sub_dt, throttle, avg_tire_omega)
-        drive_t = self.engine.get_drive_torque() / 2
-
         tire.drive_t = drive_t
         tire.brake_t = rear_brake_t
         tire.steer_rad = 0.0
@@ -282,7 +280,10 @@ class Car:
       or abs(self.rear_axle.left_tire.slip_ratio) > 0.15
       or abs(self.rear_axle.right_tire.slip_ratio) > 0.15
     )
-    self.engine.update_shift(self.engine.rpm, is_slipping)
+    avg_tire_omega = (
+      self.rear_axle.left_tire.omega + self.rear_axle.right_tire.omega
+    ) / 2
+    self.engine.update_shift(dt, self.engine.rpm, is_slipping, avg_tire_omega)
 
     # Compute drag and final chassis net force
     if speed > 0.01:

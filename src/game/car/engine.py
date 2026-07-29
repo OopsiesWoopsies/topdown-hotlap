@@ -98,34 +98,34 @@ class Engine:
     )
 
   # Add manual shifting later and make this optional
-  def update_shift(self, rpm: float, is_slipping: bool):
+  def update_shift(
+    self, dt: float, rpm: float, is_slipping: bool, avg_tire_omega: float
+  ):
     if self.shift_timer > 0.0:
       return
 
     if not is_slipping and self.gear < len(self.gear_ratios) - 1 and rpm > 12500:
-      old_ratio = self.gear_ratios[self.gear]
       self.gear += 1
       new_ratio = self.gear_ratios[self.gear]
 
-      target_omega = self.omega * new_ratio / old_ratio
+      target_omega = avg_tire_omega * new_ratio * self.final_drive
       self.omega = pr.lerp(
         self.omega,
         target_omega,
-        0.8,
+        min(1.0, 20.0 * dt),
       )
       self.rpm = self.omega * 60 / (2 * math.pi)
       self.shift_timer = self.shift_cooldown
 
     elif self.gear > 0 and rpm < 6500:
-      old_ratio = self.gear_ratios[self.gear]
       self.gear -= 1
       new_ratio = self.gear_ratios[self.gear]
 
-      target_omega = self.omega * new_ratio / old_ratio
+      target_omega = avg_tire_omega * new_ratio * self.final_drive
       self.omega = pr.lerp(
         self.omega,
         target_omega,
-        0.8,
+        min(1.0, 20.0 * dt),
       )
       self.rpm = self.omega * 60 / (2 * math.pi)
       self.shift_timer = self.shift_cooldown
