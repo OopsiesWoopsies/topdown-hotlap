@@ -283,7 +283,7 @@ class Car:
     avg_tire_omega = (
       self.rear_axle.left_tire.omega + self.rear_axle.right_tire.omega
     ) / 2
-    self.engine.update_shift(dt, self.engine.rpm, is_slipping, avg_tire_omega)
+    self.engine.update_shift(is_slipping)
 
     # Compute drag and final chassis net force
     if speed > 0.01:
