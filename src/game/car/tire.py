@@ -7,6 +7,7 @@ from game.constants import PIXELS_PER_METER
 
 RIGHT_ANGLE = math.pi / 2
 
+
 def pacejka_model(
   B: float,
   C: float,
@@ -128,8 +129,9 @@ class Tire:
 
     self.long_f = pacejka_model(B, C, self.max_long_D, E, self.slip_ratio) * self.load
 
-  def update_omega(self, dt: float, car_speed: float, throttle: bool, brake: bool):
+  def update_omega(self, dt: float, car_speed: float, throttle: bool, brake: bool, added_inertia: float):
     active_t = self.drive_t - self.long_f * self.radius
+    total_inertia = self.inertia + added_inertia
 
     if abs(self.omega) < 0.1 and abs(active_t) <= self.brake_t:
       self.next_omega = 0.0
@@ -143,7 +145,7 @@ class Tire:
     brake_torque = self.brake_t * brake_sign
     net_torque = active_t - brake_torque
 
-    alpha = net_torque / self.inertia
+    alpha = net_torque / total_inertia
     next_omega = self.omega + alpha * dt
 
     if self.omega * next_omega < 0.0:

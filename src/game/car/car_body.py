@@ -229,6 +229,7 @@ class Car:
       ) / 2
       self.engine.update_clutch_torque(sub_dt, throttle, avg_tire_omega)
       drive_t = self.engine.get_drive_torque() / 2
+      added_inertia = self.engine.get_reflected_inertia() / 2
 
       # --- REAR TIRES ---
       for tire in rear_tires:
@@ -236,7 +237,7 @@ class Car:
         tire.brake_t = rear_brake_t
         tire.steer_rad = 0.0
 
-        tire.update_omega(sub_dt, speed, throttle, brake)
+        tire.update_omega(sub_dt, speed, throttle, brake, added_inertia)
         tire.update_slip_angle()
         tire.update_slip_ratio()
         tire.update_lateral_force()
@@ -252,7 +253,7 @@ class Car:
         tire.brake_t = front_brake_t
         tire.steer_rad = steer_rad
 
-        tire.update_omega(sub_dt, speed, throttle, brake)
+        tire.update_omega(sub_dt, speed, throttle, brake, 0.0)
         tire.update_slip_angle()
         tire.update_slip_ratio()
         tire.update_lateral_force()
@@ -279,10 +280,9 @@ class Car:
       or self.rear_axle.right_tire.grip_usage > 0.95
       or abs(self.rear_axle.left_tire.slip_ratio) > 0.15
       or abs(self.rear_axle.right_tire.slip_ratio) > 0.15
+      or abs(self.rear_axle.left_tire.slip_ratio) == -1
+      or abs(self.rear_axle.right_tire.slip_ratio) == -1
     )
-    avg_tire_omega = (
-      self.rear_axle.left_tire.omega + self.rear_axle.right_tire.omega
-    ) / 2
     self.engine.update_shift(is_slipping)
 
     # Compute drag and final chassis net force

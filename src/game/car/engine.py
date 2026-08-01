@@ -10,31 +10,35 @@ class Engine:
   def __init__(self):
     # Engine constants
     self.trans_efficiency = 0.95
-    self.gear_ratios = [3.5, 2.9, 2.4, 2.0, 1.7, 1.46, 1.28, 1.13]
-    self.final_drive = 4.0
+    self.gear_ratios = [3.40, 2.75, 2.30, 1.95, 1.68, 1.46, 1.26, 1.01]
+    self.final_drive = 4.6
     self.gear = 0
-    self.inertia = 0.1  # kg*m^2
+    self.overall_inertia = 0.1  # kg*m^2
     self.engine_brake = 75.0  # Nm
-    self.max_clutch = 2000.0
+    self.max_clutch = 1100.0  # Nm
     self.max_t = 550.0  # Nm
 
     # Limits
     self.redline = 15000.0  # RPM
     self.peak_rpm = 11000.0  # RPM
-    self.idle_rpm = 5000.0  # RPM
+    self.idle_rpm = 4000.0  # RPM
     self.max_omega = self.redline * RPM_TO_OMEGA
     self.idle_omega = self.idle_rpm * RPM_TO_OMEGA
 
     # Shift timing state
     self.shift_timer = 0.0
-    self.shift_cooldown = 0.25  # s
+    self.shift_cd = 0.025  # s
+    self.clutch_reengage_cd = 0.04  # s
+    self.clutch_reengage_timer = 0.0
 
     # Vars
     self.rpm = self.idle_rpm
     self.omega = self.idle_omega
+    self.trans_omega = 0.0
     self.clutch_t = 0.0
     self.net_engine_t = 0.0
     self.clutch = 1.0
+    self.is_locked = True
 
   def torque_curve(self, rpm: float) -> float:
     if rpm <= self.peak_rpm:
@@ -46,51 +50,62 @@ class Engine:
     return self.max_t * (1.0 - 0.45 * x - 0.55 * x * x)
 
   def update_clutch_torque(self, dt: float, throttle: float, avg_tire_omega: float):
-    gear_ratio = self.gear_ratios[self.gear]
-    engine_t = self.torque_curve(self.rpm) * throttle
-    gearbox_omega = avg_tire_omega * gear_ratio * self.final_drive
+    if self.shift_timer > 0.0:
+      throttle = 0.0
 
-    # Engine braking
-    if not throttle:
-      engine_t -= self.engine_brake * self.rpm / self.redline
-
-    # Idle torque
-    if self.rpm < self.idle_rpm:
-      idle_error = self.idle_rpm - self.rpm
-      base_idle_t = self.engine_brake * (self.idle_rpm / self.redline)
-      engine_t += base_idle_t + min(idle_error * 0.1, 80.0)
-
-    # Cut power upon engine redline
-    if self.rpm >= self.redline:
-      engine_t = 0.0
+    # Determine clutch status
     if self.shift_timer > 0.0:
       self.shift_timer -= dt
       self.clutch = 0.0
-      target_omega = gearbox_omega
-      self.omega = pr.lerp(self.omega, target_omega, 15.0 * dt)
-    elif self.rpm < self.idle_rpm + 500:
-      self.clutch = abs(avg_tire_omega) / self.idle_omega
-      self.clutch = pr.clamp(self.clutch, 0.0, 1.0)
+      self.clutch_reengage_timer = self.clutch_reengage_cd
+    elif self.rpm <= self.idle_rpm:
+      self.clutch = 0.0
+      self.clutch_reengage_timer = 0.0
+    elif self.rpm < self.idle_rpm + 1500.0:
+      self.clutch = pr.clamp((self.rpm - self.idle_rpm) / 1500.0, 0.0, 1.0)
+      self.clutch_reengage_timer = 0.0
     else:
-      self.clutch = 1.0
+      if self.clutch_reengage_timer > 0.0:
+        self.clutch_reengage_timer -= dt
+        progress = 1.0 - (self.clutch_reengage_timer / self.clutch_reengage_cd)
+        self.clutch = pr.clamp(progress, 0.0, 1.0)
+        throttle *= self.clutch
+      else:
+        self.clutch = 1.0
+
+    gear_ratio = self.gear_ratios[self.gear]
+    engine_t = self.torque_curve(self.rpm) * throttle
+    self.trans_omega = avg_tire_omega * gear_ratio * self.final_drive
+
+    # Engine braking
+    engine_t -= self.engine_brake * (self.rpm / self.redline) * (1.0 - throttle)
+
+    # Idle torque / Anti-stall
+    if self.rpm < self.idle_rpm:
+      idle_error = self.idle_rpm - self.rpm
+      base_idle_t = self.engine_brake * (self.idle_rpm / self.redline)
+      engine_t += base_idle_t + min(idle_error * 0.5, 50.0)
 
     # Calculate difference between engine rpm and gearbox rpm to align gearbox to engine
-    slip = self.omega - gearbox_omega
-    sync_torque = (slip / dt) * self.inertia
+    slip = self.omega - self.trans_omega
+    sync_torque = (slip / dt) * self.overall_inertia if dt > 0 else 0.0
     max_capacity = self.max_clutch * self.clutch
 
-    if self.clutch and abs(sync_torque) <= max_capacity:
-      self.omega = gearbox_omega
+    # Restored locking mechanism
+    if self.clutch > 0.0 and abs(sync_torque) <= max_capacity and abs(slip) < 15.0:
+      self.is_locked = True
+      self.omega = self.trans_omega
       self.net_engine_t = 0.0
       self.clutch_t = pr.clamp(engine_t, -max_capacity, max_capacity)
     else:
+      self.is_locked = False
       if self.clutch == 0.0:
         self.clutch_t = 0.0
       else:
-        self.clutch_t = math.copysign(max_capacity, slip)
+        self.clutch_t = pr.clamp(sync_torque, -max_capacity, max_capacity)
 
       self.net_engine_t = engine_t - self.clutch_t
-      self.omega += (self.net_engine_t / self.inertia) * dt
+      self.omega += (self.net_engine_t / self.overall_inertia) * dt
 
     self.omega = pr.clamp(self.omega, 0.0, self.max_omega)
     self.rpm = self.omega * OMEGA_TO_RPM
@@ -99,19 +114,29 @@ class Engine:
     gear_ratio = self.gear_ratios[self.gear]
     return self.clutch_t * gear_ratio * self.final_drive * self.trans_efficiency
 
-  # Add manual shifting later and make this optional
-  def update_shift(self, is_slipping: bool):
-    if self.shift_timer > 0.0:
+  def get_reflected_inertia(self) -> float:
+    if not self.is_locked:
+      return 0.0
+    total_ratio = self.gear_ratios[self.gear] * self.final_drive
+    return self.overall_inertia * total_ratio**2
+
+  def update_shift(self, is_slipping: bool, auto_shift: bool = True):
+    if (
+      self.shift_timer > 0.0
+      or self.clutch_reengage_timer > 0.0
+      or not auto_shift
+      or self.clutch == 0
+    ):
       return
 
     if (
       not is_slipping
       and self.gear < len(self.gear_ratios) - 1
-      and (self.rpm > 12500 or (self.rpm > 12000 and self.gear + 1 >= 6))
+      and self.rpm > 13000
     ):
       self.gear += 1
-      self.shift_timer = self.shift_cooldown
+      self.shift_timer = self.shift_cd
 
-    elif self.gear > 0 and self.rpm < 6500:
+    elif not is_slipping and self.gear > 0 and self.rpm < 6500:
       self.gear -= 1
-      self.shift_timer = self.shift_cooldown
+      self.shift_timer = self.shift_cd
