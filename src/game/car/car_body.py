@@ -77,6 +77,10 @@ class Car:
     self.yaw_rate = 0.0  # Rad/s
     self.steer_angle = 0.0  # Deg
 
+    # Suspension
+    self.sus_stiffness = 10.0
+    self.g_force_filtered = pr.Vector2(0, 0)
+
     # Vectors
     self.local_accel = pr.Vector2(0, 0)
     self.accel = pr.Vector2(0, 0)
@@ -197,8 +201,12 @@ class Car:
     rear_downforce_tire = downforce * self.cg_to_rear / 2
 
     temp = self.cg_height * self.mass
-    transfer_x = temp * self.local_accel.x / self.wheelbase / 2
-    transfer_y = temp * self.local_accel.y / self.track_width / 2
+    self.g_force_filtered = pr.vector2_lerp(
+      self.g_force_filtered, self.local_accel, self.sus_stiffness * dt
+    )
+
+    transfer_x = temp * self.g_force_filtered.x / self.wheelbase / 2
+    transfer_y = temp * self.g_force_filtered.y / self.track_width / 2
 
     weight_front = self.front_static - transfer_x
     weight_rear = self.rear_static + transfer_x
