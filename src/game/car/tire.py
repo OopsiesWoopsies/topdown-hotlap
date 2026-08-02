@@ -163,12 +163,12 @@ class Tire:
     fy = self.lateral_f
 
     SHxa = 0.0
-    bxa = 1.2
-    cxa = 1.1
+    bxa = 2.3
+    cxa = 1.2
 
     SHyk = 0.0
-    byk = 3.4
-    cyk = 1.1
+    byk = 3.1
+    cyk = 1.2
 
     gx = math.cos(cxa * math.atan(bxa * (abs(self.slip_angle) + SHxa))) / math.cos(
       cxa * math.atan(bxa * SHxa)

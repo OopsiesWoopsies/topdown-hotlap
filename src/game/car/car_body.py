@@ -82,7 +82,8 @@ class Car:
     self.g_force_filtered = pr.Vector2(0, 0)
 
     # LSD constants
-    self.diff_power_lock = 0.8
+    self.max_preload_t = 300.0
+    self.diff_power_lock = 0.9
     self.diff_coast_lock = 0.35
     self.diff_preload = 0.15
 
@@ -261,14 +262,19 @@ class Car:
         locking_coeff = self.diff_preload
 
       omega_diff = rl.omega - rr.omega
-      transfer_torque = locking_coeff * omega_diff
+      lock_stiffness = (
+        abs(base_drive_t) * locking_coeff + self.max_preload_t * self.diff_preload
+      )
+      max_transfer_t = abs(base_drive_t) + self.max_preload_t
+      transfer_t = lock_stiffness * omega_diff
+      transfer_t = pr.clamp(transfer_t, -max_transfer_t, max_transfer_t)
 
       # --- REAR TIRES ---
       for tire in rear_tires:
         if tire == rl:
-          tire.drive_t = base_drive_t - transfer_torque
+          tire.drive_t = base_drive_t - transfer_t
         else:
-          tire.drive_t = base_drive_t + transfer_torque
+          tire.drive_t = base_drive_t + transfer_t
         tire.brake_t = rear_brake_t
         tire.steer_rad = 0.0
 
