@@ -81,6 +81,11 @@ class Car:
     self.sus_stiffness = 10.0
     self.g_force_filtered = pr.Vector2(0, 0)
 
+    # LSD constants
+    self.diff_power_lock = 0.8
+    self.diff_coast_lock = 0.35
+    self.diff_preload = 0.15
+
     # Vectors
     self.local_accel = pr.Vector2(0, 0)
     self.accel = pr.Vector2(0, 0)
@@ -236,19 +241,34 @@ class Car:
     accumulated_force_y = 0.0
     accumulated_yaw_torque = 0.0
 
+    rl = self.rear_axle.left_tire
+    rr = self.rear_axle.right_tire
+
     for _ in range(num_steps):
       step_total_force = pr.Vector2(0, 0)
       step_yaw_torque = 0.0
-      avg_tire_omega = (
-        self.rear_axle.left_tire.omega + self.rear_axle.right_tire.omega
-      ) / 2
+      avg_tire_omega = (rl.omega + rr.omega) / 2
       self.engine.update_clutch_torque(sub_dt, throttle, avg_tire_omega)
-      drive_t = self.engine.get_drive_torque() / 2
-      added_inertia = self.engine.get_reflected_inertia() / 2
+      base_drive_t = self.engine.get_drive_torque() / 2.0
+      added_inertia = self.engine.get_reflected_inertia() / 2.0
+
+      # LSD
+      if throttle > 0.05:
+        locking_coeff = self.diff_power_lock
+      elif brake > 0.05:
+        locking_coeff = self.diff_coast_lock
+      else:
+        locking_coeff = self.diff_preload
+
+      omega_diff = rl.omega - rr.omega
+      transfer_torque = locking_coeff * omega_diff
 
       # --- REAR TIRES ---
       for tire in rear_tires:
-        tire.drive_t = drive_t
+        if tire == rl:
+          tire.drive_t = base_drive_t - transfer_torque
+        else:
+          tire.drive_t = base_drive_t + transfer_torque
         tire.brake_t = rear_brake_t
         tire.steer_rad = 0.0
 
@@ -357,7 +377,9 @@ class Car:
       f"{accumulated_force_y:>12.3f}",
     ]
     DEBUG_VALS["DragF"] = [f"{drag_f_x:>12.3f}", f"{drag_f_y:>12.3f}"]
-    DEBUG_VALS["DriveT"] = f"{drive_t:>13.3f}"
+    DEBUG_VALS["DriveT"] = (
+      f"{self.rear_axle.left_tire.drive_t + self.rear_axle.right_tire.drive_t:>13.3f}"
+    )
     DEBUG_VALS["BrakeT"] = f"{brake_t:>13.3f}"
     DEBUG_VALS["EngRPM"] = f"{self.engine.rpm:>12.3f}"
     DEBUG_VALS["Gear"] = f"{self.engine.gear + 1:>1}"
