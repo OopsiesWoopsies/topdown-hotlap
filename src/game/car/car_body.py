@@ -39,44 +39,43 @@ class Car:
     self.pos = pos
     self.render_pos = pr.vector2_scale(pos, PIXELS_PER_METER)
     self.angle_rad = math.radians(angle_deg)
-    self.mass = 750  # kg
+    self.mass = 882  # kg
     self.inertia = self.mass * (self.size.x**2 + self.size.y**2) / 12
 
     self.cg_to_front = 0.45  # %
     self.cg_to_rear = 1 - self.cg_to_front  # %
-    self.cg_height = 0.3  # m
+    self.cg_height = 0.15  # m
     self.cg = pr.Vector2(0, (self.size.x * self.cg_to_front - self.size.x / 2))  # m
 
-    self.brake_bias_front = 0.6  # %
-    self.brake_bias_rear = 1 - self.brake_bias_front  # %
-
-    self.max_steer_angle = 25  # Deg
-    self.steer_angle = 0.0  # Deg
-    self.steer_step = 0.7  # Deg
-
-    self.front_dist_from_center = self.size.x * 0.26  # m
-    self.rear_dist_from_center = -self.size.x * 0.43  # m
-    self.wheelbase = abs(self.front_dist_from_center) + abs(self.rear_dist_from_center)
+    self.wheelbase = 3.6  # m
     self.track_width = 1.9  # m
+    self.front_dist_from_center = self.cg.y + self.wheelbase * self.cg_to_rear  # m
+    self.rear_dist_from_center = self.cg.y - self.wheelbase * self.cg_to_front  # m
 
     self.dist_cg_front_axle = abs(self.cg.y - self.front_dist_from_center)
     self.dist_cg_rear_axle = abs(self.rear_dist_from_center - self.cg.y)
 
     self.front_static = (
-      self.mass * -_GRAVITY * self.dist_cg_front_axle / self.wheelbase / 2
+      self.mass * -_GRAVITY * self.dist_cg_rear_axle / self.wheelbase / 2
     )
     self.rear_static = (
-      self.mass * -_GRAVITY * self.dist_cg_rear_axle / self.wheelbase / 2
+      self.mass * -_GRAVITY * self.dist_cg_front_axle / self.wheelbase / 2
     )
 
     # Movement constants
-    self.brake_c = 10000  # N
+    self.brake_c = 9000  # Nm
     self.drag_c = 0.7
     self.roll_resist = 0.015
     self.downforce_c = 3.5
 
+    self.brake_bias_front = 0.6  # %
+    self.brake_bias_rear = 1 - self.brake_bias_front  # %
+
+    self.max_steer_angle = 25  # Deg
+
     # Movement vars
     self.yaw_rate = 0.0  # Rad/s
+    self.steer_angle = 0.0  # Deg
 
     # Vectors
     self.local_accel = pr.Vector2(0, 0)
@@ -87,24 +86,24 @@ class Car:
     # Axles
     forward = pr.Vector2(math.cos(self.angle_rad), math.sin(self.angle_rad))
     f_ax_lat_config = {
-      "pacejka": {"B": 10, "C": 1.9, "D": 1.6, "E": 0.9},
+      "pacejka": {"B": 18, "C": 1.9, "D": 2.2, "E": 0.95},
       "load": self.front_static,
-      "sens": 0.09,
+      "sens": 0.05,
     }
     f_ax_long_config = {
-      "pacejka": {"B": 12, "C": 1.6, "D": 1.6, "E": -0.5},
+      "pacejka": {"B": 20, "C": 1.6, "D": 2.1, "E": 0.1},
       "load": self.front_static,
-      "sens": 0.09,
+      "sens": 0.05,
     }
     r_ax_lat_config = {
-      "pacejka": {"B": 10, "C": 1.9, "D": 1.55, "E": 0.8},
+      "pacejka": {"B": 16, "C": 1.9, "D": 2.4, "E": 0.95},
       "load": self.rear_static,
-      "sens": 0.09,
+      "sens": 0.05,
     }
     r_ax_long_config = {
-      "pacejka": {"B": 12, "C": 1.5, "D": 1.5, "E": -0.5},
+      "pacejka": {"B": 18, "C": 1.6, "D": 2.3, "E": 0.1},
       "load": self.rear_static,
-      "sens": 0.09,
+      "sens": 0.05,
     }
 
     front_axle_pos = pr.Vector2(
@@ -121,7 +120,7 @@ class Car:
       self.dist_cg_front_axle,
       self.track_width,
       self.angle_rad,
-      0.275,
+      0.305,
       18.0,
       self.front_static,
       False,
@@ -134,7 +133,7 @@ class Car:
       -self.dist_cg_rear_axle,
       self.track_width,
       self.angle_rad,
-      0.375,
+      0.405,
       21.0,
       self.rear_static,
       True,
@@ -204,18 +203,26 @@ class Car:
     weight_front = self.front_static - transfer_x
     weight_rear = self.rear_static + transfer_x
 
-    self.front_axle.left_tire.load = weight_front + transfer_y + front_downforce_tire
-    self.front_axle.right_tire.load = weight_front - transfer_y + front_downforce_tire
-    self.rear_axle.left_tire.load = weight_rear + transfer_y + rear_downforce_tire
-    self.rear_axle.right_tire.load = weight_rear - transfer_y + rear_downforce_tire
+    self.front_axle.left_tire.load = max(
+      0.0, weight_front + transfer_y + front_downforce_tire
+    )
+    self.front_axle.right_tire.load = max(
+      0.0, weight_front - transfer_y + front_downforce_tire
+    )
+    self.rear_axle.left_tire.load = max(
+      0.0, weight_rear + transfer_y + rear_downforce_tire
+    )
+    self.rear_axle.right_tire.load = max(
+      0.0, weight_rear - transfer_y + rear_downforce_tire
+    )
 
     # Building longitudinal force
     num_steps = 8
     sub_dt = dt / num_steps
 
     brake_t = self.brake_c * brake
-    front_brake_t = brake_t * self.brake_bias_front
-    rear_brake_t = brake_t * self.brake_bias_rear
+    front_brake_t = brake_t * self.brake_bias_front / 2
+    rear_brake_t = brake_t * self.brake_bias_rear / 2
 
     accumulated_force_x = 0.0
     accumulated_force_y = 0.0

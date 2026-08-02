@@ -49,7 +49,7 @@ class Tire:
     self.local_pos = local_pos
     self.local_coord = local_coord
     self.radius = 0.35  # m
-    self.width = width
+    self.width = width  # m
     self.mass = mass  # kg
     self.lat_config = lat_config
     self.long_config = long_config
@@ -129,7 +129,9 @@ class Tire:
 
     self.long_f = pacejka_model(B, C, self.max_long_D, E, self.slip_ratio) * self.load
 
-  def update_omega(self, dt: float, car_speed: float, throttle: bool, brake: bool, added_inertia: float):
+  def update_omega(
+    self, dt: float, car_speed: float, throttle: bool, brake: bool, added_inertia: float
+  ):
     active_t = self.drive_t - self.long_f * self.radius
     total_inertia = self.inertia + added_inertia
 
@@ -162,11 +164,11 @@ class Tire:
 
     SHxa = 0.0
     bxa = 1.2
-    cxa = 1.0
+    cxa = 1.1
 
     SHyk = 0.0
-    byk = 1.1
-    cyk = 1.0
+    byk = 3.4
+    cyk = 1.1
 
     gx = math.cos(cxa * math.atan(bxa * (abs(self.slip_angle) + SHxa))) / math.cos(
       cxa * math.atan(bxa * SHxa)
