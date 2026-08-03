@@ -95,25 +95,45 @@ class Car:
 
     # Axles
     forward = pr.Vector2(math.cos(self.angle_rad), math.sin(self.angle_rad))
-    f_ax_lat_config = {
-      "pacejka": {"B": 18, "C": 1.9, "D": 2.2, "E": 0.95},
-      "load": self.front_static,
-      "sens": 0.05,
+    f_ax_config = {
+      "long": {
+        "pacejka": {"B": 20, "C": 1.6, "D": 2.1, "E": 0.1},
+        "load": self.front_static,
+        "sens": 0.05,
+      },
+      "lat": {
+        "pacejka": {"B": 18, "C": 1.9, "D": 2.2, "E": 0.85},
+        "load": self.front_static,
+        "sens": 0.05,
+      },
+      "combined_slip": {
+        "SHxa": 0.0,
+        "bxa": 2.8,
+        "cxa": 1.2,
+        "SHyk": 0.0,
+        "byk": 2.4,
+        "cyk": 1.15,
+      },
     }
-    f_ax_long_config = {
-      "pacejka": {"B": 20, "C": 1.6, "D": 2.1, "E": 0.1},
-      "load": self.front_static,
-      "sens": 0.05,
-    }
-    r_ax_lat_config = {
-      "pacejka": {"B": 16, "C": 1.9, "D": 2.4, "E": 0.95},
-      "load": self.rear_static,
-      "sens": 0.05,
-    }
-    r_ax_long_config = {
-      "pacejka": {"B": 18, "C": 1.6, "D": 2.3, "E": 0.1},
-      "load": self.rear_static,
-      "sens": 0.05,
+    r_ax_config = {
+      "long": {
+        "pacejka": {"B": 18, "C": 1.6, "D": 2.3, "E": 0.1},
+        "load": self.rear_static,
+        "sens": 0.05,
+      },
+      "lat": {
+        "pacejka": {"B": 16, "C": 1.9, "D": 2.4, "E": 0.85},
+        "load": self.rear_static,
+        "sens": 0.05,
+      },
+      "combined_slip": {
+        "SHxa": 0.0,
+        "bxa": 2.0,
+        "cxa": 1.1,
+        "SHyk": 0.0,
+        "byk": 3.1,
+        "cyk": 1.2,
+      },
     }
 
     front_axle_pos = pr.Vector2(
@@ -134,8 +154,7 @@ class Car:
       18.0,
       self.front_static,
       False,
-      f_ax_lat_config,
-      f_ax_long_config,
+      f_ax_config,
     )
     self.rear_axle = Axle(
       rear_axle_pos,
@@ -147,8 +166,7 @@ class Car:
       21.0,
       self.rear_static,
       True,
-      r_ax_lat_config,
-      r_ax_long_config,
+      r_ax_config,
     )
 
   def update(self, dt: float, throttle: bool, brake: bool, steer: float):

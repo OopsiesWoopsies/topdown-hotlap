@@ -18,8 +18,7 @@ class Axle:
     tire_mass: float,
     tire_load: float,
     powered: bool,
-    lat_pacejka_consts: dict[str, float],
-    long_pacejka_consts: dict[str, float],
+    config: dict[str, any],
   ):
     self.local_pos = local_pos
     self.distance_to_center = distance_to_center
@@ -41,8 +40,7 @@ class Axle:
       tire_load,
       pr.Vector2(distance_to_cg, track_width / 2),
       powered,
-      lat_pacejka_consts,
-      long_pacejka_consts,
+      config,
     )
     self.right_tire = Tire(
       right_tire_pos,
@@ -51,8 +49,7 @@ class Axle:
       tire_load,
       pr.Vector2(distance_to_cg, -track_width / 2),
       powered,
-      lat_pacejka_consts,
-      long_pacejka_consts,
+      config,
     )
 
   def get_load(self) -> float:

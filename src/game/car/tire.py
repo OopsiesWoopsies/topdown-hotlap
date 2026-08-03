@@ -41,8 +41,7 @@ class Tire:
     load: float,
     local_coord: pr.Vector2,
     powered: bool,
-    lat_config: dict[str, float],
-    long_config: dict[str, float],
+    config: dict[str, any],
   ):
     # Constants
     self.powered = powered
@@ -51,8 +50,7 @@ class Tire:
     self.radius = 0.35  # m
     self.width = width  # m
     self.mass = mass  # kg
-    self.lat_config = lat_config
-    self.long_config = long_config
+    self.config = config
 
     # Variables
     self.load = load  # N
@@ -67,8 +65,8 @@ class Tire:
     self.long_f = 0.0  # N
     self.lateral_f = 0.0  # N
     self.steer_rad = 0.0  # Rad
-    self.max_lat_D = self.lat_config["pacejka"]["D"]
-    self.max_long_D = self.long_config["pacejka"]["D"]
+    self.max_lat_D = self.config["lat"]["pacejka"]["D"]
+    self.max_long_D = self.config["long"]["pacejka"]["D"]
     self.grip_usage = 0.0
 
   def update_slip_ratio(self):
@@ -100,12 +98,14 @@ class Tire:
       self.slip_angle *= -1
 
   def update_lateral_force(self):
-    B = self.lat_config["pacejka"]["B"]
-    C = self.lat_config["pacejka"]["C"]
-    D = self.lat_config["pacejka"]["D"]
-    E = self.lat_config["pacejka"]["E"]
-    f_nom = self.lat_config["load"]
-    sens_lat = self.lat_config["sens"]
+    lat_config = self.config["lat"]
+    pacejka_config = lat_config["pacejka"]
+    B = pacejka_config["B"]
+    C = pacejka_config["C"]
+    D = pacejka_config["D"]
+    E = pacejka_config["E"]
+    f_nom = lat_config["load"]
+    sens_lat = lat_config["sens"]
 
     load_ratio = self.load / max(f_nom, 1.0)
     D_lat_scaled = D * (1.0 / (1.0 + sens_lat * (load_ratio - 1.0)))
@@ -116,12 +116,14 @@ class Tire:
     )
 
   def update_long_force(self):
-    B = self.long_config["pacejka"]["B"]
-    C = self.long_config["pacejka"]["C"]
-    D = self.long_config["pacejka"]["D"]
-    E = self.long_config["pacejka"]["E"]
-    f_nom = self.long_config["load"]
-    sens_long = self.long_config["sens"]
+    long_config = self.config["long"]
+    pacejka_config = long_config["pacejka"]
+    B = pacejka_config["B"]
+    C = pacejka_config["C"]
+    D = pacejka_config["D"]
+    E = pacejka_config["E"]
+    f_nom = long_config["load"]
+    sens_long = long_config["sens"]
 
     load_ratio = self.load / max(f_nom, 1.0)
     D_long_scaled = D * (1.0 - sens_long * (load_ratio - 1.0))
@@ -162,13 +164,15 @@ class Tire:
     fx = self.long_f
     fy = self.lateral_f
 
-    SHxa = 0.0
-    bxa = 2.3
-    cxa = 1.2
+    combined_slip_config = self.config["combined_slip"]
 
-    SHyk = 0.0
-    byk = 3.1
-    cyk = 1.2
+    SHxa = combined_slip_config["SHxa"]
+    bxa = combined_slip_config["bxa"]
+    cxa = combined_slip_config["cxa"]
+
+    SHyk = combined_slip_config["SHyk"]
+    byk = combined_slip_config["byk"]
+    cyk = combined_slip_config["cyk"]
 
     gx = math.cos(cxa * math.atan(bxa * (abs(self.slip_angle) + SHxa))) / math.cos(
       cxa * math.atan(bxa * SHxa)
