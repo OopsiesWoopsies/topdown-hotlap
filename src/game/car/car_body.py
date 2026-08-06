@@ -169,11 +169,14 @@ class Car:
       r_ax_config,
     )
 
-  def update(self, dt: float, throttle: bool, brake: bool, steer: float):
-    self.update_physics(dt, throttle, brake, steer)
+  def update(self, dt: float, inputs: dict[str, float | bool], steer: float):
+    self.update_physics(dt, inputs, steer)
     self.update_positions(dt)
 
-  def update_physics(self, dt: float, throttle: bool, brake: bool, steer: float):
+  def update_physics(self, dt: float, inputs: dict[str, float | bool], steer: float):
+    throttle = inputs["throttle"]
+    brake = inputs["brake"]
+
     front_tires = [self.front_axle.left_tire, self.front_axle.right_tire]
     rear_tires = [self.rear_axle.left_tire, self.rear_axle.right_tire]
     forward = pr.Vector2(math.cos(self.angle_rad), math.sin(self.angle_rad))
@@ -342,7 +345,7 @@ class Car:
       or abs(self.rear_axle.left_tire.slip_ratio) == -1
       or abs(self.rear_axle.right_tire.slip_ratio) == -1
     )
-    self.engine.update_shift(is_slipping)
+    self.engine.update_shift(is_slipping, inputs, auto_shift=False)
 
     # Compute drag and final chassis net force
     if speed > 0.01:
@@ -406,7 +409,7 @@ class Car:
     )
     DEBUG_VALS["BrakeT"] = f"{brake_t:>13.3f}"
     DEBUG_VALS["EngRPM"] = f"{self.engine.rpm:>12.3f}"
-    DEBUG_VALS["Gear"] = f"{self.engine.gear + 1:>1}"
+    DEBUG_VALS["Gear"] = f"{self.engine.gear - 1:>1}"
     DEBUG_VALS["Steer"] = f"{steer:>12.3f}"
     DEBUG_VALS["YawRate"] = f"{math.degrees(self.yaw_rate):>12.3f}"
     DEBUG_VALS["YawTq"] = f"{yaw_torque:>12.3f}"

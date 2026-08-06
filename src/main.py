@@ -50,6 +50,8 @@ while not pr.window_should_close():
 
   renderer.end_world()
 
+  world.controls.draw()
+
   text = f"{round(world.car.render_pos.x, 3)}\n{round(world.car.render_pos.y, 3)}\n{round(pr.vector2_length(world.car.velo) * 3600 / 1000, 3)} km/h"
   pr.draw_text(text, 5, 30, 20, pr.BLACK)
 
@@ -62,8 +64,8 @@ while not pr.window_should_close():
   text5 = f"EngRPM: {debug_vals['EngRPM']}\nGear: {debug_vals['Gear']}\n"
   text6 = f"YawRate: {debug_vals['YawRate']}\n"
   text = text1 + text2 + text3 + text5 + text6
-  pr.draw_text(text, 5, 90, 20, pr.BLACK)
-  pr.draw_text(text4, 5, 380, 15, pr.BLACK)
+  # pr.draw_text(text, 5, 90, 20, pr.BLACK)
+  # pr.draw_text(text4, 5, 380, 15, pr.BLACK)
 
   pr.draw_fps(0, 0)
   pr.end_drawing()

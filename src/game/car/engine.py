@@ -10,9 +10,9 @@ class Engine:
   def __init__(self):
     # Engine constants
     self.trans_efficiency = 0.95
-    self.gear_ratios = [3.40, 2.75, 2.30, 1.95, 1.68, 1.46, 1.26, 1.01]
+    self.gear_ratios = [-3.00, 0.0, 3.40, 2.75, 2.30, 1.95, 1.68, 1.46, 1.26, 1.01]
     self.final_drive = 4.6
-    self.gear = 0
+    self.gear = 1
     self.overall_inertia = 0.1  # kg*m^2
     self.engine_brake = 75.0  # Nm
     self.max_clutch = 1100.0  # Nm
@@ -39,6 +39,7 @@ class Engine:
     self.net_engine_t = 0.0
     self.clutch = 1.0
     self.is_locked = True
+    self.is_downshifting = False
 
   def torque_curve(self, rpm: float) -> float:
     if rpm <= self.peak_rpm:
@@ -58,6 +59,15 @@ class Engine:
       self.shift_timer -= dt
       self.clutch = 0.0
       self.clutch_reengage_timer = self.clutch_reengage_cd
+
+      if self.is_downshifting and self.gear_ratios[self.gear] > 0:
+        if self.omega < self.trans_omega:
+          blip_amount = (self.trans_omega - self.omega) / 50.0
+          throttle = pr.clamp(blip_amount, 0.0, 1.0)
+        else:
+          throttle = 0.0
+      else:
+        throttle = 0.0
     elif self.rpm <= self.idle_rpm:
       self.clutch = 0.0
       self.clutch_reengage_timer = 0.0
@@ -120,23 +130,39 @@ class Engine:
     total_ratio = self.gear_ratios[self.gear] * self.final_drive
     return self.overall_inertia * total_ratio**2
 
-  def update_shift(self, is_slipping: bool, auto_shift: bool = True):
-    if (
-      self.shift_timer > 0.0
-      or self.clutch_reengage_timer > 0.0
-      or not auto_shift
-      or self.clutch == 0
-    ):
+  def update_shift(
+    self, is_slipping: bool, inputs: dict[str, float | bool], auto_shift: bool = True
+  ):
+    if is_slipping or self.shift_timer > 0.0 or self.clutch_reengage_timer > 0.0:
       return
 
-    if (
-      not is_slipping
-      and self.gear < len(self.gear_ratios) - 1
-      and self.rpm > 13000
-    ):
+    if not auto_shift:
+      if inputs["shift_up"] and self.gear < len(self.gear_ratios) - 1:
+        self.gear += 1
+        self.shift_timer = self.shift_cd
+        self.is_downshifting = False
+
+      elif inputs["shift_down"] and self.gear > 0:
+        curr_gear_ratio = self.gear_ratios[self.gear]
+        if curr_gear_ratio != 0.0:
+          new_rpm = (
+            self.gear_ratios[self.gear - 1] / self.gear_ratios[self.gear] * self.rpm
+          )
+        else:
+          new_rpm = self.idle_rpm
+        if new_rpm >= 15000:
+          return
+        self.gear -= 1
+        self.shift_timer = self.shift_cd
+        self.is_downshifting = True
+      return
+
+    if self.gear < len(self.gear_ratios) - 1 and self.rpm > 13000:
       self.gear += 1
       self.shift_timer = self.shift_cd
+      self.is_downshifting = False
 
-    elif not is_slipping and self.gear > 0 and self.rpm < 6500:
+    elif self.gear > 0 and self.rpm < 6500:
       self.gear -= 1
       self.shift_timer = self.shift_cd
+      self.is_downshifting = True
