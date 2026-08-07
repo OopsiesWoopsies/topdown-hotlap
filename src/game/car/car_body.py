@@ -427,7 +427,7 @@ class Car:
     self.front_axle.update_position(self.pos, forward, right)
     self.rear_axle.update_position(self.pos, forward, right)
 
-  def draw(self, alpha: float):
+  def draw_car(self, alpha: float):
     angle_deg = math.degrees(self.angle_rad)
     forward = pr.Vector2(math.cos(self.angle_rad), math.sin(self.angle_rad))
     right = pr.Vector2(-math.sin(self.angle_rad), math.cos(self.angle_rad))
@@ -453,6 +453,78 @@ class Car:
 
     self.front_axle.draw(angle_deg, self.steer_angle)
     self.rear_axle.draw(angle_deg, 0)
+
+  def draw_data(self, screen_width: int, screen_height: int):
+    """Show information such as the current gear, rpm, speed, and whether or not the tires are currently slipping.
+
+    Args:
+      screen_width: Width of the screen.
+      screen_height: Height of the screen.
+    """
+    screen_width_half = screen_width / 2
+
+    # Gear text
+    gear_draw_font_size = 30
+    if self.engine.gear == 1:
+      curr_gear_text = "N"
+    elif self.engine.gear == 0:
+      curr_gear_text = "R"
+    else:
+      curr_gear_text = str(self.engine.gear - 1)
+    text_width = pr.measure_text(curr_gear_text, gear_draw_font_size)
+    gear_draw_pos_x = int(screen_width_half - text_width / 2)
+    gear_draw_pos_y = screen_height - 80
+
+    # Speed text (kph and mph)
+    speed_kph_draw_font_size = 20
+    speed_kph = pr.vector2_length(self.velo) * 3.6
+    speed_kph_text = f"{round(speed_kph)} kph"
+    text_width = pr.measure_text(speed_kph_text, speed_kph_draw_font_size)
+    speed_kph_draw_pos_x = int(screen_width_half - text_width / 2 - 100)
+    speed_kph_draw_pos_y = screen_height - 70
+
+    speed_mph_draw_font_size = 18
+    speed_mph = speed_kph * 0.621371
+    speed_mph_text = f"{round(speed_mph)} mph"
+    text_width = pr.measure_text(speed_mph_text, speed_mph_draw_font_size)
+    speed_mph_draw_pos_x = int(screen_width_half - text_width / 2 - 100)
+    speed_mph_draw_pos_y = screen_height - 50
+
+    # RPM
+    rpm_draw_font_size = 20
+    rpm_text = f"{round(self.engine.rpm)} RPM"
+    text_width = pr.measure_text(rpm_text, rpm_draw_font_size)
+    rpm_draw_pos_x = int(screen_width_half - text_width / 2 + 100)
+    rpm_draw_pos_y = screen_height - 70
+
+    # Dashboard
+    p1 = pr.Vector2(screen_width_half - 200, screen_height)  # Bottom-left
+    p2 = pr.Vector2(screen_width_half + 200, screen_height)  # Bottom-right
+    p3 = pr.Vector2(screen_width_half + 150, screen_height - 100)  # Top-right
+    p4 = pr.Vector2(screen_width_half - 150, screen_height - 100)  # Top-left
+
+    pr.draw_triangle(p1, p2, p3, pr.BLUE)
+    pr.draw_triangle(p1, p3, p4, pr.BLUE)
+
+    pr.draw_text(
+      curr_gear_text, gear_draw_pos_x, gear_draw_pos_y, gear_draw_font_size, pr.BLACK
+    )
+    pr.draw_text(
+      speed_kph_text,
+      speed_kph_draw_pos_x,
+      speed_kph_draw_pos_y,
+      speed_kph_draw_font_size,
+      pr.BLACK,
+    )
+    pr.draw_text(
+      speed_mph_text,
+      speed_mph_draw_pos_x,
+      speed_mph_draw_pos_y,
+      speed_mph_draw_font_size,
+      pr.BLACK,
+    )
+    pr.draw_text(rpm_text, rpm_draw_pos_x, rpm_draw_pos_y, rpm_draw_font_size, pr.BLACK)
+
 
   def get_debug_vals(self) -> dict:
     def set_debug_tires():

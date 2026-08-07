@@ -133,7 +133,7 @@ class Engine:
   def update_shift(
     self, is_slipping: bool, inputs: dict[str, float | bool], auto_shift: bool = True
   ):
-    if is_slipping or self.shift_timer > 0.0 or self.clutch_reengage_timer > 0.0:
+    if self.shift_timer > 0.0 or self.clutch_reengage_timer > 0.0:
       return
 
     if not auto_shift:
@@ -157,6 +157,8 @@ class Engine:
         self.is_downshifting = True
       return
 
+    if is_slipping:
+      return
     if self.gear < len(self.gear_ratios) - 1 and self.rpm > 13000:
       self.gear += 1
       self.shift_timer = self.shift_cd
