@@ -37,8 +37,11 @@ class Car:
     # Car body constants
     self.size = size
     self.pos = pos
+    self.prev_pos = pos
     self.render_pos = pr.vector2_scale(pos, PIXELS_PER_METER)
     self.angle_rad = math.radians(angle_deg)
+    self.prev_angle_rad = self.angle_rad
+    self.render_angle_rad = self.angle_rad
     self.mass = 882  # kg
     self.inertia = self.mass * (self.size.x**2 + self.size.y**2) / 12
 
@@ -170,6 +173,8 @@ class Car:
     )
 
   def update(self, dt: float, inputs: dict[str, float | bool], steer: float):
+    self.prev_pos = pr.Vector2(self.pos.x, self.pos.y)
+    self.prev_angle_rad = self.angle_rad
     self.update_physics(dt, inputs, steer)
     self.update_positions(dt)
 
@@ -428,17 +433,21 @@ class Car:
     self.rear_axle.update_position(self.pos, forward, right)
 
   def draw_car(self, alpha: float):
-    angle_deg = math.degrees(self.angle_rad)
+    interp_pos = pr.vector2_lerp(self.prev_pos, self.pos, alpha)
+    interp_angle_rad = pr.lerp(self.prev_angle_rad, self.angle_rad, alpha)
+
+    angle_deg = math.degrees(interp_angle_rad)
     forward = pr.Vector2(math.cos(self.angle_rad), math.sin(self.angle_rad))
     right = pr.Vector2(-math.sin(self.angle_rad), math.cos(self.angle_rad))
 
     cg_world_x = self.pos.x + right.x * self.cg.x + forward.x * self.cg.y
     cg_world_y = self.pos.y + right.y * self.cg.x + forward.y * self.cg.y
 
-    pos_draw = pr.vector2_scale(self.pos, PIXELS_PER_METER)
+    pos_draw = pr.vector2_scale(interp_pos, PIXELS_PER_METER)
     size_draw = pr.vector2_scale(self.size, PIXELS_PER_METER)
 
     self.render_pos = pos_draw
+    self.render_angle_rad = interp_angle_rad
 
     rec = pr.Rectangle(pos_draw.x, pos_draw.y, size_draw.x, size_draw.y)
     car_origin = pr.Vector2(size_draw.x / 2, size_draw.y / 2)
@@ -451,8 +460,8 @@ class Car:
       pr.BLACK,
     )
 
-    self.front_axle.draw(angle_deg, self.steer_angle)
-    self.rear_axle.draw(angle_deg, 0)
+    self.front_axle.draw(alpha, angle_deg, self.steer_angle)
+    self.rear_axle.draw(alpha, angle_deg, 0)
 
   def draw_data(self, screen_width: int, screen_height: int):
     """Show information such as the current gear, rpm, speed, and whether or not the tires are currently slipping.

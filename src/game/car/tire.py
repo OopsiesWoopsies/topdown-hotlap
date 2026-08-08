@@ -46,6 +46,7 @@ class Tire:
     # Constants
     self.powered = powered
     self.local_pos = local_pos
+    self.prev_local_pos = local_pos
     self.local_coord = local_coord
     self.radius = 0.35  # m
     self.width = width  # m
@@ -203,13 +204,15 @@ class Tire:
     right: float,
     track_width: float,
   ):
+    self.prev_local_pos = self.local_pos
     self.local_pos = vector2_operation(
       axle_local_pos,
       pr.vector2_scale(right, track_width / 2 + self.width / 2),
     )
 
-  def draw(self, angle_deg: float, steer_deg: float):
-    local_pos_draw = pr.vector2_scale(self.local_pos, PIXELS_PER_METER)
+  def draw(self, alpha: float, angle_deg: float, steer_deg: float):
+    interp_pos = pr.vector2_lerp(self.prev_local_pos, self.local_pos, alpha)
+    local_pos_draw = pr.vector2_scale(interp_pos, PIXELS_PER_METER)
     diameter_draw = self.radius * 2 * PIXELS_PER_METER
     width_draw = self.width * PIXELS_PER_METER
 

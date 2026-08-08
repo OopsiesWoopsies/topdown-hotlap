@@ -17,7 +17,7 @@ pr.set_target_fps(144)
 world = World()
 renderer = Renderer(SCREEN_WIDTH, SCREEN_HEIGHT)
 
-fixed_dt = 1.0 / 120.0
+fixed_dt = 1.0 / 144.0
 accumulator = 0.0
 
 while not pr.window_should_close():
@@ -39,7 +39,7 @@ while not pr.window_should_close():
   renderer.draw(world, alpha)
 
   renderer.camera.target = world.car.render_pos
-  angle_deg = math.degrees(world.car.angle_rad) + 90
+  angle_deg = math.degrees(world.car.render_angle_rad) + 90
   renderer.camera.rotation = -angle_deg
 
   for x in range(-100000, 100000, 100):

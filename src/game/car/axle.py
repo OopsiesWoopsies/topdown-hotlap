@@ -21,6 +21,7 @@ class Axle:
     config: dict[str, any],
   ):
     self.local_pos = local_pos
+    self.prev_local_pos = local_pos
     self.distance_to_center = distance_to_center
     self.track_width = track_width
     self.axle_width = 0.05
@@ -56,6 +57,7 @@ class Axle:
     return self.left_tire.load + self.right_tire.load
 
   def update_position(self, car_pos: pr.Vector2, forward: float, right: float):
+    self.prev_local_pos = self.local_pos
     self.local_pos = pr.vector2_add(
       car_pos, pr.vector2_scale(forward, self.distance_to_center)
     )
@@ -67,8 +69,9 @@ class Axle:
       pr.vector2_add, self.local_pos, right, self.track_width
     )
 
-  def draw(self, angle_deg: float, steer_deg: float):
-    pos_draw = pr.vector2_scale(self.local_pos, PIXELS_PER_METER)
+  def draw(self, alpha: float, angle_deg: float, steer_deg: float):
+    interp_pos = pr.vector2_lerp(self.prev_local_pos, self.local_pos, alpha)
+    pos_draw = pr.vector2_scale(interp_pos, PIXELS_PER_METER)
     axle_width_draw = self.axle_width * PIXELS_PER_METER
     track_width_draw = self.track_width * PIXELS_PER_METER
 
@@ -77,5 +80,5 @@ class Axle:
 
     pr.draw_rectangle_pro(rec, origin, angle_deg, pr.BLACK)
 
-    self.left_tire.draw(angle_deg, steer_deg)
-    self.right_tire.draw(angle_deg, steer_deg)
+    self.left_tire.draw(alpha, angle_deg, steer_deg)
+    self.right_tire.draw(alpha, angle_deg, steer_deg)
