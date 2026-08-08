@@ -13,7 +13,8 @@ class Control:
     self.shift_down_keybind = pr.KEY_Q
 
     # Steering
-    self.sens = 0.7
+    self.steer_amt = 0.0
+    self.sens = 1
     self.straight_steer_margin = 0.01
 
     # Throttle & Brake
@@ -87,9 +88,11 @@ class Control:
 
     if abs(steer) < self.straight_steer_margin:
       steer = 0
-    return pr.clamp(steer, -1, 1)
+    self.steer_amt = pr.clamp(steer, -1, 1)
+    return self.steer_amt
 
   def draw(self):
+    # Throttle and brake
     throt_draw_x = 10
     throt_draw_y = 650
     throt_draw_width = 70
@@ -131,9 +134,15 @@ class Control:
       brake_draw_height,
     )
     origin = pr.Vector2(0, 0)
+
     pr.draw_rectangle_pro(throttle_rec_1, origin, 0, pr.GREEN)
     pr.draw_rectangle_pro(throttle_rec_2, origin, 180, pr.GREEN)
     pr.draw_rectangle_lines_ex(throttle_otln, 2, pr.LIME)
     pr.draw_rectangle_pro(brake_rec_1, origin, 0, pr.RED)
     pr.draw_rectangle_pro(brake_rec_2, origin, 180, pr.RED)
     pr.draw_rectangle_lines_ex(brake_otln, 2, pr.Color(152, 19, 28, 255))
+
+    # Steering wheel (temp rectangle)
+    wheel = pr.Rectangle(1100, 650, 100, 50)
+    origin = pr.Vector2(wheel.width / 2, wheel.height / 2)
+    pr.draw_rectangle_pro(wheel, origin, self.steer_amt * 180, pr.DARKPURPLE)
