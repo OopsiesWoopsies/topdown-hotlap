@@ -1,3 +1,5 @@
+import math
+
 import pyray as pr
 
 from game.world import World
@@ -15,7 +17,7 @@ pr.set_target_fps(144)
 world = World()
 renderer = Renderer(SCREEN_WIDTH, SCREEN_HEIGHT)
 
-fixed_dt = 1.0 / 120.0
+fixed_dt = 1.0 / 144.0
 accumulator = 0.0
 
 while not pr.window_should_close():
@@ -28,11 +30,6 @@ while not pr.window_should_close():
 
   alpha = accumulator / fixed_dt
 
-  render_pos = pr.vector2_lerp(world.car.prev_pos, world.car.pos, alpha)
-  renderer.camera.target = renderer.camera.target = pr.vector2_lerp(
-    renderer.camera.target, world.car.render_pos, 0.15
-  )
-
   pr.begin_drawing()
   pr.clear_background(pr.DARKGRAY)
 
@@ -40,13 +37,34 @@ while not pr.window_should_close():
   pr.draw_rectangle(0, 0, 100, 100, pr.WHITE)
 
   renderer.draw(world, alpha)
-  for x in range(-5000, 5000, 100):
-    pr.draw_line(x, -5000, x, 5000, pr.GRAY)
 
-  for y in range(-5000, 5000, 100):
-    pr.draw_line(-5000, y, 5000, y, pr.GRAY)
+  renderer.camera.target = world.car.render_pos
+  angle_deg = math.degrees(world.car.render_angle_rad) + 90
+  renderer.camera.rotation = -angle_deg
+
+  for x in range(-100000, 100000, 100):
+    pr.draw_line(x, -100000, x, 100000, pr.GRAY)
+
+  for y in range(-100000, 100000, 100):
+    pr.draw_line(-100000, y, 100000, y, pr.GRAY)
 
   renderer.end_world()
+
+  world.car.draw_data(SCREEN_WIDTH, SCREEN_HEIGHT)
+  world.controls.draw()
+
+
+  debug_vals = world.car.get_debug_vals()
+  # print(debug_vals)
+  text1 = f"Accel: {debug_vals['Accel']}\nLocal Accel: {debug_vals['LAccel']}\nVelo: {debug_vals['Velo']}\nLocal Velo: {debug_vals['LVelo']}\n"
+  text2 = f"Speed: {debug_vals['Speed']}\nLongF: {debug_vals['LongF']}\nTractionF: {debug_vals['TractionF']}\nDragF: {debug_vals['DragF']}\n"
+  text3 = f"DriveT: {debug_vals['DriveT']}\nBrakeT: {debug_vals['BrakeT']}\n"
+  text4 = f"FLTire: {debug_vals['FLTire']}\nFRTire: {debug_vals['FRTire']}\nRLTire: {debug_vals['RLTire']}\nRRTire: {debug_vals['RRTire']}\n"
+  text5 = f"EngRPM: {debug_vals['EngRPM']}\nGear: {debug_vals['Gear']}\n"
+  text6 = f"YawRate: {debug_vals['YawRate']}\n"
+  text = text1 + text2 + text3 + text5 + text6
+  # pr.draw_text(text, 5, 90, 20, pr.BLACK)
+  # pr.draw_text(text4, 5, 380, 15, pr.BLACK)
 
   pr.draw_fps(0, 0)
   pr.end_drawing()
