@@ -38,8 +38,12 @@ class Engine:
     self.clutch_t = 0.0
     self.net_engine_t = 0.0
     self.clutch = 1.0
+
+    # Cases
     self.is_locked = True
     self.is_downshifting = False
+    self.is_stalled = False
+    self.anti_stall = False
 
   def torque_curve(self, rpm: float) -> float:
     if rpm <= self.peak_rpm:
@@ -52,14 +56,13 @@ class Engine:
 
   def update_clutch_torque(self, dt: float, throttle: float, avg_tire_omega: float):
     if self.shift_timer > 0.0:
-      throttle = 0.0
-
-    # Determine clutch status
-    if self.shift_timer > 0.0:
       self.shift_timer -= dt
-      self.clutch = 0.0
       self.clutch_reengage_timer = self.clutch_reengage_cd
+    elif self.clutch_reengage_timer > 0.0:
+      self.clutch_reengage_timer -= dt
 
+    if self.shift_timer > 0.0:
+      self.clutch = 0.0
       if self.is_downshifting and self.gear_ratios[self.gear] > 0:
         if self.omega < self.trans_omega:
           blip_amount = (self.trans_omega - self.omega) / 50.0
@@ -68,52 +71,86 @@ class Engine:
           throttle = 0.0
       else:
         throttle = 0.0
-    elif self.rpm <= self.idle_rpm:
-      self.clutch = 0.0
-      self.clutch_reengage_timer = 0.0
-    elif self.rpm < self.idle_rpm + 1500.0:
-      self.clutch = pr.clamp((self.rpm - self.idle_rpm) / 1500.0, 0.0, 1.0)
-      self.clutch_reengage_timer = 0.0
     else:
       if self.clutch_reengage_timer > 0.0:
-        self.clutch_reengage_timer -= dt
         progress = 1.0 - (self.clutch_reengage_timer / self.clutch_reengage_cd)
         self.clutch = pr.clamp(progress, 0.0, 1.0)
         throttle *= self.clutch
       else:
         self.clutch = 1.0
 
+    if self.is_stalled:
+      throttle = 0.0
+      self.clutch = 0.0
+      if self.gear <= 2:
+        self.is_stalled = False
+        self.rpm = self.idle_rpm
+        self.omega = self.idle_omega
+
+    elif self.anti_stall:
+      throttle = 0.0
+      self.clutch = 0.0
+      if self.gear <= 2:
+        self.anti_stall = False
+
+    else:
+      if self.rpm < 1000:
+        self.is_stalled = True
+
+      elif self.gear > 2 and self.rpm < self.idle_rpm - 500:
+        self.anti_stall = True
+
+      # Launch assist
+      if (
+        not self.is_stalled
+        and not self.anti_stall
+        and self.gear <= 2
+        and self.rpm < self.idle_rpm + 1500.0
+      ):
+        launch_clutch = pr.clamp((self.rpm - self.idle_rpm) / 1500.0, 0.0, 1.0)
+        self.clutch = min(self.clutch, launch_clutch)
+
+    # Torque calculations
     gear_ratio = self.gear_ratios[self.gear]
-    engine_t = self.torque_curve(self.rpm) * throttle
     self.trans_omega = avg_tire_omega * gear_ratio * self.final_drive
 
-    # Engine braking
-    engine_t -= self.engine_brake * (self.rpm / self.redline) * (1.0 - throttle)
+    if self.is_stalled:
+      engine_t = 0.0
+      engine_t -= self.engine_brake * (self.rpm / self.redline)
+    else:
+      engine_t = self.torque_curve(self.rpm) * throttle
+      engine_t -= self.engine_brake * (self.rpm / self.redline) * (1.0 - throttle)
 
-    # Idle torque / Anti-stall
-    if self.rpm < self.idle_rpm:
-      idle_error = self.idle_rpm - self.rpm
-      base_idle_t = self.engine_brake * (self.idle_rpm / self.redline)
-      engine_t += base_idle_t + min(idle_error * 0.5, 50.0)
+      # Idle torque / Anti-stall
+      if self.rpm < self.idle_rpm:
+        idle_error = self.idle_rpm - self.rpm
+        base_idle_t = self.engine_brake * (self.idle_rpm / self.redline)
+        engine_t += base_idle_t + min(idle_error * 0.5, 50.0)
 
     # Calculate difference between engine rpm and gearbox rpm to align gearbox to engine
     slip = self.omega - self.trans_omega
     sync_torque = (slip / dt) * self.overall_inertia if dt > 0 else 0.0
     max_capacity = self.max_clutch * self.clutch
 
-    # Restored locking mechanism
-    if self.clutch > 0.0 and abs(sync_torque) <= max_capacity and abs(slip) < 15.0:
+    if (
+      self.gear != 1
+      and self.clutch > 0.0
+      and abs(sync_torque) <= max_capacity
+      and abs(slip) < 15.0
+    ):
       self.is_locked = True
       self.omega = self.trans_omega
       self.net_engine_t = 0.0
       self.clutch_t = pr.clamp(engine_t, -max_capacity, max_capacity)
     else:
       self.is_locked = False
-      if self.clutch == 0.0:
+
+      if self.gear == 1 or self.clutch == 0.0:
         self.clutch_t = 0.0
       else:
         self.clutch_t = pr.clamp(sync_torque, -max_capacity, max_capacity)
 
+      # Engine omega updates
       self.net_engine_t = engine_t - self.clutch_t
       self.omega += (self.net_engine_t / self.overall_inertia) * dt
 

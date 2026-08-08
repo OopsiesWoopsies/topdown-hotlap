@@ -475,6 +475,17 @@ class Car:
     gear_draw_pos_x = int(screen_width_half - text_width / 2)
     gear_draw_pos_y = screen_height - 80
 
+    # Anti stall text
+    anti_stall_draw_font_size = 20
+    if self.engine.anti_stall:
+      anti_stall_text = "AS: ON"
+    else:
+      anti_stall_text = "AS: OFF"
+
+    text_width = pr.measure_text(anti_stall_text, anti_stall_draw_font_size)
+    anti_stall_draw_pos_x = int(screen_width_half - text_width / 2)
+    anti_stall_draw_pos_y = screen_height - 40
+
     # Speed text (kph and mph)
     speed_kph_draw_font_size = 20
     speed_kph = pr.vector2_length(self.velo) * 3.6
@@ -490,7 +501,7 @@ class Car:
     speed_mph_draw_pos_x = int(screen_width_half - text_width / 2 - 100)
     speed_mph_draw_pos_y = screen_height - 50
 
-    # RPM
+    # RPM text
     rpm_draw_font_size = 20
     rpm_text = f"{round(self.engine.rpm)} RPM"
     text_width = pr.measure_text(rpm_text, rpm_draw_font_size)
@@ -510,6 +521,13 @@ class Car:
       curr_gear_text, gear_draw_pos_x, gear_draw_pos_y, gear_draw_font_size, pr.BLACK
     )
     pr.draw_text(
+      anti_stall_text,
+      anti_stall_draw_pos_x,
+      anti_stall_draw_pos_y,
+      anti_stall_draw_font_size,
+      pr.BLACK,
+    )
+    pr.draw_text(
       speed_kph_text,
       speed_kph_draw_pos_x,
       speed_kph_draw_pos_y,
@@ -524,7 +542,6 @@ class Car:
       pr.BLACK,
     )
     pr.draw_text(rpm_text, rpm_draw_pos_x, rpm_draw_pos_y, rpm_draw_font_size, pr.BLACK)
-
 
   def get_debug_vals(self) -> dict:
     def set_debug_tires():
