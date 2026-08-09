@@ -31,10 +31,9 @@ while not pr.window_should_close():
   alpha = accumulator / fixed_dt
 
   pr.begin_drawing()
-  pr.clear_background(pr.DARKGRAY)
+  pr.clear_background(pr.DARKGREEN)
 
   renderer.begin_world()
-  pr.draw_rectangle(0, 0, 100, 100, pr.WHITE)
 
   renderer.draw(world, alpha)
 
@@ -42,11 +41,12 @@ while not pr.window_should_close():
   angle_deg = math.degrees(world.car.render_angle_rad) + 90
   renderer.camera.rotation = -angle_deg
 
-  for x in range(-100000, 100000, 100):
-    pr.draw_line(x, -100000, x, 100000, pr.GRAY)
 
-  for y in range(-100000, 100000, 100):
-    pr.draw_line(-100000, y, 100000, y, pr.GRAY)
+  # for x in range(-100000, 100000, 100):
+  #   pr.draw_line(x, -100000, x, 100000, pr.GRAY)
+
+  # for y in range(-100000, 100000, 100):
+  #   pr.draw_line(-100000, y, 100000, y, pr.GRAY)
 
   renderer.end_world()
 
