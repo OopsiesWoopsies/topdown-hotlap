@@ -199,20 +199,30 @@ class Tire:
 
   def update_position(
     self,
-    vector2_operation: Callable[[pr.Vector2, pr.Vector2], pr.Vector2],
+    vector2_op: Callable[[pr.Vector2, pr.Vector2], pr.Vector2],
     axle_local_pos: pr.Vector2,
     right: float,
     track_width: float,
   ):
-    self.prev_local_pos = self.local_pos
-    self.local_pos = vector2_operation(
+    self.local_pos = vector2_op(
       axle_local_pos,
       pr.vector2_scale(right, track_width / 2 + self.width / 2),
     )
 
-  def draw(self, alpha: float, angle_deg: float, steer_deg: float):
-    interp_pos = pr.vector2_lerp(self.prev_local_pos, self.local_pos, alpha)
-    local_pos_draw = pr.vector2_scale(interp_pos, PIXELS_PER_METER)
+  def draw(
+    self,
+    vector2_op: Callable[[pr.Vector2, pr.Vector2], pr.Vector2],
+    axle_render_pos: pr.Vector2,
+    right: float,
+    angle_deg: float,
+    steer_deg: float,
+    track_width: float,
+  ):
+    render_pos = vector2_op(
+      axle_render_pos, pr.vector2_scale(right, track_width / 2 + self.width / 2)
+    )
+
+    local_pos_draw = pr.vector2_scale(render_pos, PIXELS_PER_METER)
     diameter_draw = self.radius * 2 * PIXELS_PER_METER
     width_draw = self.width * PIXELS_PER_METER
 

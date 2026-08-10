@@ -15,5 +15,6 @@ class Renderer:
   def end_world(self):
     pr.end_mode_2d()
 
-  def draw(self, world: World, alpha: float):
-    world.car.draw_car(alpha)
+  def draw(self, world: World):
+    world.track.draw()
+    world.car.draw_car()
