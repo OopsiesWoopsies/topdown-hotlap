@@ -21,6 +21,7 @@ fixed_dt = 1.0 / 144.0
 accumulator = 0.0
 
 while not pr.window_should_close():
+  # Static delta time
   frame_time = pr.get_frame_time()
   accumulator += frame_time
 
@@ -30,32 +31,35 @@ while not pr.window_should_close():
 
   alpha = accumulator / fixed_dt
 
-  pr.begin_drawing()
-  pr.clear_background(pr.DARKGREEN)
-
-  renderer.begin_world()
-
-  renderer.draw(world, alpha)
+  # Determine camera position
+  world.car.calculate_render_state(alpha)
 
   renderer.camera.target = world.car.render_pos
   angle_deg = math.degrees(world.car.render_angle_rad) + 90
   renderer.camera.rotation = -angle_deg
 
+  # Drawing world
+  pr.begin_drawing()
+  pr.clear_background(pr.DARKGREEN)
 
-  # for x in range(-100000, 100000, 100):
-  #   pr.draw_line(x, -100000, x, 100000, pr.GRAY)
+  renderer.begin_world()
+  renderer.draw(world)
 
-  # for y in range(-100000, 100000, 100):
-  #   pr.draw_line(-100000, y, 100000, y, pr.GRAY)
+  # Grid (temp)
+  for x in range(-100000, 100000, 100):
+    pr.draw_line(x, -100000, x, 100000, pr.GRAY)
+
+  for y in range(-100000, 100000, 100):
+    pr.draw_line(-100000, y, 100000, y, pr.GRAY)
 
   renderer.end_world()
 
+  # Drawing on screen
   world.car.draw_data(SCREEN_WIDTH, SCREEN_HEIGHT)
   world.controls.draw()
 
-
   debug_vals = world.car.get_debug_vals()
-  # print(debug_vals)
+  print(debug_vals)
   text1 = f"Accel: {debug_vals['Accel']}\nLocal Accel: {debug_vals['LAccel']}\nVelo: {debug_vals['Velo']}\nLocal Velo: {debug_vals['LVelo']}\n"
   text2 = f"Speed: {debug_vals['Speed']}\nLongF: {debug_vals['LongF']}\nTractionF: {debug_vals['TractionF']}\nDragF: {debug_vals['DragF']}\n"
   text3 = f"DriveT: {debug_vals['DriveT']}\nBrakeT: {debug_vals['BrakeT']}\n"
