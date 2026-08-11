@@ -80,6 +80,7 @@ class Car:
     # Movement vars
     self.yaw_rate = 0.0  # Rad/s
     self.steer_angle = 0.0  # Deg
+    self.speed = 0.0  # m/s
 
     # Suspension
     self.sus_stiffness = 10.0
@@ -189,7 +190,7 @@ class Car:
     # Update velocity (car)
     self.local_velo.x = self.velo.x * forward.x + self.velo.y * forward.y
     self.local_velo.y = self.velo.y * forward.x - self.velo.x * forward.y
-    speed = pr.vector2_length(self.local_velo)
+    self.speed = pr.vector2_length(self.local_velo)
 
     # Update steering angle
     self.steer_angle = self.max_steer_angle * steer
@@ -216,7 +217,7 @@ class Car:
 
     for _ in range(num_steps):
       # Weight transfer
-      downforce = self.downforce_c * speed * speed
+      downforce = self.downforce_c * self.speed * self.speed
       front_downforce_tire = downforce * self.cg_to_front / 2
       rear_downforce_tire = downforce * self.cg_to_rear / 2
 
@@ -299,7 +300,7 @@ class Car:
         tire.brake_t = rear_brake_t
         tire.steer_rad = 0.0
 
-        tire.update_omega(sub_dt, speed, throttle, brake, added_inertia)
+        tire.update_omega(sub_dt, self.speed, throttle, brake, added_inertia)
         tire.update_slip_angle()
         tire.update_slip_ratio()
         tire.update_lateral_force()
@@ -315,7 +316,7 @@ class Car:
         tire.brake_t = front_brake_t
         tire.steer_rad = steer_rad
 
-        tire.update_omega(sub_dt, speed, throttle, brake, 0.0)
+        tire.update_omega(sub_dt, self.speed, throttle, brake, 0.0)
         tire.update_slip_angle()
         tire.update_slip_ratio()
         tire.update_lateral_force()
@@ -328,13 +329,13 @@ class Car:
       for tire in front_tires + rear_tires:
         tire.omega = tire.next_omega
 
-      if speed > 0.01:
+      if self.speed > 0.01:
         roll_f = self.roll_resist * self.mass * -_GRAVITY
-        drag_f = self.drag_c * speed * speed
+        drag_f = self.drag_c * self.speed * self.speed
         total_drag = roll_f + drag_f
 
-        drag_f_x = -self.local_velo.x / speed * total_drag
-        drag_f_y = -self.local_velo.y / speed * total_drag
+        drag_f_x = -self.local_velo.x / self.speed * total_drag
+        drag_f_y = -self.local_velo.y / self.speed * total_drag
         step_total_f = pr.vector2_add(step_total_f, pr.Vector2(drag_f_x, drag_f_y))
       else:
         drag_f_x = 0.0
@@ -361,9 +362,9 @@ class Car:
       self.local_velo.x = self.velo.x * forward.x + self.velo.y * forward.y
       self.local_velo.y = self.velo.y * forward.x - self.velo.x * forward.y
 
-      speed = pr.vector2_length(self.local_velo)
+      self.speed = pr.vector2_length(self.local_velo)
 
-      if not throttle and speed < 1:
+      if not throttle and self.speed < 1:
         self.accel = pr.Vector2(0, 0)
         self.local_accel = pr.Vector2(0, 0)
         self.velo = pr.Vector2(0, 0)
@@ -392,7 +393,7 @@ class Car:
     ]
     DEBUG_VALS["Velo"] = [f"{self.velo.x:>12.3f}", f"{self.velo.y:>12.3f}"]
     DEBUG_VALS["LVelo"] = [f"{self.local_velo.x:>12.3f}", f"{self.local_velo.y:>12.3f}"]
-    DEBUG_VALS["Speed"] = f"{speed:>12.3f}"
+    DEBUG_VALS["Speed"] = f"{self.speed:>12.3f}"
     DEBUG_VALS["DragF"] = [f"{drag_f_x:>12.3f}", f"{drag_f_y:>12.3f}"]
     DEBUG_VALS["DriveT"] = (
       f"{self.rear_axle.left_tire.drive_t + self.rear_axle.right_tire.drive_t:>13.3f}"

@@ -1,6 +1,9 @@
+import math
+
 import pyray as pr
 
 from game.car.car_body import Car
+from game.constants import PIXELS_PER_METER
 from game.track.track import Track
 from input.control import Control
 
@@ -26,7 +29,18 @@ class World:
 
     self.check_bounds()
 
-  def check_bounds(self):
-    for tire in self.tires:
-      on_track = self.track.is_point_on_track(tire.render_pos)
+  def check_bounds(self) -> bool:
+    """Checks if tires are within track boundaries (white lines).
 
+    Returns:
+      bool: All four wheels are off track returns false
+    """
+    margin = 2
+    offset = math.ceil(self.car.speed / self.track.mpp * PIXELS_PER_METER) + margin
+
+    for tire in self.tires:
+      on_track = self.track.is_point_on_track(tire.render_pos, offset)
+      if on_track:
+        return True
+
+    return False

@@ -43,9 +43,14 @@ def closest_point_on_segment(p, a, b):
 
 class Track:
   def __init__(self):
-    self.precision = 10
+    # Track size
     self.width = 17 * PIXELS_PER_METER  # m
     self.half_width = self.width / 2.0
+
+    # Track vars
+    self.last_closest_index = 0
+
+    # Track points
     self.center_line_pts = [
       pr.Vector2(0, 0),
       pr.Vector2(-50, 0),
@@ -55,31 +60,38 @@ class Track:
       pr.Vector2(-50, 100),
       pr.Vector2(0, 100),
       pr.Vector2(0, 50),
-    ]
+    ]  # Dictates the main path of the track
 
+    # Track precision points that help smoothen the track out (the following arrays includes precision points)
+    self.mpp = 10  # meters per point (approx)
     self.center_pts = []
     self.left_bound_pts = []
     self.right_bound_pts = []
 
+    # Point calculations
     num_pts = len(self.center_line_pts)
-    for i in range(num_pts):
+    for i in range(num_pts):  # Scales points to size
       self.center_line_pts[i] = pr.vector2_scale(
         self.center_line_pts[i], PIXELS_PER_METER
       )
 
-    for i in range(num_pts):
+    for i in range(num_pts):  # Adds precision to center line
       cen_p0 = self.center_line_pts[i - 1]
       cen_p1 = self.center_line_pts[i]
       cen_p2 = self.center_line_pts[(i + 1) % num_pts]
       cen_p3 = self.center_line_pts[(i + 2) % num_pts]
 
-      for n in range(self.precision):
+      precision = round(
+        pr.vector2_length(pr.vector2_subtract(cen_p2, cen_p1)) / self.mpp
+      )
+
+      for n in range(precision):
         self.center_pts.append(
-          catmull_rom(cen_p0, cen_p1, cen_p2, cen_p3, n / self.precision)
+          catmull_rom(cen_p0, cen_p1, cen_p2, cen_p3, n / precision)
         )
 
     num_pts = len(self.center_pts)
-    for i in range(num_pts):
+    for i in range(num_pts):  # Adds left and right boundary points
       prev_cen_pt = self.center_pts[i - 1]
       next_cen_pt = self.center_pts[(i + 1) % num_pts]
       direction = pr.vector2_normalize(pr.vector2_subtract(next_cen_pt, prev_cen_pt))
@@ -93,14 +105,13 @@ class Track:
         pr.vector2_subtract(cen_pt, pr.vector2_scale(normal, self.half_width))
       )
 
-  def closest_track_point(self, position: pr.Vector2):
+  def closest_track_point(self, position: pr.Vector2, offset: int):
     closest = None
     closest_dist_sq = float("inf")
-    closest_index = 0
 
     num_pts = len(self.center_pts)
 
-    for i in range(num_pts):
+    for i in range(self.last_closest_index - offset, self.last_closest_index + offset):
       j = (i + 1) % num_pts
 
       point = closest_point_on_segment(position, self.center_pts[i], self.center_pts[j])
@@ -113,12 +124,12 @@ class Track:
       if dist_sq < closest_dist_sq:
         closest_dist_sq = dist_sq
         closest = point
-        closest_index = i
+        self.last_closest_index = i
 
-    return closest, closest_index
+    return closest, self.last_closest_index
 
-  def is_point_on_track(self, position: pr.Vector2):
-    point, index = self.closest_track_point(position)
+  def is_point_on_track(self, position: pr.Vector2, offset: int):
+    point, index = self.closest_track_point(position, offset)
 
     num_pts = len(self.center_pts)
     j = (index + 1) % num_pts
