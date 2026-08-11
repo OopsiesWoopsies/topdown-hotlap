@@ -26,42 +26,46 @@ def catmull_rom(
   return pr.Vector2(x, y)
 
 
+def closest_point_on_segment(p, a, b):
+  ab = pr.vector2_subtract(b, a)
+  ab_len_sq = pr.vector2_length_sqr(ab)
+
+  if ab_len_sq == 0:
+    return a
+
+  ap = pr.vector2_subtract(p, a)
+
+  t = pr.vector2_dot_product(ab, ap) / ab_len_sq
+  t = max(0.0, min(1.0, t))
+
+  return pr.vector2_add(a, pr.vector2_scale(ab, t))
+
+
 class Track:
   def __init__(self):
-    self.precision = 50
+    self.precision = 10
     self.width = 17 * PIXELS_PER_METER  # m
+    self.half_width = self.width / 2.0
     self.center_line_pts = [
-      pr.Vector2(-500, 0),
-      pr.Vector2(-1000, 0),
-      pr.Vector2(-1000, 500),
-      pr.Vector2(-1000, 1000),
-      pr.Vector2(-500, 1000),
-      pr.Vector2(0, 1000),
+      pr.Vector2(0, 0),
+      pr.Vector2(-50, 0),
+      pr.Vector2(-100, 0),
+      pr.Vector2(-100, 50),
+      pr.Vector2(-100, 100),
+      pr.Vector2(-50, 100),
+      pr.Vector2(0, 100),
+      pr.Vector2(0, 50),
     ]
-    self.left_bound = []
-    self.right_bound = []
 
     self.center_pts = []
     self.left_bound_pts = []
     self.right_bound_pts = []
 
     num_pts = len(self.center_line_pts)
-    half_width = self.width / 2.0
     for i in range(num_pts):
       self.center_line_pts[i] = pr.vector2_scale(
         self.center_line_pts[i], PIXELS_PER_METER
       )
-
-    for i in range(num_pts):
-      prev_cen_pt = self.center_line_pts[i - 1]
-      next_cen_pt = self.center_line_pts[(i + 1) % num_pts]
-      direction = pr.vector2_subtract(next_cen_pt, prev_cen_pt)
-      direction = pr.vector2_normalize(direction)
-      normal = pr.vector2_scale(pr.Vector2(-direction.y, direction.x), half_width)
-
-      cen_pt = self.center_line_pts[i]
-      self.left_bound.append(pr.vector2_add(cen_pt, normal))
-      self.right_bound.append(pr.vector2_subtract(cen_pt, normal))
 
     for i in range(num_pts):
       cen_p0 = self.center_line_pts[i - 1]
@@ -69,39 +73,75 @@ class Track:
       cen_p2 = self.center_line_pts[(i + 1) % num_pts]
       cen_p3 = self.center_line_pts[(i + 2) % num_pts]
 
-      left_p0 = self.left_bound[i - 1]
-      left_p1 = self.left_bound[i]
-      left_p2 = self.left_bound[(i + 1) % num_pts]
-      left_p3 = self.left_bound[(i + 2) % num_pts]
-
-      right_p0 = self.right_bound[i - 1]
-      right_p1 = self.right_bound[i]
-      right_p2 = self.right_bound[(i + 1) % num_pts]
-      right_p3 = self.right_bound[(i + 2) % num_pts]
-
       for n in range(self.precision):
         self.center_pts.append(
           catmull_rom(cen_p0, cen_p1, cen_p2, cen_p3, n / self.precision)
         )
-        self.left_bound_pts.append(
-          catmull_rom(left_p0, left_p1, left_p2, left_p3, n / self.precision)
-        )
-        self.right_bound_pts.append(
-          catmull_rom(right_p0, right_p1, right_p2, right_p3, n / self.precision)
-        )
+
+    num_pts = len(self.center_pts)
+    for i in range(num_pts):
+      prev_cen_pt = self.center_pts[i - 1]
+      next_cen_pt = self.center_pts[(i + 1) % num_pts]
+      direction = pr.vector2_normalize(pr.vector2_subtract(next_cen_pt, prev_cen_pt))
+      normal = pr.Vector2(-direction.y, direction.x)
+
+      cen_pt = self.center_pts[i]
+      self.left_bound_pts.append(
+        pr.vector2_add(cen_pt, pr.vector2_scale(normal, self.half_width))
+      )
+      self.right_bound_pts.append(
+        pr.vector2_subtract(cen_pt, pr.vector2_scale(normal, self.half_width))
+      )
+
+  def closest_track_point(self, position: pr.Vector2):
+    closest = None
+    closest_dist_sq = float("inf")
+    closest_index = 0
+
+    num_pts = len(self.center_pts)
+
+    for i in range(num_pts):
+      j = (i + 1) % num_pts
+
+      point = closest_point_on_segment(position, self.center_pts[i], self.center_pts[j])
+
+      dx = position.x - point.x
+      dy = position.y - point.y
+
+      dist_sq = dx * dx + dy * dy
+
+      if dist_sq < closest_dist_sq:
+        closest_dist_sq = dist_sq
+        closest = point
+        closest_index = i
+
+    return closest, closest_index
+
+  def is_point_on_track(self, position: pr.Vector2):
+    point, index = self.closest_track_point(position)
+
+    num_pts = len(self.center_pts)
+    j = (index + 1) % num_pts
+
+    a = self.center_pts[index]
+    b = self.center_pts[j]
+
+    direction = pr.vector2_normalize(pr.vector2_subtract(b, a))
+    normal = pr.Vector2(-direction.y, direction.x)
+    offset = pr.vector2_subtract(position, point)
+    lateral_distance = pr.vector2_dot_product(offset, normal)
+
+    return abs(lateral_distance) <= self.half_width
 
   def draw(self):
     num_pts = len(self.center_pts)
     thickness = 0.1 * PIXELS_PER_METER
     for i in range(num_pts):
-      cen_pt_1 = self.center_pts[i]
-      cen_pt_2 = self.center_pts[(i + 1) % num_pts]
       left_pt_1 = self.left_bound_pts[i]
       left_pt_2 = self.left_bound_pts[(i + 1) % num_pts]
       right_pt_1 = self.right_bound_pts[i]
       right_pt_2 = self.right_bound_pts[(i + 1) % num_pts]
 
-      pr.draw_line_v(cen_pt_1, cen_pt_2, pr.RED)
       pr.draw_line_ex(left_pt_1, left_pt_2, thickness, pr.WHITE)
       pr.draw_line_ex(right_pt_1, right_pt_2, thickness, pr.WHITE)
 
