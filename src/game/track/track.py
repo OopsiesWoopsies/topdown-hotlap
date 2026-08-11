@@ -105,13 +105,13 @@ class Track:
         pr.vector2_subtract(cen_pt, pr.vector2_scale(normal, self.half_width))
       )
 
-  def closest_track_point(self, position: pr.Vector2, offset: int):
+  def closest_track_point(self, position: pr.Vector2, index_offset: int):
     closest = None
     closest_dist_sq = float("inf")
 
     num_pts = len(self.center_pts)
 
-    for i in range(self.last_closest_index - offset, self.last_closest_index + offset):
+    for i in range(self.last_closest_index - index_offset, self.last_closest_index + index_offset):
       j = (i + 1) % num_pts
 
       point = closest_point_on_segment(position, self.center_pts[i], self.center_pts[j])
@@ -128,8 +128,8 @@ class Track:
 
     return closest, self.last_closest_index
 
-  def is_point_on_track(self, position: pr.Vector2, offset: int):
-    point, index = self.closest_track_point(position, offset)
+  def is_point_on_track(self, position: pr.Vector2, index_offset: int):
+    point, index = self.closest_track_point(position, index_offset)
 
     num_pts = len(self.center_pts)
     j = (index + 1) % num_pts

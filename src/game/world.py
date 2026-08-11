@@ -36,10 +36,10 @@ class World:
       bool: All four wheels are off track returns false
     """
     margin = 2
-    offset = math.ceil(self.car.speed / self.track.mpp * PIXELS_PER_METER) + margin
+    index_offset = math.ceil(self.car.speed / self.track.mpp * PIXELS_PER_METER) + margin
 
     for tire in self.tires:
-      on_track = self.track.is_point_on_track(tire.render_pos, offset)
+      on_track = self.track.is_point_on_track(tire.render_pos, index_offset)
       if on_track:
         return True
 
