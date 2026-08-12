@@ -75,3 +75,5 @@ while not pr.window_should_close():
 
   pr.draw_fps(0, 0)
   pr.end_drawing()
+
+pr.close_window()

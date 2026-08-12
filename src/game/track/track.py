@@ -91,6 +91,10 @@ class Track:
         )
 
     num_pts = len(self.center_pts)
+    min_x = float("inf")
+    max_x = float("-inf")
+    min_y = float("inf")
+    max_y = float("-inf")
     for i in range(num_pts):  # Adds left and right boundary points
       prev_cen_pt = self.center_pts[i - 1]
       next_cen_pt = self.center_pts[(i + 1) % num_pts]
@@ -104,6 +108,53 @@ class Track:
       self.right_bound_pts.append(
         pr.vector2_subtract(cen_pt, pr.vector2_scale(normal, self.half_width))
       )
+      # Calculate points for texture coordinates
+      min_x = min(min_x, self.left_bound_pts[i].x, self.right_bound_pts[i].x)
+      max_x = max(max_x, self.left_bound_pts[i].x, self.right_bound_pts[i].x)
+      min_y = min(min_y, self.left_bound_pts[i].y, self.right_bound_pts[i].y)
+      max_y = max(max_y, self.left_bound_pts[i].y, self.right_bound_pts[i].y)
+
+    padding = 10
+    self.render_offset = pr.Vector2(
+      -min_x + padding,
+      -min_y + padding,
+    )
+    self.render_position = pr.Vector2(
+      min_x - padding,
+      min_y - padding,
+    )
+    texture_width = int(max_x - min_x + padding * 2)
+    texture_height = int(max_y - min_y + padding * 2)
+
+    self.render_texture = pr.load_render_texture(texture_width, texture_height)
+
+    pr.begin_texture_mode(self.render_texture)
+    num_pts = len(self.center_pts)
+    thickness = 0.1 * PIXELS_PER_METER
+    for i in range(num_pts):
+      left_pt_1 = pr.vector2_add(self.left_bound_pts[i], self.render_offset)
+      left_pt_2 = pr.vector2_add(
+        self.left_bound_pts[(i + 1) % num_pts], self.render_offset
+      )
+      right_pt_1 = pr.vector2_add(self.right_bound_pts[i], self.render_offset)
+      right_pt_2 = pr.vector2_add(
+        self.right_bound_pts[(i + 1) % num_pts], self.render_offset
+      )
+
+      pr.draw_line_ex(left_pt_1, left_pt_2, thickness, pr.WHITE)
+      pr.draw_line_ex(right_pt_1, right_pt_2, thickness, pr.WHITE)
+
+    for i in range(len(self.left_bound_pts)):
+      j = (i + 1) % len(self.left_bound_pts)
+
+      a = pr.vector2_add(self.left_bound_pts[i], self.render_offset)
+      b = pr.vector2_add(self.left_bound_pts[j], self.render_offset)
+      c = pr.vector2_add(self.right_bound_pts[j], self.render_offset)
+      d = pr.vector2_add(self.right_bound_pts[i], self.render_offset)
+
+      pr.draw_triangle(a, b, c, pr.DARKGRAY)
+      pr.draw_triangle(a, c, d, pr.DARKGRAY)
+    pr.end_texture_mode()
 
   def closest_track_point(self, position: pr.Vector2, index_offset: int):
     closest = None
@@ -111,7 +162,10 @@ class Track:
 
     num_pts = len(self.center_pts)
 
-    for i in range(self.last_closest_index - index_offset, self.last_closest_index + index_offset):
+    for i in range(
+      self.last_closest_index - index_offset, self.last_closest_index + index_offset
+    ):
+      i %= num_pts
       j = (i + 1) % num_pts
 
       point = closest_point_on_segment(position, self.center_pts[i], self.center_pts[j])
@@ -145,24 +199,9 @@ class Track:
     return abs(lateral_distance) <= self.half_width
 
   def draw(self):
-    num_pts = len(self.center_pts)
-    thickness = 0.1 * PIXELS_PER_METER
-    for i in range(num_pts):
-      left_pt_1 = self.left_bound_pts[i]
-      left_pt_2 = self.left_bound_pts[(i + 1) % num_pts]
-      right_pt_1 = self.right_bound_pts[i]
-      right_pt_2 = self.right_bound_pts[(i + 1) % num_pts]
-
-      pr.draw_line_ex(left_pt_1, left_pt_2, thickness, pr.WHITE)
-      pr.draw_line_ex(right_pt_1, right_pt_2, thickness, pr.WHITE)
-
-    for i in range(len(self.left_bound_pts)):
-      j = (i + 1) % len(self.left_bound_pts)
-
-      a = self.left_bound_pts[i]
-      b = self.left_bound_pts[j]
-      c = self.right_bound_pts[j]
-      d = self.right_bound_pts[i]
-
-      pr.draw_triangle(a, b, c, pr.DARKGRAY)
-      pr.draw_triangle(a, c, d, pr.DARKGRAY)
+    pr.draw_texture(
+      self.render_texture.texture,
+      int(self.render_position.x),
+      int(self.render_position.y),
+      pr.WHITE,
+    )
