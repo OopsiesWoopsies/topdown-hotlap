@@ -46,9 +46,11 @@ class Track:
     # Track size
     self.width = 17 * PIXELS_PER_METER  # m
     self.half_width = self.width / 2.0
+    self.line_thickness = 0.1 * PIXELS_PER_METER
 
     # Track vars
     self.last_closest_index = 0
+    self.curr_sector = 0
 
     # Track points
     self.center_line_pts = [
@@ -61,6 +63,14 @@ class Track:
       pr.Vector2(0, 100),
       pr.Vector2(0, 50),
     ]  # Dictates the main path of the track
+    num_pts = len(self.center_line_pts)
+    sector_index = num_pts / 4
+    self.finish_index = 1
+    self.sector_indexes = []
+    self.sector_lines = []
+
+    for i in range(1, 4):
+      self.sector_indexes.append(int((sector_index * i + self.finish_index) % num_pts))
 
     # Track precision points that help smoothen the track out (the following arrays includes precision points)
     self.mpp = 10  # meters per point (approx)
@@ -69,7 +79,6 @@ class Track:
     self.right_bound_pts = []
 
     # Point calculations
-    num_pts = len(self.center_line_pts)
     for i in range(num_pts):  # Scales points to size
       self.center_line_pts[i] = pr.vector2_scale(
         self.center_line_pts[i], PIXELS_PER_METER
@@ -130,31 +139,63 @@ class Track:
 
     pr.begin_texture_mode(self.render_texture)
     num_pts = len(self.center_pts)
-    thickness = 0.1 * PIXELS_PER_METER
     for i in range(num_pts):
-      left_pt_1 = pr.vector2_add(self.left_bound_pts[i], self.render_offset)
-      left_pt_2 = pr.vector2_add(
-        self.left_bound_pts[(i + 1) % num_pts], self.render_offset
-      )
-      right_pt_1 = pr.vector2_add(self.right_bound_pts[i], self.render_offset)
-      right_pt_2 = pr.vector2_add(
-        self.right_bound_pts[(i + 1) % num_pts], self.render_offset
-      )
+      left_pt_1 = self.add_v2_render_offset(self.left_bound_pts[i])
+      left_pt_2 = self.add_v2_render_offset(self.left_bound_pts[(i + 1) % num_pts])
+      right_pt_1 = self.add_v2_render_offset(self.right_bound_pts[i])
+      right_pt_2 = self.add_v2_render_offset(self.right_bound_pts[(i + 1) % num_pts])
 
-      pr.draw_line_ex(left_pt_1, left_pt_2, thickness, pr.WHITE)
-      pr.draw_line_ex(right_pt_1, right_pt_2, thickness, pr.WHITE)
+      pr.draw_line_ex(left_pt_1, left_pt_2, self.line_thickness, pr.WHITE)
+      pr.draw_line_ex(right_pt_1, right_pt_2, self.line_thickness, pr.WHITE)
 
     for i in range(len(self.left_bound_pts)):
       j = (i + 1) % len(self.left_bound_pts)
 
-      a = pr.vector2_add(self.left_bound_pts[i], self.render_offset)
-      b = pr.vector2_add(self.left_bound_pts[j], self.render_offset)
-      c = pr.vector2_add(self.right_bound_pts[j], self.render_offset)
-      d = pr.vector2_add(self.right_bound_pts[i], self.render_offset)
+      a = self.add_v2_render_offset(self.left_bound_pts[i])
+      b = self.add_v2_render_offset(self.left_bound_pts[j])
+      c = self.add_v2_render_offset(self.right_bound_pts[j])
+      d = self.add_v2_render_offset(self.right_bound_pts[i])
 
       pr.draw_triangle(a, b, c, pr.DARKGRAY)
       pr.draw_triangle(a, c, d, pr.DARKGRAY)
+
+    # Sectors
+    for i in self.sector_indexes:
+      self.sector_lines.append(self.get_timing_line(i))
+      pr.draw_line_ex(
+        self.add_v2_render_offset(self.sector_lines[-1][0]),
+        self.add_v2_render_offset(self.sector_lines[-1][1]),
+        self.line_thickness,
+        pr.WHITE,
+      )
+
+    # Finish line
+    self.finish_line = self.get_timing_line(self.finish_index)
+    pr.draw_line_ex(
+      self.add_v2_render_offset(self.finish_line[0]),
+      self.add_v2_render_offset(self.finish_line[1]),
+      self.line_thickness,
+      pr.RED,
+    )
+
     pr.end_texture_mode()
+
+  def add_v2_render_offset(self, position: pr.Vector2) -> pr.Vector2:
+    return pr.vector2_add(position, self.render_offset)
+
+  def get_timing_line(self, index: int):
+    num_pts = len(self.center_line_pts)
+    prev_pt = self.center_line_pts[index - 1]
+    next_pt = self.center_line_pts[(index + 1) % num_pts]
+
+    direction = pr.vector2_normalize(pr.vector2_subtract(next_pt, prev_pt))
+    normal = pr.Vector2(-direction.y, direction.x)
+    center = self.center_line_pts[index]
+
+    right = pr.vector2_add(center, pr.vector2_scale(normal, self.half_width))
+    left = pr.vector2_subtract(center, pr.vector2_scale(normal, self.half_width))
+
+    return left, right
 
   def closest_track_point(self, position: pr.Vector2, index_offset: int):
     closest = None
