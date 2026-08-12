@@ -3,7 +3,6 @@ import math
 import pyray as pr
 
 from game.car.car_body import Car
-from game.constants import PIXELS_PER_METER
 from game.track.track import Track
 from input.control import Control
 
@@ -27,16 +26,19 @@ class World:
     steer = self.controls.get_steering()
     self.car.update(dt, inputs, steer)
 
-    self.check_bounds()
+    self.check_bounds(dt)
 
-  def check_bounds(self) -> bool:
+  def check_bounds(self, dt: float) -> bool:
     """Checks if tires are within track boundaries (white lines).
+
+    Args:
+      dt: Delta time. Used to calculate the index offset.
 
     Returns:
       bool: All four wheels are off track returns false
     """
     margin = 2
-    index_offset = math.ceil(self.car.speed / self.track.mpp * PIXELS_PER_METER) + margin
+    index_offset = math.ceil(self.car.speed / self.track.mpp * dt) + margin
 
     for tire in self.tires:
       on_track = self.track.is_point_on_track(tire.render_pos, index_offset)

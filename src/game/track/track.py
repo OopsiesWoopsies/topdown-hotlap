@@ -161,10 +161,10 @@ class Track:
     closest_dist_sq = float("inf")
 
     num_pts = len(self.center_pts)
+    start = self.last_closest_index - index_offset
+    end = self.last_closest_index + index_offset + 1
 
-    for i in range(
-      self.last_closest_index - index_offset, self.last_closest_index + index_offset
-    ):
+    for i in range(start, end):
       i %= num_pts
       j = (i + 1) % num_pts
 
