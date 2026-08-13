@@ -41,6 +41,27 @@ def closest_point_on_segment(p, a, b):
   return pr.vector2_add(a, pr.vector2_scale(ab, t))
 
 
+def segments_intersect(
+  p1: pr.Vector2, p2: pr.Vector2, p3: pr.Vector2, p4: pr.Vector2
+) -> bool:
+  """Checks if line segment p1-p2 intersects with line segment p3-p4.
+
+  Args:
+    p1: point 1 of the first segment.
+    p2: point 2 of the first segment.
+    p3: point 1 of the second segment.
+    p4: point 2 of the second segment.
+
+  Returns:
+    True if any part of either segment intersects the other.
+  """
+
+  def ccw(A: pr.Vector2, B: pr.Vector2, C: pr.Vector2) -> bool:
+    return (C.y - A.y) * (B.x - A.x) > (B.y - A.y) * (C.x - A.x)
+
+  return ccw(p1, p3, p4) != ccw(p2, p3, p4) and ccw(p1, p2, p3) != ccw(p1, p2, p4)
+
+
 class Track:
   def __init__(self):
     # Track size
@@ -239,10 +260,36 @@ class Track:
 
     return abs(lateral_distance) <= self.half_width
 
+  def check_sectors(self, prev_pos: pr.Vector2, curr_pos: pr.Vector2) -> int:
+    prev_pos = pr.vector2_scale(prev_pos, PIXELS_PER_METER)
+    curr_pos = pr.vector2_scale(curr_pos, PIXELS_PER_METER)
+    if self.curr_sector < 3:
+      left_pt, right_pt = self.sector_lines[self.curr_sector]
+      is_finish_line = False
+    else:
+      left_pt, right_pt = self.finish_line
+      is_finish_line = True
+
+    if segments_intersect(prev_pos, curr_pos, left_pt, right_pt):
+      if not is_finish_line:
+        self.curr_sector += 1
+        return self.curr_sector
+
+      else:
+        self.curr_sector = 0
+        return self.curr_sector
+    return -1
+
   def draw(self):
-    pr.draw_texture(
+    src_rec = pr.Rectangle(
+      0,
+      0,
+      float(self.render_texture.texture.width),
+      -float(self.render_texture.texture.height),
+    )
+    pr.draw_texture_rec(
       self.render_texture.texture,
-      int(self.render_position.x),
-      int(self.render_position.y),
+      src_rec,
+      self.render_position,
       pr.WHITE,
     )

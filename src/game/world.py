@@ -27,6 +27,7 @@ class World:
     self.car.update(dt, inputs, steer)
 
     self.check_bounds(dt)
+    sector = self.track.check_sectors(self.car.prev_pos, self.car.pos)
 
   def check_bounds(self, dt: float) -> bool:
     """Checks if tires are within track boundaries (white lines).
