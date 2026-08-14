@@ -28,8 +28,14 @@ class World:
     steer = self.controls.get_steering()
     self.car.update(dt, inputs, steer)
 
-    self.check_bounds(dt)
     sector = self.track.check_sectors(self.car.prev_pos, self.car.pos)
+
+    if not self.check_bounds(dt) and not self.timer.lap_timer_stopped:
+      self.timer.stop_lap_timer()
+      self.track.stop_lap()
+    if not self.track.start_lap:
+      return
+
     if sector == 0:
       self.timer.start_lap_timer()
     elif sector == 2 or sector == 3:

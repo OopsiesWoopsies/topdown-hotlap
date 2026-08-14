@@ -286,6 +286,10 @@ class Track:
         return self.curr_sector
     return -1
 
+  def stop_lap(self):
+    self.start_lap = False
+    self.curr_sector = 1
+
   def draw(self):
     src_rec = pr.Rectangle(
       0,

@@ -57,10 +57,9 @@ class Timer:
   def get_elapsed_time(self, start_time: float) -> float:
     return round((time.perf_counter() - start_time) * 1000)
 
-  def stop_lap_timer(self) -> float:
+  def stop_lap_timer(self):
     self.curr_lap_time.update_time(self.get_elapsed_time(self.start_lap_time), True)
     self.lap_timer_stopped = True
-    return self.curr_lap_time
 
   def set_lap_time(self):
     self.prev_lap_time.update_time(self.get_elapsed_time(self.start_lap_time), True)
