@@ -3,6 +3,7 @@ import math
 import pyray as pr
 
 from game.car.car_body import Car
+from game.track.timer import Timer
 from game.track.track import Track
 from input.control import Control
 
@@ -12,6 +13,7 @@ class World:
     self.controls = Control()
     self.car = Car(pos=pr.Vector2(0, 0), angle_deg=180, size=pr.Vector2(5.2, 1.9))
     self.track = Track()
+    self.timer = Timer()
 
     self.tires = [
       self.car.rear_axle.left_tire,
@@ -28,6 +30,13 @@ class World:
 
     self.check_bounds(dt)
     sector = self.track.check_sectors(self.car.prev_pos, self.car.pos)
+    if sector == 0:
+      self.timer.start_lap_timer()
+    elif sector == 2 or sector == 3:
+      self.timer.set_sector_time(sector - 1)
+    elif sector == 1:
+      self.timer.set_sector_time(sector - 1)
+      self.timer.set_lap_time()
 
   def check_bounds(self, dt: float) -> bool:
     """Checks if tires are within track boundaries (white lines).

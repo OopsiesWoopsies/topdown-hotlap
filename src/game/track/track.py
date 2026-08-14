@@ -71,7 +71,8 @@ class Track:
 
     # Track vars
     self.last_closest_index = 0
-    self.curr_sector = 0
+    self.curr_sector = 1
+    self.start_lap = False
 
     # Track points
     self.center_line_pts = [
@@ -85,12 +86,12 @@ class Track:
       pr.Vector2(0, 50),
     ]  # Dictates the main path of the track
     num_pts = len(self.center_line_pts)
-    sector_index = num_pts / 4
+    sector_index = num_pts / 3
     self.finish_index = 1
     self.sector_indexes = []
     self.sector_lines = []
 
-    for i in range(1, 4):
+    for i in range(1, 3):
       self.sector_indexes.append(int((sector_index * i + self.finish_index) % num_pts))
 
     # Track precision points that help smoothen the track out (the following arrays includes precision points)
@@ -263,11 +264,16 @@ class Track:
   def check_sectors(self, prev_pos: pr.Vector2, curr_pos: pr.Vector2) -> int:
     prev_pos = pr.vector2_scale(prev_pos, PIXELS_PER_METER)
     curr_pos = pr.vector2_scale(curr_pos, PIXELS_PER_METER)
+    left_pt, right_pt = self.finish_line
+    if not self.start_lap:
+      if segments_intersect(prev_pos, curr_pos, left_pt, right_pt):
+        self.start_lap = True
+        return 0
+      return -1
     if self.curr_sector < 3:
-      left_pt, right_pt = self.sector_lines[self.curr_sector]
+      left_pt, right_pt = self.sector_lines[self.curr_sector - 1]
       is_finish_line = False
     else:
-      left_pt, right_pt = self.finish_line
       is_finish_line = True
 
     if segments_intersect(prev_pos, curr_pos, left_pt, right_pt):
@@ -276,7 +282,7 @@ class Track:
         return self.curr_sector
 
       else:
-        self.curr_sector = 0
+        self.curr_sector = 1
         return self.curr_sector
     return -1
 
