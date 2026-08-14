@@ -56,7 +56,7 @@ while not pr.window_should_close():
 
   # Drawing on screen
   world.car.draw_data(SCREEN_WIDTH, SCREEN_HEIGHT)
-  world.controls.draw()
+  world.controls.draw(world.car.steer_angle)
 
   # text = f"{round(world.car.render_pos.x, 3)}\n{round(world.car.render_pos.y, 3)}\n{round(pr.vector2_length(world.car.velo) * 3600 / 1000, 3)} km/h"
   # pr.draw_text(text, 5, 30, 20, pr.BLACK)

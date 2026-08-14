@@ -76,6 +76,7 @@ class Car:
     self.brake_bias_rear = 1 - self.brake_bias_front  # %
 
     self.max_steer_angle = 25  # Deg
+    self.steer_speed = 10.0
 
     # Movement vars
     self.yaw_rate = 0.0  # Rad/s
@@ -88,7 +89,7 @@ class Car:
 
     # LSD constants
     self.max_preload_t = 300.0
-    self.diff_power_lock = 0.9
+    self.diff_power_lock = 0.5
     self.diff_coast_lock = 0.35
     self.diff_preload = 0.15
 
@@ -193,7 +194,9 @@ class Car:
     self.speed = pr.vector2_length(self.local_velo)
 
     # Update steering angle
-    self.steer_angle = self.max_steer_angle * steer
+    speed_limiter = max(1.0, self.speed / 25.0)
+    target_steer = self.max_steer_angle * steer / speed_limiter
+    self.steer_angle = pr.lerp(self.steer_angle, target_steer, self.steer_speed * dt)
     steer_rad = math.radians(self.steer_angle)
 
     # Building longitudinal force
@@ -284,11 +287,16 @@ class Car:
       added_inertia = self.engine.get_reflected_inertia() / 2.0
 
       omega_diff = rl.omega - rr.omega
+      deadzone = 1.5
+      if abs(omega_diff) < deadzone:
+        slip_diff = 0.0
+      else:
+        slip_diff = omega_diff - math.copysign(deadzone, omega_diff)
       lock_stiffness = (
         abs(base_drive_t) * locking_coeff + self.max_preload_t * self.diff_preload
       )
-      max_transfer_t = abs(base_drive_t) + self.max_preload_t
-      transfer_t = lock_stiffness * omega_diff
+      max_transfer_t = abs(base_drive_t) * 0.85 + self.max_preload_t
+      transfer_t = lock_stiffness * slip_diff
       transfer_t = pr.clamp(transfer_t, -max_transfer_t, max_transfer_t)
 
       # --- REAR TIRES ---
