@@ -47,6 +47,7 @@ class Tire:
     self.powered = powered
     self.local_pos = local_pos
     self.prev_local_pos = local_pos
+    self.render_pos = local_pos
     self.local_coord = local_coord
     self.radius = 0.35  # m
     self.width = width  # m
@@ -218,15 +219,15 @@ class Tire:
     steer_deg: float,
     track_width: float,
   ):
-    render_pos = vector2_op(
+    self.render_pos = vector2_op(
       axle_render_pos, pr.vector2_scale(right, track_width / 2 + self.width / 2)
     )
 
-    local_pos_draw = pr.vector2_scale(render_pos, PIXELS_PER_METER)
+    self.render_pos = pr.vector2_scale(self.render_pos, PIXELS_PER_METER)
     diameter_draw = self.radius * 2 * PIXELS_PER_METER
     width_draw = self.width * PIXELS_PER_METER
 
-    rec = pr.Rectangle(local_pos_draw.x, local_pos_draw.y, diameter_draw, width_draw)
+    rec = pr.Rectangle(self.render_pos.x, self.render_pos.y, diameter_draw, width_draw)
     origin = pr.Vector2(diameter_draw / 2, width_draw / 2)
 
     pr.draw_rectangle_pro(rec, origin, angle_deg + steer_deg, pr.BLUE)
