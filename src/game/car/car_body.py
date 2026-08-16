@@ -89,7 +89,7 @@ class Car:
 
     # LSD constants
     self.max_preload_t = 300.0
-    self.diff_power_lock = 0.5
+    self.diff_power_lock = 0.9
     self.diff_coast_lock = 0.35
     self.diff_preload = 0.15
 
@@ -194,8 +194,7 @@ class Car:
     self.speed = pr.vector2_length(self.local_velo)
 
     # Update steering angle
-    speed_limiter = max(1.0, self.speed / 25.0)
-    target_steer = self.max_steer_angle * steer / speed_limiter
+    target_steer = self.max_steer_angle * steer 
     self.steer_angle = pr.lerp(self.steer_angle, target_steer, self.steer_speed * dt)
     steer_rad = math.radians(self.steer_angle)
 
@@ -283,11 +282,13 @@ class Car:
       step_yaw_t = 0.0
       avg_tire_omega = (rl.omega + rr.omega) / 2
       self.engine.update_clutch_torque(sub_dt, throttle, avg_tire_omega)
-      base_drive_t = self.engine.get_drive_torque() / 2.0
+      base_drive_t = self.engine.get_drive_torque()
       added_inertia = self.engine.get_reflected_inertia() / 2.0
 
-      omega_diff = rl.omega - rr.omega
-      deadzone = 1.5
+      expected_omega_diff = (self.yaw_rate * self.track_width) / rr.radius
+
+      omega_diff = rl.omega - rr.omega - expected_omega_diff
+      deadzone = 0.5
       if abs(omega_diff) < deadzone:
         slip_diff = 0.0
       else:
@@ -295,7 +296,7 @@ class Car:
       lock_stiffness = (
         abs(base_drive_t) * locking_coeff + self.max_preload_t * self.diff_preload
       )
-      max_transfer_t = abs(base_drive_t) * 0.85 + self.max_preload_t
+      max_transfer_t = abs(base_drive_t) + self.max_preload_t
       transfer_t = lock_stiffness * slip_diff
       transfer_t = pr.clamp(transfer_t, -max_transfer_t, max_transfer_t)
 
