@@ -47,10 +47,10 @@ while not pr.window_should_close():
 
   # Grid (temp)
   # for x in range(-100000, 100000, 100):
-  #   pr.draw_line(x, -100000, x, 100000, pr.GRAY)
+  #   pr.draw_line(x, -100000, x, 100000, pr.BLACK)
 
   # for y in range(-100000, 100000, 100):
-  #   pr.draw_line(-100000, y, 100000, y, pr.GRAY)
+  #   pr.draw_line(-100000, y, 100000, y, pr.BLACK)
 
   renderer.end_world()
 

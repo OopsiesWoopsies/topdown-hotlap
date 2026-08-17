@@ -103,42 +103,42 @@ class Car:
     forward = pr.Vector2(math.cos(self.angle_rad), math.sin(self.angle_rad))
     f_ax_config = {
       "long": {
-        "pacejka": {"B": 20, "C": 1.6, "D": 2.1, "E": 0.1},
+        "pacejka": {"B": 15, "C": 1.65, "D": 2.9, "E": 0.1},
         "load": self.front_static,
-        "sens": 0.05,
+        "sens": 0.1,
       },
       "lat": {
-        "pacejka": {"B": 18, "C": 1.9, "D": 2.2, "E": 0.85},
+        "pacejka": {"B": 12, "C": 1.35, "D": 2.6, "E": 0.3},
         "load": self.front_static,
-        "sens": 0.05,
+        "sens": 0.1,
       },
       "combined_slip": {
         "SHxa": 0.0,
-        "bxa": 2.8,
-        "cxa": 1.2,
+        "bxa": 1.4,
+        "cxa": 1.1,
         "SHyk": 0.0,
-        "byk": 2.4,
+        "byk": 1.4,
         "cyk": 1.15,
       },
     }
     r_ax_config = {
       "long": {
-        "pacejka": {"B": 18, "C": 1.6, "D": 2.3, "E": 0.1},
+        "pacejka": {"B": 15, "C": 1.65, "D": 2.7, "E": 0.1},
         "load": self.rear_static,
-        "sens": 0.05,
+        "sens": 0.1,
       },
       "lat": {
-        "pacejka": {"B": 16, "C": 1.9, "D": 2.4, "E": 0.85},
+        "pacejka": {"B": 10, "C": 1.35, "D": 2.5, "E": 0.3},
         "load": self.rear_static,
-        "sens": 0.05,
+        "sens": 0.1,
       },
       "combined_slip": {
         "SHxa": 0.0,
-        "bxa": 2.0,
+        "bxa": 1.2,
         "cxa": 1.1,
         "SHyk": 0.0,
-        "byk": 3.1,
-        "cyk": 1.2,
+        "byk": 1.2,
+        "cyk": 1.1,
       },
     }
 
@@ -310,8 +310,8 @@ class Car:
         tire.steer_rad = 0.0
 
         tire.update_omega(sub_dt, self.speed, throttle, brake, added_inertia)
-        tire.update_slip_angle()
-        tire.update_slip_ratio()
+        tire.update_slip_angle(dt)
+        tire.update_slip_ratio(dt)
         tire.update_lateral_force()
         tire.update_long_force()
 
@@ -326,8 +326,8 @@ class Car:
         tire.steer_rad = steer_rad
 
         tire.update_omega(sub_dt, self.speed, throttle, brake, 0.0)
-        tire.update_slip_angle()
-        tire.update_slip_ratio()
+        tire.update_slip_angle(dt)
+        tire.update_slip_ratio(dt)
         tire.update_lateral_force()
         tire.update_long_force()
 

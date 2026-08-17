@@ -53,6 +53,8 @@ class Tire:
     self.width = width  # m
     self.mass = mass  # kg
     self.config = config
+    self.sa_relaxation = 0.15
+    self.sr_relaxation = 0.1
 
     # Variables
     self.load = load  # N
@@ -71,7 +73,7 @@ class Tire:
     self.max_long_D = self.config["long"]["pacejka"]["D"]
     self.grip_usage = 0.0
 
-  def update_slip_ratio(self):
+  def update_slip_ratio(self, dt: float):
     wheel_speed = self.omega * self.radius
     vehicle_speed = self.velo.x
 
@@ -81,23 +83,32 @@ class Tire:
       1.0,
     )
 
-    self.slip_ratio = (wheel_speed - vehicle_speed) / denom
+    target_sr = (wheel_speed - vehicle_speed) / denom
+    roll_speed = max(abs(self.velo.x), 0.5)
+    alpha_factor = math.exp(-(roll_speed * dt) / self.sr_relaxation)
 
-  def update_slip_angle(self):
+    self.slip_ratio = target_sr + (self.slip_ratio - target_sr) * alpha_factor
+
+  def update_slip_angle(self, dt: float):
     speed = pr.vector2_length(self.velo)
     if abs(self.velo.x) < 0.1:
       x_anchor = 0.1 if self.velo.x >= 0 else -0.1
 
-      self.slip_angle = math.atan2(self.velo.y, x_anchor) * (speed / 0.1)
+      target_sa = math.atan2(self.velo.y, x_anchor) * (speed / 0.1)
     else:
-      self.slip_angle = math.atan2(self.velo.y, self.velo.x)
+      target_sa = math.atan2(self.velo.y, self.velo.x)
 
-    if self.slip_angle > RIGHT_ANGLE:
-      self.slip_angle -= math.pi
-      self.slip_angle *= -1
-    elif self.slip_angle < -RIGHT_ANGLE:
-      self.slip_angle += math.pi
-      self.slip_angle *= -1
+    if target_sa > RIGHT_ANGLE:
+      target_sa -= math.pi
+      target_sa *= -1
+    elif target_sa < -RIGHT_ANGLE:
+      target_sa += math.pi
+      target_sa *= -1
+
+    roll_speed = max(abs(self.velo.x), 0.5)
+    alpha_factor = math.exp(- (roll_speed * dt) / self.sa_relaxation)
+
+    self.slip_angle = target_sa + (self.slip_angle - target_sa) * alpha_factor
 
   def update_lateral_force(self):
     lat_config = self.config["lat"]
@@ -111,7 +122,7 @@ class Tire:
 
     load_ratio = self.load / max(f_nom, 1.0)
     D_lat_scaled = D * (1.0 / (1.0 + sens_lat * (load_ratio - 1.0)))
-    self.max_lat_D = max(D_lat_scaled, 0.5 * D)
+    self.max_lat_D = max(D_lat_scaled, 0.65 * D)
 
     self.lateral_f = (
       -pacejka_model(B, C, self.max_lat_D, E, self.slip_angle) * self.load
@@ -128,8 +139,8 @@ class Tire:
     sens_long = long_config["sens"]
 
     load_ratio = self.load / max(f_nom, 1.0)
-    D_long_scaled = D * (1.0 - sens_long * (load_ratio - 1.0))
-    self.max_long_D = max(D_long_scaled, 0.5 * D)
+    D_long_scaled = D * (1.0 / (1.0 + sens_long * (load_ratio - 1.0)))
+    self.max_long_D = max(D_long_scaled, 0.65 * D)
 
     self.long_f = pacejka_model(B, C, self.max_long_D, E, self.slip_ratio) * self.load
 
@@ -192,6 +203,16 @@ class Tire:
     self.grip_usage = (self.lateral_f / (self.max_lat_D * self.load)) ** 2 + (
       self.long_f / (self.max_long_D * self.load)
     ) ** 2
+
+    # Clamp at 100% grip usage
+    if self.grip_usage > 1.0:
+      ellipse_scale = 1.0 / math.sqrt(self.grip_usage)
+      self.long_f *= ellipse_scale
+      self.lateral_f *= ellipse_scale
+
+      fx = self.long_f
+      fy = self.lateral_f
+      self.grip_usage = 1.0
 
     return pr.Vector2(
       fx * math.cos(self.steer_rad) - fy * math.sin(self.steer_rad),
