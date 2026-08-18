@@ -77,6 +77,7 @@ class Car:
 
     self.max_steer_angle = 25  # Deg
     self.steer_speed = 10.0
+    self.steer_resist = 30  # m/s
 
     # Movement vars
     self.yaw_rate = 0.0  # Rad/s
@@ -194,7 +195,8 @@ class Car:
     self.speed = pr.vector2_length(self.local_velo)
 
     # Update steering angle
-    target_steer = self.max_steer_angle * steer 
+    steer_reduction = pr.clamp(self.steer_resist / max(self.speed, 1.0), 0.1, 1.0)
+    target_steer = self.max_steer_angle * steer * steer_reduction
     self.steer_angle = pr.lerp(self.steer_angle, target_steer, self.steer_speed * dt)
     steer_rad = math.radians(self.steer_angle)
 
