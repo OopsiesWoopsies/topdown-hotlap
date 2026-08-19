@@ -46,11 +46,11 @@ while not pr.window_should_close():
   renderer.draw(world)
 
   # Grid (temp)
-  # for x in range(-100000, 100000, 100):
-  #   pr.draw_line(x, -100000, x, 100000, pr.BLACK)
+  for x in range(-100000, 100000, 100):
+    pr.draw_line(x, -100000, x, 100000, pr.BLACK)
 
-  # for y in range(-100000, 100000, 100):
-  #   pr.draw_line(-100000, y, 100000, y, pr.BLACK)
+  for y in range(-100000, 100000, 100):
+    pr.draw_line(-100000, y, 100000, y, pr.BLACK)
 
   renderer.end_world()
 
@@ -62,9 +62,9 @@ while not pr.window_should_close():
   # pr.draw_text(text, 5, 30, 20, pr.BLACK)
 
   debug_vals = world.car.get_debug_vals()
-  # print(debug_vals)
+  print(debug_vals)
   text1 = f"Accel: {debug_vals['Accel']}\nLocal Accel: {debug_vals['LAccel']}\nVelo: {debug_vals['Velo']}\nLocal Velo: {debug_vals['LVelo']}\n"
-  text2 = f"Speed: {debug_vals['Speed']}\nLongF: {debug_vals['LongF']}\nTractionF: {debug_vals['TractionF']}\nDragF: {debug_vals['DragF']}\n"
+  text2 = f"Speed: {debug_vals['Speed']}\nDragF: {debug_vals['DragF']}\n"
   text3 = f"DriveT: {debug_vals['DriveT']}\nBrakeT: {debug_vals['BrakeT']}\n"
   text4 = f"FLTire: {debug_vals['FLTire']}\nFRTire: {debug_vals['FRTire']}\nRLTire: {debug_vals['RLTire']}\nRRTire: {debug_vals['RRTire']}\n"
   text5 = f"EngRPM: {debug_vals['EngRPM']}\nGear: {debug_vals['Gear']}\n"
