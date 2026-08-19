@@ -10,7 +10,6 @@ class Axle:
   def __init__(
     self,
     local_pos: pr.Vector2,
-    distance_to_center: float,
     distance_to_cg: float,
     track_width: float,
     angle_rad: float,
@@ -22,7 +21,7 @@ class Axle:
   ):
     self.local_pos = local_pos
     self.prev_local_pos = local_pos
-    self.distance_to_center = distance_to_center
+    self.distance_to_cg = distance_to_cg
     self.track_width = track_width
     self.axle_width = 0.05
 
@@ -58,7 +57,7 @@ class Axle:
 
   def update_position(self, car_pos: pr.Vector2, forward: float, right: float):
     self.local_pos = pr.vector2_add(
-      car_pos, pr.vector2_scale(forward, self.distance_to_center)
+      car_pos, pr.vector2_scale(forward, self.distance_to_cg)
     )
 
     self.left_tire.update_position(
@@ -77,7 +76,7 @@ class Axle:
     steer_deg: float,
   ):
     render_pos = pr.vector2_add(
-      car_interp_pos, pr.vector2_scale(forward, self.distance_to_center)
+      car_interp_pos, pr.vector2_scale(forward, self.distance_to_cg)
     )
 
     pos_draw = pr.vector2_scale(render_pos, PIXELS_PER_METER)
