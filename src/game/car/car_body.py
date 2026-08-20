@@ -17,8 +17,6 @@ DEBUG_VALS = {
   "Velo": 0,
   "LVelo": 0,
   "Speed": 0,
-  "LongF": 0,
-  "TractionF": 0,
   "DragF": 0,
   "DriveT": 0,
   "BrakeT": 0,
@@ -46,18 +44,15 @@ class Car:
     self.mass = 882  # kg
     self.inertia = self.mass * (self.size.x**2 + self.size.y**2) / 12
 
-    self.cg_to_front = 0.45  # %
-    self.cg_to_rear = 1 - self.cg_to_front  # %
+    self.cg_from_rear = 0.45  # %
+    self.cg_from_front = 1 - self.cg_from_rear  # %
     self.cg_height = 0.15  # m
-    self.cg = pr.Vector2(0, (self.size.x * self.cg_to_front - self.size.x / 2))  # m
+    self.cg = pr.Vector2((self.size.x * self.cg_from_rear - self.size.x / 2), 0)  # m
 
     self.wheelbase = 3.6  # m
     self.track_width = 1.9  # m
-    self.front_dist_from_center = self.cg.y + self.wheelbase * self.cg_to_rear  # m
-    self.rear_dist_from_center = self.cg.y - self.wheelbase * self.cg_to_front  # m
-
-    self.dist_cg_front_axle = abs(self.cg.y - self.front_dist_from_center)
-    self.dist_cg_rear_axle = abs(self.rear_dist_from_center - self.cg.y)
+    self.dist_cg_front_axle = self.wheelbase * self.cg_from_front
+    self.dist_cg_rear_axle = self.wheelbase * self.cg_from_rear
 
     self.front_static = (
       self.mass * -_GRAVITY * self.dist_cg_rear_axle / self.wheelbase / 2
@@ -70,12 +65,14 @@ class Car:
     self.brake_c = 9000  # Nm
     self.drag_c = 0.7
     self.roll_resist = 0.015
-    self.downforce_c = 3.5
+    self.downforce_c = 3.7
 
     self.brake_bias_front = 0.6  # %
     self.brake_bias_rear = 1 - self.brake_bias_front  # %
 
     self.max_steer_angle = 25  # Deg
+    self.steer_speed = 20.0
+    self.steer_resist = 30  # m/s
 
     # Movement vars
     self.yaw_rate = 0.0  # Rad/s
@@ -88,7 +85,7 @@ class Car:
 
     # LSD constants
     self.max_preload_t = 300.0
-    self.diff_power_lock = 0.9
+    self.diff_power_lock = 0.85
     self.diff_coast_lock = 0.35
     self.diff_preload = 0.15
 
@@ -101,57 +98,78 @@ class Car:
     # Axles
     forward = pr.Vector2(math.cos(self.angle_rad), math.sin(self.angle_rad))
     f_ax_config = {
+      "load": self.front_static,
       "long": {
-        "pacejka": {"B": 20, "C": 1.6, "D": 2.1, "E": 0.1},
-        "load": self.front_static,
-        "sens": 0.05,
+        "pacejka": {"B": 14, "C": 1.65, "D": 2.6, "E": 0.3},
+        "sens": {
+          "B": 0.1,
+          "D": 0.1,
+        },
       },
       "lat": {
-        "pacejka": {"B": 18, "C": 1.9, "D": 2.2, "E": 0.85},
-        "load": self.front_static,
-        "sens": 0.05,
+        "pacejka": {"B": 18, "C": 1.35, "D": 2.4, "E": 0.5},
+        "sens": {
+          "B": 0.1,
+          "D": 0.2,
+        },
       },
       "combined_slip": {
         "SHxa": 0.0,
-        "bxa": 2.8,
-        "cxa": 1.2,
+        "bxa": 1.3,
+        "cxa": 1.1,
         "SHyk": 0.0,
-        "byk": 2.4,
-        "cyk": 1.15,
+        "byk": 1.3,
+        "cyk": 1,
+        "sens": {
+          "bxa": 0.1,
+          "byk": 0.1,
+        },
       },
     }
     r_ax_config = {
+      "load": self.rear_static,
       "long": {
-        "pacejka": {"B": 18, "C": 1.6, "D": 2.3, "E": 0.1},
-        "load": self.rear_static,
-        "sens": 0.05,
+        "pacejka": {"B": 16, "C": 1.65, "D": 2.7, "E": 0.3},
+        "sens": {
+          "B": 0.12,
+          "D": 0.12,
+        },
       },
       "lat": {
-        "pacejka": {"B": 16, "C": 1.9, "D": 2.4, "E": 0.85},
-        "load": self.rear_static,
-        "sens": 0.05,
+        "pacejka": {"B": 24, "C": 1.35, "D": 2.56, "E": 0.5},
+        "sens": {
+          "B": 0.12,
+          "D": 0.17,
+        },
       },
       "combined_slip": {
         "SHxa": 0.0,
-        "bxa": 2.0,
+        "bxa": 1.32,
         "cxa": 1.1,
         "SHyk": 0.0,
-        "byk": 3.1,
-        "cyk": 1.2,
+        "byk": 2.15,
+        "cyk": 1.25,
+        "sens": {
+          "bxa": 0.1,
+          "byk": 0.2,
+        },
       },
     }
 
     front_axle_pos = pr.Vector2(
-      self.pos.x + forward.x * self.front_dist_from_center,
-      self.pos.y + forward.y * self.front_dist_from_center,
+      self.pos.x + forward.x * self.dist_cg_front_axle,
+      self.pos.y + forward.y * self.dist_cg_front_axle,
+      self.pos.x + forward.x * self.dist_cg_front_axle,
+      self.pos.y + forward.y * self.dist_cg_front_axle,
     )
     rear_axle_pos = pr.Vector2(
-      self.pos.x + forward.x * self.rear_dist_from_center,
-      self.pos.y + forward.y * self.rear_dist_from_center,
+      self.pos.x - forward.x * self.dist_cg_rear_axle,
+      self.pos.y - forward.y * self.dist_cg_rear_axle,
+      self.pos.x - forward.x * self.dist_cg_rear_axle,
+      self.pos.y - forward.y * self.dist_cg_rear_axle,
     )
     self.front_axle = Axle(
       front_axle_pos,
-      self.front_dist_from_center,
       self.dist_cg_front_axle,
       self.track_width,
       self.angle_rad,
@@ -163,7 +181,6 @@ class Car:
     )
     self.rear_axle = Axle(
       rear_axle_pos,
-      self.rear_dist_from_center,
       -self.dist_cg_rear_axle,
       self.track_width,
       self.angle_rad,
@@ -193,7 +210,9 @@ class Car:
     self.speed = pr.vector2_length(self.local_velo)
 
     # Update steering angle
-    self.steer_angle = self.max_steer_angle * steer
+    steer_reduction = pr.clamp(self.steer_resist / max(self.speed, 1.0), 0.1, 1.0)
+    target_steer = self.max_steer_angle * steer * steer_reduction
+    self.steer_angle = pr.lerp(self.steer_angle, target_steer, self.steer_speed * dt)
     steer_rad = math.radians(self.steer_angle)
 
     # Building longitudinal force
@@ -218,8 +237,8 @@ class Car:
     for _ in range(num_steps):
       # Weight transfer
       downforce = self.downforce_c * self.speed * self.speed
-      front_downforce_tire = downforce * self.cg_to_front / 2
-      rear_downforce_tire = downforce * self.cg_to_rear / 2
+      front_downforce_tire = downforce * self.cg_from_rear / 2
+      rear_downforce_tire = downforce * self.cg_from_front / 2
 
       temp = self.cg_height * self.mass
       self.g_force_filtered = pr.vector2_lerp(
@@ -283,12 +302,19 @@ class Car:
       base_drive_t = self.engine.get_drive_torque() / 2.0
       added_inertia = self.engine.get_reflected_inertia() / 2.0
 
-      omega_diff = rl.omega - rr.omega
+      expected_omega_diff = (self.yaw_rate * self.track_width) / rr.radius
+
+      omega_diff = rl.omega - rr.omega - expected_omega_diff
+      deadzone = 0.5
+      if abs(omega_diff) < deadzone:
+        slip_diff = 0.0
+      else:
+        slip_diff = omega_diff - math.copysign(deadzone, omega_diff)
       lock_stiffness = (
         abs(base_drive_t) * locking_coeff + self.max_preload_t * self.diff_preload
       )
       max_transfer_t = abs(base_drive_t) + self.max_preload_t
-      transfer_t = lock_stiffness * omega_diff
+      transfer_t = lock_stiffness * slip_diff
       transfer_t = pr.clamp(transfer_t, -max_transfer_t, max_transfer_t)
 
       # --- REAR TIRES ---
@@ -301,8 +327,8 @@ class Car:
         tire.steer_rad = 0.0
 
         tire.update_omega(sub_dt, self.speed, throttle, brake, added_inertia)
-        tire.update_slip_angle()
-        tire.update_slip_ratio()
+        tire.update_slip_angle(dt)
+        tire.update_slip_ratio(dt)
         tire.update_lateral_force()
         tire.update_long_force()
 
@@ -317,8 +343,8 @@ class Car:
         tire.steer_rad = steer_rad
 
         tire.update_omega(sub_dt, self.speed, throttle, brake, 0.0)
-        tire.update_slip_angle()
-        tire.update_slip_ratio()
+        tire.update_slip_angle(dt)
+        tire.update_slip_ratio(dt)
         tire.update_lateral_force()
         tire.update_long_force()
 
@@ -428,20 +454,23 @@ class Car:
       -math.sin(self.render_angle_rad), math.cos(self.render_angle_rad)
     )
     size_draw = pr.vector2_scale(self.size, PIXELS_PER_METER)
+    cg_draw = pr.Vector2(
+      (size_draw.x / 2) + (self.cg.x * PIXELS_PER_METER),
+      (size_draw.y / 2) + (self.cg.y * PIXELS_PER_METER),
+    )
 
     rec = pr.Rectangle(self.render_pos.x, self.render_pos.y, size_draw.x, size_draw.y)
-    car_origin = pr.Vector2(size_draw.x / 2, size_draw.y / 2)
-    pr.draw_rectangle_pro(rec, car_origin, angle_deg, pr.RED)
+    car_origin = pr.Vector2(
+      cg_draw.x,
+      cg_draw.y,
+    )
 
+    pr.draw_rectangle_pro(rec, car_origin, angle_deg, pr.RED)
     self.front_axle.draw(forward, right, self.interp_pos, angle_deg, self.steer_angle)
     self.rear_axle.draw(forward, right, self.interp_pos, angle_deg, 0)
 
-    cg_world_x = self.pos.x + right.x * self.cg.x + forward.x * self.cg.y
-    cg_world_y = self.pos.y + right.y * self.cg.x + forward.y * self.cg.y
-
-    pr.draw_circle(
-      int(cg_world_x * PIXELS_PER_METER),
-      int(cg_world_y * PIXELS_PER_METER),
+    pr.draw_circle_v(
+      self.render_pos,
       5.0,
       pr.BLACK,
     )

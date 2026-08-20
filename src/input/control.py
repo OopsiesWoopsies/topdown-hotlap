@@ -91,7 +91,7 @@ class Control:
     self.steer_amt = pr.clamp(steer, -1, 1)
     return self.steer_amt
 
-  def draw(self):
+  def draw(self, steer_deg: float):
     # Throttle and brake
     throt_draw_x = 10
     throt_draw_y = 650
@@ -145,4 +145,9 @@ class Control:
     # Steering wheel (temp rectangle)
     wheel = pr.Rectangle(1100, 650, 100, 50)
     origin = pr.Vector2(wheel.width / 2, wheel.height / 2)
-    pr.draw_rectangle_pro(wheel, origin, self.steer_amt * 180, pr.DARKPURPLE)
+    pr.draw_rectangle_pro(
+      wheel,
+      origin,
+      steer_deg * 180 / 25,
+      pr.DARKPURPLE,
+    )
