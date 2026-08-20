@@ -53,6 +53,7 @@ class Tire:
     self.width = width  # m
     self.mass = mass  # kg
     self.config = config
+    self.f_nom = config["load"]
     self.sa_relaxation = 0.15
     self.sr_relaxation = 0.1
 
@@ -106,7 +107,7 @@ class Tire:
       target_sa *= -1
 
     roll_speed = max(abs(self.velo.x), 0.5)
-    alpha_factor = math.exp(- (roll_speed * dt) / self.sa_relaxation)
+    alpha_factor = math.exp(-(roll_speed * dt) / self.sa_relaxation)
 
     self.slip_angle = target_sa + (self.slip_angle - target_sa) * alpha_factor
 
@@ -117,15 +118,18 @@ class Tire:
     C = pacejka_config["C"]
     D = pacejka_config["D"]
     E = pacejka_config["E"]
-    f_nom = lat_config["load"]
-    sens_lat = lat_config["sens"]
+    sens = lat_config["sens"]
+    sens_D = sens["D"]
+    sens_B = sens["B"]
 
-    load_ratio = self.load / max(f_nom, 1.0)
-    D_lat_scaled = D * (1.0 / (1.0 + sens_lat * (load_ratio - 1.0)))
+    load_ratio = self.load / self.f_nom
+    D_lat_scaled = D * (1.0 / (1.0 + sens_D * (load_ratio - 1.0)))
     self.max_lat_D = max(D_lat_scaled, 0.65 * D)
 
+    B_lat_scaled = max(B * (1.0 / (1.0 + sens_B * (load_ratio - 1.0))), 0.5 * B)
+
     self.lateral_f = (
-      -pacejka_model(B, C, self.max_lat_D, E, self.slip_angle) * self.load
+      -pacejka_model(B_lat_scaled, C, self.max_lat_D, E, self.slip_angle) * self.load
     )
 
   def update_long_force(self):
@@ -135,14 +139,19 @@ class Tire:
     C = pacejka_config["C"]
     D = pacejka_config["D"]
     E = pacejka_config["E"]
-    f_nom = long_config["load"]
-    sens_long = long_config["sens"]
+    sens = long_config["sens"]
+    sens_D = sens["D"]
+    sens_B = sens["B"]
 
-    load_ratio = self.load / max(f_nom, 1.0)
-    D_long_scaled = D * (1.0 / (1.0 + sens_long * (load_ratio - 1.0)))
+    load_ratio = self.load / self.f_nom
+    D_long_scaled = D * (1.0 / (1.0 + sens_D * (load_ratio - 1.0)))
     self.max_long_D = max(D_long_scaled, 0.65 * D)
 
-    self.long_f = pacejka_model(B, C, self.max_long_D, E, self.slip_ratio) * self.load
+    B_long_scaled = max(B * (1.0 / (1.0 + sens_B * (load_ratio - 1.0))), 0.5 * B)
+
+    self.long_f = (
+      pacejka_model(B_long_scaled, C, self.max_long_D, E, self.slip_ratio) * self.load
+    )
 
   def update_omega(
     self, dt: float, car_speed: float, throttle: bool, brake: bool, added_inertia: float
@@ -178,6 +187,8 @@ class Tire:
     fy = self.lateral_f
 
     combined_slip_config = self.config["combined_slip"]
+    combined_slip_sens = combined_slip_config["sens"]
+    load_ratio = self.load / self.f_nom
 
     SHxa = combined_slip_config["SHxa"]
     bxa = combined_slip_config["bxa"]
@@ -186,6 +197,12 @@ class Tire:
     SHyk = combined_slip_config["SHyk"]
     byk = combined_slip_config["byk"]
     cyk = combined_slip_config["cyk"]
+
+    sens_bxa = combined_slip_sens["bxa"]
+    sens_byk = combined_slip_sens["byk"]
+
+    bxa = bxa * (1.0 + sens_bxa * (load_ratio - 1.0))
+    byk = byk * (1.0 + sens_byk * (load_ratio - 1.0))
 
     gx = math.cos(cxa * math.atan(bxa * (abs(self.slip_angle) + SHxa))) / math.cos(
       cxa * math.atan(bxa * SHxa)

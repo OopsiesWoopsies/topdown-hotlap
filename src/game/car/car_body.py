@@ -98,43 +98,61 @@ class Car:
     # Axles
     forward = pr.Vector2(math.cos(self.angle_rad), math.sin(self.angle_rad))
     f_ax_config = {
+      "load": self.front_static,
       "long": {
-        "pacejka": {"B": 14, "C": 1.65, "D": 2.6, "E": 0.1},
-        "load": self.front_static,
-        "sens": 0.1,
+        "pacejka": {"B": 14, "C": 1.65, "D": 2.6, "E": 0.3},
+        "sens": {
+          "B": 0.1,
+          "D": 0.1,
+        },
       },
       "lat": {
-        "pacejka": {"B": 18, "C": 1.35, "D": 2.4, "E": 0.3},
-        "load": self.front_static,
-        "sens": 0.2,
+        "pacejka": {"B": 18, "C": 1.35, "D": 2.4, "E": 0.5},
+        "sens": {
+          "B": 0.1,
+          "D": 0.2,
+        },
       },
       "combined_slip": {
         "SHxa": 0.0,
-        "bxa": 1.6,
+        "bxa": 1.3,
         "cxa": 1.1,
         "SHyk": 0.0,
-        "byk": 1.4,
-        "cyk": 1.1,
+        "byk": 1.3,
+        "cyk": 1,
+        "sens": {
+          "bxa": 0.1,
+          "byk": 0.1,
+        },
       },
     }
     r_ax_config = {
+      "load": self.rear_static,
       "long": {
-        "pacejka": {"B": 16, "C": 1.65, "D": 2.7, "E": 0.7},
-        "load": self.rear_static,
-        "sens": 0.12,
+        "pacejka": {"B": 16, "C": 1.65, "D": 2.7, "E": 0.3},
+        "sens": {
+          "B": 0.12,
+          "D": 0.12,
+        },
       },
       "lat": {
-        "pacejka": {"B": 22, "C": 1.35, "D": 2.5, "E": 0.9},
-        "load": self.rear_static,
-        "sens": 0.25,
+        "pacejka": {"B": 24, "C": 1.35, "D": 2.56, "E": 0.5},
+        "sens": {
+          "B": 0.12,
+          "D": 0.17,
+        },
       },
       "combined_slip": {
         "SHxa": 0.0,
-        "bxa": 1.2,
+        "bxa": 1.32,
         "cxa": 1.1,
         "SHyk": 0.0,
-        "byk": 1.6,
-        "cyk": 1.1,
+        "byk": 2.15,
+        "cyk": 1.25,
+        "sens": {
+          "bxa": 0.1,
+          "byk": 0.2,
+        },
       },
     }
 
