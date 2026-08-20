@@ -159,8 +159,12 @@ class Car:
     front_axle_pos = pr.Vector2(
       self.pos.x + forward.x * self.dist_cg_front_axle,
       self.pos.y + forward.y * self.dist_cg_front_axle,
+      self.pos.x + forward.x * self.dist_cg_front_axle,
+      self.pos.y + forward.y * self.dist_cg_front_axle,
     )
     rear_axle_pos = pr.Vector2(
+      self.pos.x - forward.x * self.dist_cg_rear_axle,
+      self.pos.y - forward.y * self.dist_cg_rear_axle,
       self.pos.x - forward.x * self.dist_cg_rear_axle,
       self.pos.y - forward.y * self.dist_cg_rear_axle,
     )
