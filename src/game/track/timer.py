@@ -52,6 +52,7 @@ class Timer:
   def start_lap_timer(self):
     self.start_lap_time = time.perf_counter()
     self.start_sector_time = time.perf_counter()
+    self.sector_times = [RaceTime(0, "00.000") for _ in range(3)]
     self.lap_timer_stopped = False
 
   def get_elapsed_time(self, start_time: float) -> float:
