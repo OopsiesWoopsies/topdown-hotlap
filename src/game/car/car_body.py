@@ -329,8 +329,8 @@ class Car:
         tire.steer_rad = 0.0
 
         tire.update_omega(sub_dt, self.speed, throttle, brake, added_inertia)
-        tire.update_slip_angle(dt)
-        tire.update_slip_ratio(dt)
+        tire.update_slip_angle(sub_dt)
+        tire.update_slip_ratio(sub_dt)
         tire.update_lateral_force()
         tire.update_long_force()
 
@@ -349,8 +349,8 @@ class Car:
         tire.steer_rad = steer_rad
 
         tire.update_omega(sub_dt, self.speed, throttle, brake, 0.0)
-        tire.update_slip_angle(dt)
-        tire.update_slip_ratio(dt)
+        tire.update_slip_angle(sub_dt)
+        tire.update_slip_ratio(sub_dt)
         tire.update_lateral_force()
         tire.update_long_force()
 
