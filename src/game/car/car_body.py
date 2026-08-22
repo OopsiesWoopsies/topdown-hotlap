@@ -192,9 +192,15 @@ class Car:
     )
 
   def update(self, dt: float, inputs: dict[str, float | bool], steer: float):
+    self.save_prev_pos()
+    self.update_physics(dt, inputs, steer)
+
+  def save_prev_pos(self):
     self.prev_pos = pr.Vector2(self.pos.x, self.pos.y)
     self.prev_angle_rad = self.angle_rad
-    self.update_physics(dt, inputs, steer)
+
+    self.front_axle.save_prev_pos()
+    self.rear_axle.save_prev_pos()
 
   def update_physics(self, dt: float, inputs: dict[str, float | bool], steer: float):
     throttle = inputs["throttle"]
@@ -225,6 +231,8 @@ class Car:
 
     rl = self.rear_axle.left_tire
     rr = self.rear_axle.right_tire
+    fl = self.front_axle.left_tire
+    fr = self.front_axle.right_tire
 
     # LSD
     if throttle > 0.05:
@@ -251,18 +259,10 @@ class Car:
       weight_front = self.front_static - transfer_x
       weight_rear = self.rear_static + transfer_x
 
-      self.front_axle.left_tire.load = max(
-        0.0, weight_front + transfer_y + front_downforce_tire
-      )
-      self.front_axle.right_tire.load = max(
-        0.0, weight_front - transfer_y + front_downforce_tire
-      )
-      self.rear_axle.left_tire.load = max(
-        0.0, weight_rear + transfer_y + rear_downforce_tire
-      )
-      self.rear_axle.right_tire.load = max(
-        0.0, weight_rear - transfer_y + rear_downforce_tire
-      )
+      fl.load = max(0.0, weight_front + transfer_y + front_downforce_tire)
+      fr.load = max(0.0, weight_front - transfer_y + front_downforce_tire)
+      rl.load = max(0.0, weight_rear + transfer_y + rear_downforce_tire)
+      rr.load = max(0.0, weight_rear - transfer_y + rear_downforce_tire)
       # Update slip angles through tire ground speed calculations
       half_track = self.track_width / 2
       fl_velo = pr.Vector2(
@@ -290,10 +290,10 @@ class Car:
         fr_velo.x * math.cos(steer_rad) + fr_velo.y * math.sin(steer_rad),
         -fr_velo.x * math.sin(steer_rad) + fr_velo.y * math.cos(steer_rad),
       )
-      self.front_axle.left_tire.velo = fl_velo_w
-      self.front_axle.right_tire.velo = fr_velo_w
-      self.rear_axle.left_tire.velo = rl_velo
-      self.rear_axle.right_tire.velo = rr_velo
+      fl.velo = fl_velo_w
+      fr.velo = fr_velo_w
+      rl.velo = rl_velo
+      rr.velo = rr_velo
 
       step_total_f = pr.Vector2(0, 0)
       step_yaw_t = 0.0
@@ -321,8 +321,10 @@ class Car:
       for tire in rear_tires:
         if tire == rl:
           tire.drive_t = base_drive_t - transfer_t
+          tire.update_outer_corners(-1, self.angle_rad, 0)
         else:
           tire.drive_t = base_drive_t + transfer_t
+          tire.update_outer_corners(1, self.angle_rad, 0)
         tire.brake_t = rear_brake_t
         tire.steer_rad = 0.0
 
@@ -338,6 +340,10 @@ class Car:
 
       # --- FRONT TIRES ---
       for tire in front_tires:
+        if tire == fl:
+          tire.update_outer_corners(-1, self.angle_rad, steer_rad)
+        else:
+          tire.update_outer_corners(1, self.angle_rad, steer_rad)
         tire.drive_t = 0.0
         tire.brake_t = front_brake_t
         tire.steer_rad = steer_rad

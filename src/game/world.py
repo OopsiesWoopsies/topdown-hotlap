@@ -3,6 +3,7 @@ import math
 import pyray as pr
 
 from game.car.car_body import Car
+from game.constants import PIXELS_PER_METER
 from game.track.timer import Timer
 from game.track.track import Track
 from input.control import Control
@@ -28,14 +29,16 @@ class World:
     steer = self.controls.get_steering()
     self.car.update(dt, inputs, steer)
 
-    sector = self.track.check_sectors(self.car.prev_pos, self.car.pos)
+    for tire in self.tires:
+      sector = self.track.check_sectors(tire.prev_local_pos, tire.local_pos)
+      if sector != -1:
+        break
 
     if not self.check_bounds(dt) and not self.timer.lap_timer_stopped:
       self.timer.stop_lap_timer()
       self.track.stop_lap()
     if not self.track.start_lap:
       return
-
     if sector == 0:
       self.timer.start_lap_timer()
     elif sector == 2 or sector == 3:
@@ -57,8 +60,9 @@ class World:
     index_offset = math.ceil(self.car.speed / self.track.mpp * dt) + margin
 
     for tire in self.tires:
-      on_track = self.track.is_point_on_track(tire.render_pos, index_offset)
-      if on_track:
-        return True
-
+      for corner in tire.outer_corners:
+        render_corner = pr.vector2_scale(corner, PIXELS_PER_METER)
+        on_track = self.track.is_point_on_track(render_corner, index_offset)
+        if on_track:
+          return True
     return False

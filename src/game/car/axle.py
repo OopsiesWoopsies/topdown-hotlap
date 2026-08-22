@@ -24,7 +24,9 @@ class Axle:
     self.distance_to_cg = distance_to_cg
     self.track_width = track_width
     self.axle_width = 0.05
+    tire_radius = 0.35
 
+    forward = pr.Vector2(math.cos(angle_rad), math.sin(angle_rad))
     right = pr.Vector2(-math.sin(angle_rad), math.cos(angle_rad))
 
     left_tire_pos = pr.vector2_subtract(
@@ -33,21 +35,48 @@ class Axle:
     right_tire_pos = pr.vector2_add(
       self.local_pos, pr.vector2_scale(right, self.track_width / 2)
     )
+    forward_offset = pr.Vector2(forward.x * tire_radius, forward.y * tire_radius)
+    right_offset = pr.Vector2(right.x * tire_width, right.y * tire_width)
+    l_outer_corners = [
+      pr.Vector2(
+        left_tire_pos.x + forward_offset.x - right_offset.x,
+        left_tire_pos.y + forward_offset.y - right_offset.y,
+      ),
+      pr.Vector2(
+        left_tire_pos.x - forward_offset.x - right_offset.x,
+        left_tire_pos.y - forward_offset.y - right_offset.y,
+      ),
+    ]
+    r_outer_corners = [
+      pr.Vector2(
+        right_tire_pos.x + forward_offset.x + right_offset.x,
+        right_tire_pos.y + forward_offset.y + right_offset.y,
+      ),
+      pr.Vector2(
+        right_tire_pos.x - forward_offset.x + right_offset.x,
+        right_tire_pos.y - forward_offset.y + right_offset.y,
+      ),
+    ]
+
     self.left_tire = Tire(
       left_tire_pos,
       tire_width,
+      tire_radius,
       tire_mass,
       tire_load,
       pr.Vector2(distance_to_cg, track_width / 2),
+      l_outer_corners,
       powered,
       config,
     )
     self.right_tire = Tire(
       right_tire_pos,
       tire_width,
+      tire_radius,
       tire_mass,
       tire_load,
       pr.Vector2(distance_to_cg, -track_width / 2),
+      r_outer_corners,
       powered,
       config,
     )
@@ -66,6 +95,12 @@ class Axle:
     self.right_tire.update_position(
       pr.vector2_add, self.local_pos, right, self.track_width
     )
+
+  def save_prev_pos(self):
+    self.prev_local_pos = self.local_pos
+
+    self.left_tire.save_prev_pos()
+    self.right_tire.save_prev_pos()
 
   def draw(
     self,
@@ -88,5 +123,9 @@ class Axle:
 
     pr.draw_rectangle_pro(rec, origin, angle_deg, pr.BLACK)
 
-    self.left_tire.draw(pr.vector2_subtract, render_pos, right, angle_deg, steer_deg, self.track_width)
-    self.right_tire.draw(pr.vector2_add, render_pos, right, angle_deg, steer_deg, self.track_width)
+    self.left_tire.draw(
+      pr.vector2_subtract, render_pos, right, angle_deg, steer_deg, self.track_width
+    )
+    self.right_tire.draw(
+      pr.vector2_add, render_pos, right, angle_deg, steer_deg, self.track_width
+    )
