@@ -11,6 +11,8 @@ class Control:
 
     self.shift_up_keybind = pr.KEY_E
     self.shift_down_keybind = pr.KEY_Q
+    self.shift_up_key_up = True
+    self.shift_down_key_up = True
 
     # Steering
     self.steer_amt = 0.0
@@ -33,16 +35,22 @@ class Control:
     brake = pr.is_mouse_button_down(self.brake_keybind)
     quick = pr.is_key_down(self.quick_keybind)
     stop = pr.is_key_down(self.stop_keybind)
-    req_shift_up = pr.is_key_pressed(self.shift_up_keybind)
-    req_shift_down = pr.is_key_pressed(self.shift_down_keybind)
+    req_shift_up_key_down = pr.is_key_down(self.shift_up_keybind)
+    req_shift_down_key_down = pr.is_key_down(self.shift_down_keybind)
 
     shift_up = False
     shift_down = False
 
-    if req_shift_up:
+    if self.shift_up_key_up and req_shift_up_key_down:
       shift_up = True
-    elif req_shift_down:
+      self.shift_up_key_up = False
+    elif not req_shift_up_key_down:
+      self.shift_up_key_up = True
+    if self.shift_down_key_up and req_shift_down_key_down:
       shift_down = True
+      self.shift_down_key_up = False
+    elif not req_shift_down_key_down:
+      self.shift_down_key_up = True
 
     if stop:
       return {
