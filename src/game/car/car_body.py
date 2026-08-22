@@ -192,9 +192,15 @@ class Car:
     )
 
   def update(self, dt: float, inputs: dict[str, float | bool], steer: float):
+    self.save_prev_pos()
+    self.update_physics(dt, inputs, steer)
+
+  def save_prev_pos(self):
     self.prev_pos = pr.Vector2(self.pos.x, self.pos.y)
     self.prev_angle_rad = self.angle_rad
-    self.update_physics(dt, inputs, steer)
+
+    self.front_axle.save_prev_pos()
+    self.rear_axle.save_prev_pos()
 
   def update_physics(self, dt: float, inputs: dict[str, float | bool], steer: float):
     throttle = inputs["throttle"]

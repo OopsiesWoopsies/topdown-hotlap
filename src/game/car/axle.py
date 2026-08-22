@@ -96,6 +96,12 @@ class Axle:
       pr.vector2_add, self.local_pos, right, self.track_width
     )
 
+  def save_prev_pos(self):
+    self.prev_local_pos = self.local_pos
+
+    self.left_tire.save_prev_pos()
+    self.right_tire.save_prev_pos()
+
   def draw(
     self,
     forward: float,

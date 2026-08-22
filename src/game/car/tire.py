@@ -277,6 +277,9 @@ class Tire:
       pr.vector2_scale(right, track_width / 2 + self.width / 2),
     )
 
+  def save_prev_pos(self):
+    self.prev_local_pos = self.local_pos
+
   def draw(
     self,
     vector2_op: Callable[[pr.Vector2, pr.Vector2], pr.Vector2],
