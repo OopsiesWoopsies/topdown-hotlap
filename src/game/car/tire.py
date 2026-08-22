@@ -37,9 +37,11 @@ class Tire:
     self,
     local_pos: pr.Vector2,
     width: float,
+    radius: float,
     mass: float,
     load: float,
     local_coord: pr.Vector2,
+    outer_corners: list[pr.Vector2],
     powered: bool,
     config: dict[str, any],
   ):
@@ -49,11 +51,13 @@ class Tire:
     self.prev_local_pos = local_pos
     self.render_pos = local_pos
     self.local_coord = local_coord
-    self.radius = 0.35  # m
+    self.radius = radius  # m
     self.width = width  # m
     self.mass = mass  # kg
     self.config = config
     self.f_nom = config["load"]
+    self.max_lat_D = self.config["lat"]["pacejka"]["D"]
+    self.max_long_D = self.config["long"]["pacejka"]["D"]
     self.sa_relaxation = 0.15
     self.sr_relaxation = 0.1
 
@@ -70,9 +74,34 @@ class Tire:
     self.long_f = 0.0  # N
     self.lateral_f = 0.0  # N
     self.steer_rad = 0.0  # Rad
-    self.max_lat_D = self.config["lat"]["pacejka"]["D"]
-    self.max_long_D = self.config["long"]["pacejka"]["D"]
     self.grip_usage = 0.0
+
+    self.outer_corners = outer_corners
+
+  def update_outer_corners(
+    self,
+    sign: int,
+    angle_rad: float,
+    steer_rad: float,
+  ):
+    forward = pr.Vector2(
+      math.cos(angle_rad + steer_rad), math.sin(angle_rad + steer_rad)
+    )
+    right = pr.Vector2(
+      -math.sin(angle_rad + steer_rad), math.cos(angle_rad + steer_rad)
+    )
+    forward_offset = pr.Vector2(forward.x * self.radius, forward.y * self.radius)
+    right_offset = pr.Vector2(right.x * self.width / 2, right.y * self.width / 2)
+    self.outer_corners = [
+      pr.Vector2(
+        self.local_pos.x + forward_offset.x + right_offset.x * sign,
+        self.local_pos.y + forward_offset.y + right_offset.y * sign,
+      ),
+      pr.Vector2(
+        self.local_pos.x - forward_offset.x + right_offset.x * sign,
+        self.local_pos.y - forward_offset.y + right_offset.y * sign,
+      ),
+    ]
 
   def update_slip_ratio(self, dt: float):
     wheel_speed = self.omega * self.radius
@@ -269,3 +298,9 @@ class Tire:
     origin = pr.Vector2(diameter_draw / 2, width_draw / 2)
 
     pr.draw_rectangle_pro(rec, origin, angle_deg + steer_deg, pr.BLUE)
+    pr.draw_circle_v(
+      pr.vector2_scale(self.outer_corners[0], PIXELS_PER_METER), 2, pr.PURPLE
+    )
+    pr.draw_circle_v(
+      pr.vector2_scale(self.outer_corners[1], PIXELS_PER_METER), 2, pr.PURPLE
+    )

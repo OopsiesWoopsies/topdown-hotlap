@@ -3,6 +3,7 @@ import math
 import pyray as pr
 
 from game.car.car_body import Car
+from game.constants import PIXELS_PER_METER
 from game.track.timer import Timer
 from game.track.track import Track
 from input.control import Control
@@ -57,8 +58,9 @@ class World:
     index_offset = math.ceil(self.car.speed / self.track.mpp * dt) + margin
 
     for tire in self.tires:
-      on_track = self.track.is_point_on_track(tire.render_pos, index_offset)
-      if on_track:
-        return True
-
+      for corner in tire.outer_corners:
+        render_corner = pr.vector2_scale(corner, PIXELS_PER_METER)
+        on_track = self.track.is_point_on_track(render_corner, index_offset)
+        if on_track:
+          return True
     return False
