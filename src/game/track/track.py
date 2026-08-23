@@ -101,8 +101,7 @@ class Track:
     self.center_pts = []
     self.left_bound_pts = []
     self.right_bound_pts = []
-    self.render_left_bound_pts = []
-    self.render_right_bound_pts = []
+    self.normal_segments = []
 
     for i in range(num_pts):  # Adds precision to center line
       cen_p0 = self.center_line_pts[i - 1]
@@ -123,8 +122,14 @@ class Track:
     min_x = min_y = float("inf")
     max_x = max_y = float("-inf")
     for i in range(num_pts):  # Adds left and right boundary points
+      j = (i + 1) % num_pts
+      a = self.center_pts[i]
+      b = self.center_pts[j]
+
+      direction = pr.vector2_normalize(pr.vector2_subtract(b, a))
+      self.normal_segments.append(pr.Vector2(-direction.y, direction.x))
       prev_cen_pt = self.center_pts[i - 1]
-      next_cen_pt = self.center_pts[(i + 1) % num_pts]
+      next_cen_pt = self.center_pts[j]
       direction = pr.vector2_normalize(pr.vector2_subtract(next_cen_pt, prev_cen_pt))
       normal = pr.Vector2(-direction.y, direction.x)
 
@@ -275,14 +280,15 @@ class Track:
   def is_point_on_track(self, last_index: int, position: pr.Vector2, index_offset: int):
     point, index = self.closest_track_point(last_index, position, index_offset)
 
-    num_pts = len(self.center_pts)
-    j = (index + 1) % num_pts
+    # num_pts = len(self.center_pts)
+    # j = (index + 1) % num_pts
 
-    a = self.center_pts[index]
-    b = self.center_pts[j]
+    # a = self.center_pts[index]
+    # b = self.center_pts[j]
 
-    direction = pr.vector2_normalize(pr.vector2_subtract(b, a))
-    normal = pr.Vector2(-direction.y, direction.x)
+    # direction = pr.vector2_normalize(pr.vector2_subtract(b, a))
+    # normal = pr.Vector2(-direction.y, direction.x)
+    normal = self.normal_segments[index]
     offset = pr.vector2_subtract(position, point)
     lateral_distance = pr.vector2_dot_product(offset, normal)
 
