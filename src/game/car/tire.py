@@ -51,13 +51,16 @@ class Tire:
     self.prev_local_pos = local_pos
     self.render_pos = local_pos
     self.local_coord = local_coord
+
     self.radius = radius  # m
     self.width = width  # m
     self.mass = mass  # kg
+
     self.config = config
     self.f_nom = config["load"]
     self.max_lat_D = self.config["lat"]["pacejka"]["D"]
     self.max_long_D = self.config["long"]["pacejka"]["D"]
+
     self.sa_relaxation = 0.15
     self.sr_relaxation = 0.1
 
@@ -67,16 +70,20 @@ class Tire:
     self.next_omega = 0.0  # Rad/s
     self.velo = pr.Vector2(0, 0)  # m/s
     self.inertia = mass * self.radius**2 / 2  # kg * m^2
+
     self.drive_t = 0.0  # Nm
     self.brake_t = 0.0  # Nm
+
     self.slip_ratio = 0.0
     self.slip_angle = 0.0  # Rad
     self.long_f = 0.0  # N
     self.lateral_f = 0.0  # N
     self.steer_rad = 0.0  # Rad
     self.grip_usage = 0.0
+    self.surface_multi = 1.0
 
     self.outer_corners = outer_corners
+    self.track_indices = [0, 0]
 
   def update_outer_corners(
     self,
@@ -152,10 +159,14 @@ class Tire:
     sens_B = sens["B"]
 
     load_ratio = self.load / self.f_nom
-    D_lat_scaled = D * (1.0 / (1.0 + sens_D * (load_ratio - 1.0)))
+    D_lat_scaled = (
+      D * (1.0 / (1.0 + sens_D * (load_ratio - 1.0)))
+    ) * self.surface_multi
     self.max_lat_D = max(D_lat_scaled, 0.65 * D)
 
-    B_lat_scaled = max(B * (1.0 / (1.0 + sens_B * (load_ratio - 1.0))), 0.5 * B)
+    B_lat_scaled = (
+      max(B * (1.0 / (1.0 + sens_B * (load_ratio - 1.0))), 0.5 * B)
+    ) * self.surface_multi**0.5
 
     self.lateral_f = (
       -pacejka_model(B_lat_scaled, C, self.max_lat_D, E, self.slip_angle) * self.load

@@ -1,5 +1,8 @@
+import math
+
 import pyray as pr
 
+from game.car.tire import Tire
 from game.constants import PIXELS_PER_METER
 
 
@@ -70,7 +73,6 @@ class Track:
     self.line_thickness = 0.1 * PIXELS_PER_METER
 
     # Track vars
-    self.last_closest_index = 0
     self.curr_sector = 1
     self.start_lap = False
 
@@ -219,13 +221,15 @@ class Track:
 
     return left, right
 
-  def closest_track_point(self, position: pr.Vector2, index_offset: int):
+  def closest_track_point(
+    self, last_index: int, position: pr.Vector2, index_offset: int
+  ):
     closest = None
     closest_dist_sq = float("inf")
 
     num_pts = len(self.center_pts)
-    start = self.last_closest_index - index_offset
-    end = self.last_closest_index + index_offset + 1
+    start = last_index - index_offset
+    end = last_index + index_offset + 1
 
     for i in range(start, end):
       i %= num_pts
@@ -241,12 +245,12 @@ class Track:
       if dist_sq < closest_dist_sq:
         closest_dist_sq = dist_sq
         closest = point
-        self.last_closest_index = i
+        last_index = i
 
-    return closest, self.last_closest_index
+    return closest, last_index
 
-  def is_point_on_track(self, position: pr.Vector2, index_offset: int):
-    point, index = self.closest_track_point(position, index_offset)
+  def is_point_on_track(self, last_index: int, position: pr.Vector2, index_offset: int):
+    point, index = self.closest_track_point(last_index, position, index_offset)
 
     num_pts = len(self.center_pts)
     j = (index + 1) % num_pts
@@ -259,7 +263,7 @@ class Track:
     offset = pr.vector2_subtract(position, point)
     lateral_distance = pr.vector2_dot_product(offset, normal)
 
-    return abs(lateral_distance) <= self.half_width
+    return abs(lateral_distance) <= self.half_width, index
 
   def check_sectors(self, prev_pos: pr.Vector2, curr_pos: pr.Vector2) -> int:
     prev_pos = pr.vector2_scale(prev_pos, PIXELS_PER_METER)
@@ -285,6 +289,33 @@ class Track:
         self.curr_sector = 1
         return self.curr_sector
     return -1
+
+  def check_bounds(self, dt: float, car_speed: float, tire: Tire) -> bool:
+    """Checks if the tire are within track boundaries (white lines).
+
+    Args:
+      dt: Delta time. Used to calculate the index offset.
+      car_speed: Speed of car.
+      tire: A tire.
+
+    Returns:
+      tuple: True if tire is on track and the track index respectively
+    """
+    margin = 2
+    index_offset = math.ceil(car_speed / self.mpp * dt) + margin
+    tire_on_track = False
+    new_track_indices = []
+
+    for i in range(2):
+      render_corner = pr.vector2_scale(tire.outer_corners[i], PIXELS_PER_METER)
+      point_on_track, track_index = self.is_point_on_track(
+        tire.track_indices[i], render_corner, index_offset
+      )
+      new_track_indices.append(track_index)
+      if point_on_track:
+        tire_on_track = True
+
+    return tire_on_track, new_track_indices
 
   def stop_lap(self):
     self.start_lap = False

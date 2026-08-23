@@ -84,7 +84,14 @@ class Axle:
   def get_load(self) -> float:
     return self.left_tire.load + self.right_tire.load
 
-  def update_position(self, car_pos: pr.Vector2, forward: float, right: float):
+  def update_position(
+    self,
+    car_pos: pr.Vector2,
+    forward: float,
+    right: float,
+    angle_rad: float,
+    steer_rad: float,
+  ):
     self.local_pos = pr.vector2_add(
       car_pos, pr.vector2_scale(forward, self.distance_to_cg)
     )
@@ -92,9 +99,11 @@ class Axle:
     self.left_tire.update_position(
       pr.vector2_subtract, self.local_pos, right, self.track_width
     )
+    self.left_tire.update_outer_corners(-1, angle_rad, steer_rad)
     self.right_tire.update_position(
       pr.vector2_add, self.local_pos, right, self.track_width
     )
+    self.right_tire.update_outer_corners(1, angle_rad, steer_rad)
 
   def save_prev_pos(self):
     self.prev_local_pos = self.local_pos
