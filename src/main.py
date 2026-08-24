@@ -12,7 +12,7 @@ SCREEN_HEIGHT = 720
 
 pr.init_window(SCREEN_WIDTH, SCREEN_HEIGHT, "Top Down Hotlap")
 
-pr.set_target_fps(144)
+# pr.set_target_fps(144)
 
 world = World()
 renderer = Renderer(SCREEN_WIDTH, SCREEN_HEIGHT)

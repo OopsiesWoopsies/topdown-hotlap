@@ -80,8 +80,15 @@ class Control:
         self.brake_amt -= self.quick_amt * dt
       self.brake_amt -= self.sub_brake * dt
 
-    self.throttle_amt = pr.clamp(self.throttle_amt, 0.0, 1.0)
-    self.brake_amt = pr.clamp(self.brake_amt, 0.0, 1.0)
+    if self.throttle_amt < 0.0:
+      self.throttle_amt = 0.0
+    elif self.throttle_amt > 1.0:
+      self.throttle_amt = 1.0
+
+    if self.brake_amt < 0.0:
+      self.brake_amt = 0.0
+    elif self.brake_amt > 1.0:
+      self.brake_amt = 1.0
 
     return {
       "throttle": self.throttle_amt,
@@ -92,11 +99,14 @@ class Control:
 
   def get_steering(self) -> float:
     center_x = pr.get_screen_width() / 2
-    steer = self.sens * (pr.get_mouse_position().x - center_x) / center_x
+    self.steer_amt = self.sens * (pr.get_mouse_position().x - center_x) / center_x
 
-    if abs(steer) < self.straight_steer_margin:
-      steer = 0
-    self.steer_amt = pr.clamp(steer, -1, 1)
+    if abs(self.steer_amt) < self.straight_steer_margin:
+      self.steer_amt = 0
+    if self.steer_amt < -1.0:
+      self.steer_amt = -1.0
+    elif self.steer_amt > 1.0:
+      self.steer_amt = 1.0
     return self.steer_amt
 
   def draw(self, steer_deg: float):

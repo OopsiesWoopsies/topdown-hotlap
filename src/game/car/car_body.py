@@ -218,7 +218,11 @@ class Car:
     self.speed = pr.vector2_length(self.local_velo)
 
     # Update steering angle
-    steer_reduction = pr.clamp(self.steer_resist / max(self.speed, 1.0), 0.1, 1.0)
+    steer_reduction = self.steer_resist / max(self.speed, 1.0)
+    if steer_reduction < 0.1:
+      steer_reduction = 0.1
+    elif steer_reduction > 1.0:
+      steer_reduction = 1.0
     target_steer = self.max_steer_angle * steer * steer_reduction
     self.steer_angle = pr.lerp(self.steer_angle, target_steer, self.steer_speed * dt)
     steer_rad = math.radians(self.steer_angle)
@@ -319,7 +323,10 @@ class Car:
       )
       max_transfer_t = abs(base_drive_t) + self.max_preload_t
       transfer_t = lock_stiffness * slip_diff
-      transfer_t = pr.clamp(transfer_t, -max_transfer_t, max_transfer_t)
+      if transfer_t < -max_transfer_t:
+        transfer_t = -max_transfer_t
+      elif transfer_t > max_transfer_t:
+        transfer_t = max_transfer_t
 
       # --- REAR TIRES ---
       for tire in rear_tires:

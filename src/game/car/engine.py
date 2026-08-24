@@ -51,7 +51,10 @@ class Engine:
       return self.max_t * (1.0 - (1.0 - x) ** 2)
 
     x = (rpm - self.peak_rpm) / (self.redline - self.peak_rpm)
-    x = pr.clamp(x, 0.0, 1.0)
+    if x < 0.0:
+      x = 0.0
+    elif x > 1.0:
+      x = 1.0
     return self.max_t * (1.0 - 0.45 * x - 0.55 * x * x)
 
   def update_clutch_torque(self, dt: float, throttle: float, avg_tire_omega: float):
@@ -66,7 +69,11 @@ class Engine:
       if self.is_downshifting and self.gear_ratios[self.gear] > 0:
         if self.omega < self.trans_omega:
           blip_amount = (self.trans_omega - self.omega) / 50.0
-          throttle = pr.clamp(blip_amount, 0.0, 1.0)
+          throttle = blip_amount
+          if throttle < 0.0:
+            throttle = 0.0
+          elif throttle > 1.0:
+            throttle = 1.0
         else:
           throttle = 0.0
       else:
@@ -74,7 +81,11 @@ class Engine:
     else:
       if self.clutch_reengage_timer > 0.0:
         progress = 1.0 - (self.clutch_reengage_timer / self.clutch_reengage_cd)
-        self.clutch = pr.clamp(progress, 0.0, 1.0)
+        self.clutch = progress
+        if self.clutch < 0.0:
+          self.clutch = 0.0
+        elif self.clutch > 1.0:
+          self.clutch = 1.0
         throttle *= self.clutch
       else:
         self.clutch = 1.0
@@ -107,7 +118,11 @@ class Engine:
         and self.gear <= 2
         and self.rpm < self.idle_rpm + 1500.0
       ):
-        launch_clutch = pr.clamp((self.rpm - self.idle_rpm) / 1500.0, 0.0, 1.0)
+        launch_clutch = (self.rpm - self.idle_rpm) / 1500.0
+        if launch_clutch < 0.0:
+          launch_clutch = 0.0
+        elif launch_clutch > 1.0:
+          launch_clutch = 1.0
         self.clutch = min(self.clutch, launch_clutch)
 
     # Torque calculations
@@ -141,20 +156,31 @@ class Engine:
       self.is_locked = True
       self.omega = self.trans_omega
       self.net_engine_t = 0.0
-      self.clutch_t = pr.clamp(engine_t, -max_capacity, max_capacity)
+      self.clutch_t = engine_t
+      if self.clutch_t < -max_capacity:
+        self.clutch_t = -max_capacity
+      elif self.clutch_t > max_capacity:
+        self.clutch_t = max_capacity
     else:
       self.is_locked = False
 
       if self.gear == 1 or self.clutch == 0.0:
         self.clutch_t = 0.0
       else:
-        self.clutch_t = pr.clamp(sync_torque, -max_capacity, max_capacity)
+        self.clutch_t = sync_torque
+        if self.clutch_t < -max_capacity:
+          self.clutch_t = -max_capacity
+        elif self.clutch_t > max_capacity:
+          self.clutch_t = max_capacity
 
       # Engine omega updates
       self.net_engine_t = engine_t - self.clutch_t
       self.omega += (self.net_engine_t / self.overall_inertia) * dt
 
-    self.omega = pr.clamp(self.omega, 0.0, self.max_omega)
+    if self.omega < 0.0:
+      self.omega = 0.0
+    elif self.omega > self.max_omega:
+      self.omega = self.max_omega
     self.rpm = self.omega * OMEGA_TO_RPM
 
   def get_drive_torque(self) -> float:
