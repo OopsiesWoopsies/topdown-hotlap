@@ -29,19 +29,30 @@ def catmull_rom(
   return pr.Vector2(x, y)
 
 
-def closest_point_on_segment(p, a, b):
-  ab = pr.vector2_subtract(b, a)
-  ab_len_sq = pr.vector2_length_sqr(ab)
+def closest_point_on_segment(
+  p: pr.Vector2, a: tuple[float, float], b: tuple[float, float]
+) -> tuple[float, float]:
+  a_x, a_y = a
+  b_x, b_y = b
 
-  if ab_len_sq == 0:
+  ab_x = b_x - a_x
+  ab_y = b_y - a_y
+
+  if ab_x == 0 and ab_y == 0:
     return a
 
-  ap = pr.vector2_subtract(p, a)
+  ap_x = p.x - a_x
+  ap_y = p.y - a_y
 
-  t = pr.vector2_dot_product(ab, ap) / ab_len_sq
-  t = max(0.0, min(1.0, t))
+  dot_ap_ab = ap_x * ab_x + ap_y * ab_y
+  dot_ab_ab = ab_x**2 + ab_y**2
+  t = dot_ap_ab / dot_ab_ab
+  if t < 0.0:
+    t = 0.0
+  elif t > 1.0:
+    t = 1.0
 
-  return pr.vector2_add(a, pr.vector2_scale(ab, t))
+  return (a_x + t * ab_x, a_y + t * ab_y)
 
 
 def segments_intersect(
@@ -127,7 +138,7 @@ class Track:
       b = self.center_pts[j]
 
       direction = pr.vector2_normalize(pr.vector2_subtract(b, a))
-      self.normal_segments.append(pr.Vector2(-direction.y, direction.x))
+      self.normal_segments.append((-direction.y, direction.x))
       prev_cen_pt = self.center_pts[i - 1]
       next_cen_pt = self.center_pts[j]
       direction = pr.vector2_normalize(pr.vector2_subtract(next_cen_pt, prev_cen_pt))
@@ -232,6 +243,11 @@ class Track:
 
     pr.end_texture_mode()
 
+    # Convert all Vector2s to tuples
+    self.center_pts = [(pt.x, pt.y) for pt in self.center_pts]
+    self.left_bound_pts = [(pt.x, pt.y) for pt in self.left_bound_pts]
+    self.right_bound_pts = [(pt.x, pt.y) for pt in self.right_bound_pts]
+
   def add_v2_render_offset(self, position: pr.Vector2) -> pr.Vector2:
     return pr.vector2_add(position, self.render_offset)
 
@@ -251,7 +267,7 @@ class Track:
 
   def closest_track_point(
     self, last_index: int, position: pr.Vector2, index_offset: int
-  ):
+  ) -> tuple[tuple[float, float], int]:
     closest = None
     closest_dist_sq = float("inf")
 
@@ -263,34 +279,29 @@ class Track:
       i %= num_pts
       j = (i + 1) % num_pts
 
-      point = closest_point_on_segment(position, self.center_pts[i], self.center_pts[j])
+      pt_x, pt_y = closest_point_on_segment(
+        position, self.center_pts[i], self.center_pts[j]
+      )
 
-      dx = position.x - point.x
-      dy = position.y - point.y
+      dx = position.x - pt_x
+      dy = position.y - pt_y
 
       dist_sq = dx * dx + dy * dy
 
       if dist_sq < closest_dist_sq:
         closest_dist_sq = dist_sq
-        closest = point
+        closest = (pt_x, pt_y)
         last_index = i
 
     return closest, last_index
 
   def is_point_on_track(self, last_index: int, position: pr.Vector2, index_offset: int):
-    point, index = self.closest_track_point(last_index, position, index_offset)
+    (point_x, point_y), index = self.closest_track_point(last_index, position, index_offset)
 
-    # num_pts = len(self.center_pts)
-    # j = (index + 1) % num_pts
-
-    # a = self.center_pts[index]
-    # b = self.center_pts[j]
-
-    # direction = pr.vector2_normalize(pr.vector2_subtract(b, a))
-    # normal = pr.Vector2(-direction.y, direction.x)
-    normal = self.normal_segments[index]
-    offset = pr.vector2_subtract(position, point)
-    lateral_distance = pr.vector2_dot_product(offset, normal)
+    normal_x, normal_y = self.normal_segments[index]
+    offset_x = position.x - point_x
+    offset_y = position.y - point_y
+    lateral_distance = offset_x * normal_x + offset_y * normal_y
 
     return abs(lateral_distance) <= self.half_width, index
 
