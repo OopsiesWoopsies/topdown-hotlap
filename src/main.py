@@ -53,11 +53,11 @@ while not pr.window_should_close():
   renderer.draw(world)
 
   # Grid (temp)
-  for x in range(-100000, 100000, 100):
-    pr.draw_line(x, -100000, x, 100000, pr.BLACK)
+  # for x in range(-100000, 100000, 100):
+  #   pr.draw_line(x, -100000, x, 100000, pr.BLACK)
 
-  for y in range(-100000, 100000, 100):
-    pr.draw_line(-100000, y, 100000, y, pr.BLACK)
+  # for y in range(-100000, 100000, 100):
+  #   pr.draw_line(-100000, y, 100000, y, pr.BLACK)
 
   renderer.end_world()
 
@@ -76,7 +76,7 @@ while not pr.window_should_close():
   text4 = f"FLTire: {debug_vals['FLTire']}\nFRTire: {debug_vals['FRTire']}\nRLTire: {debug_vals['RLTire']}\nRRTire: {debug_vals['RRTire']}\n"
   text5 = f"EngRPM: {debug_vals['EngRPM']}\nGear: {debug_vals['Gear']}\n"
   text6 = f"YawRate: {debug_vals['YawRate']}\n"
-  text = text1 + text2 + text3 + text5 + text6
+  # text = text1 + text2 + text3 + text5 + text6
   # pr.draw_text(text, 5, 90, 20, pr.BLACK)
   # pr.draw_text(text4, 5, 380, 15, pr.BLACK)
 

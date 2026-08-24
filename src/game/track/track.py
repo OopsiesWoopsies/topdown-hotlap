@@ -1,5 +1,8 @@
+import math
+
 import pyray as pr
 
+from game.car.tire import Tire
 from game.constants import PIXELS_PER_METER
 
 
@@ -26,19 +29,30 @@ def catmull_rom(
   return pr.Vector2(x, y)
 
 
-def closest_point_on_segment(p, a, b):
-  ab = pr.vector2_subtract(b, a)
-  ab_len_sq = pr.vector2_length_sqr(ab)
+def closest_point_on_segment(
+  p: pr.Vector2, a: tuple[float, float], b: tuple[float, float]
+) -> tuple[float, float]:
+  a_x, a_y = a
+  b_x, b_y = b
 
-  if ab_len_sq == 0:
+  ab_x = b_x - a_x
+  ab_y = b_y - a_y
+
+  if ab_x == 0 and ab_y == 0:
     return a
 
-  ap = pr.vector2_subtract(p, a)
+  ap_x = p.x - a_x
+  ap_y = p.y - a_y
 
-  t = pr.vector2_dot_product(ab, ap) / ab_len_sq
-  t = max(0.0, min(1.0, t))
+  dot_ap_ab = ap_x * ab_x + ap_y * ab_y
+  dot_ab_ab = ab_x**2 + ab_y**2
+  t = dot_ap_ab / dot_ab_ab
+  if t < 0.0:
+    t = 0.0
+  elif t > 1.0:
+    t = 1.0
 
-  return pr.vector2_add(a, pr.vector2_scale(ab, t))
+  return (a_x + t * ab_x, a_y + t * ab_y)
 
 
 def segments_intersect(
@@ -65,12 +79,11 @@ def segments_intersect(
 class Track:
   def __init__(self):
     # Track size
-    self.width = 17 * PIXELS_PER_METER  # m
-    self.half_width = self.width / 2.0
-    self.line_thickness = 0.1 * PIXELS_PER_METER
+    self.width = 17  # m
+    self.half_width = self.width / 2.0  # m
+    line_thickness = 0.1 * PIXELS_PER_METER  # pixels
 
     # Track vars
-    self.last_closest_index = 0
     self.curr_sector = 1
     self.start_lap = False
 
@@ -95,16 +108,11 @@ class Track:
       self.sector_indexes.append(int((sector_index * i + self.finish_index) % num_pts))
 
     # Track precision points that help smoothen the track out (the following arrays includes precision points)
-    self.mpp = 10  # meters per point (approx)
+    self.mpp = 1  # meters per point (approx)
     self.center_pts = []
     self.left_bound_pts = []
     self.right_bound_pts = []
-
-    # Point calculations
-    for i in range(num_pts):  # Scales points to size
-      self.center_line_pts[i] = pr.vector2_scale(
-        self.center_line_pts[i], PIXELS_PER_METER
-      )
+    self.normal_segments = []
 
     for i in range(num_pts):  # Adds precision to center line
       cen_p0 = self.center_line_pts[i - 1]
@@ -122,13 +130,17 @@ class Track:
         )
 
     num_pts = len(self.center_pts)
-    min_x = float("inf")
-    max_x = float("-inf")
-    min_y = float("inf")
-    max_y = float("-inf")
+    min_x = min_y = float("inf")
+    max_x = max_y = float("-inf")
     for i in range(num_pts):  # Adds left and right boundary points
+      j = (i + 1) % num_pts
+      a = self.center_pts[i]
+      b = self.center_pts[j]
+
+      direction = pr.vector2_normalize(pr.vector2_subtract(b, a))
+      self.normal_segments.append((-direction.y, direction.x))
       prev_cen_pt = self.center_pts[i - 1]
-      next_cen_pt = self.center_pts[(i + 1) % num_pts]
+      next_cen_pt = self.center_pts[j]
       direction = pr.vector2_normalize(pr.vector2_subtract(next_cen_pt, prev_cen_pt))
       normal = pr.Vector2(-direction.y, direction.x)
 
@@ -145,7 +157,12 @@ class Track:
       min_y = min(min_y, self.left_bound_pts[i].y, self.right_bound_pts[i].y)
       max_y = max(max_y, self.left_bound_pts[i].y, self.right_bound_pts[i].y)
 
-    padding = 10
+    min_x *= PIXELS_PER_METER
+    max_x *= PIXELS_PER_METER
+    min_y *= PIXELS_PER_METER
+    max_y *= PIXELS_PER_METER
+
+    padding = 10  # pixels
     self.render_offset = pr.Vector2(
       -min_x + padding,
       -min_y + padding,
@@ -162,21 +179,37 @@ class Track:
     pr.begin_texture_mode(self.render_texture)
     num_pts = len(self.center_pts)
     for i in range(num_pts):
-      left_pt_1 = self.add_v2_render_offset(self.left_bound_pts[i])
-      left_pt_2 = self.add_v2_render_offset(self.left_bound_pts[(i + 1) % num_pts])
-      right_pt_1 = self.add_v2_render_offset(self.right_bound_pts[i])
-      right_pt_2 = self.add_v2_render_offset(self.right_bound_pts[(i + 1) % num_pts])
+      left_pt_1 = self.add_v2_render_offset(
+        pr.vector2_scale(self.left_bound_pts[i], PIXELS_PER_METER)
+      )
+      left_pt_2 = self.add_v2_render_offset(
+        pr.vector2_scale(self.left_bound_pts[(i + 1) % num_pts], PIXELS_PER_METER)
+      )
+      right_pt_1 = self.add_v2_render_offset(
+        pr.vector2_scale(self.right_bound_pts[i], PIXELS_PER_METER)
+      )
+      right_pt_2 = self.add_v2_render_offset(
+        pr.vector2_scale(self.right_bound_pts[(i + 1) % num_pts], PIXELS_PER_METER)
+      )
 
-      pr.draw_line_ex(left_pt_1, left_pt_2, self.line_thickness, pr.WHITE)
-      pr.draw_line_ex(right_pt_1, right_pt_2, self.line_thickness, pr.WHITE)
+      pr.draw_line_ex(left_pt_1, left_pt_2, line_thickness, pr.WHITE)
+      pr.draw_line_ex(right_pt_1, right_pt_2, line_thickness, pr.WHITE)
 
     for i in range(len(self.left_bound_pts)):
       j = (i + 1) % len(self.left_bound_pts)
 
-      a = self.add_v2_render_offset(self.left_bound_pts[i])
-      b = self.add_v2_render_offset(self.left_bound_pts[j])
-      c = self.add_v2_render_offset(self.right_bound_pts[j])
-      d = self.add_v2_render_offset(self.right_bound_pts[i])
+      a = self.add_v2_render_offset(
+        pr.vector2_scale(self.left_bound_pts[i], PIXELS_PER_METER)
+      )
+      b = self.add_v2_render_offset(
+        pr.vector2_scale(self.left_bound_pts[j], PIXELS_PER_METER)
+      )
+      c = self.add_v2_render_offset(
+        pr.vector2_scale(self.right_bound_pts[j], PIXELS_PER_METER)
+      )
+      d = self.add_v2_render_offset(
+        pr.vector2_scale(self.right_bound_pts[i], PIXELS_PER_METER)
+      )
 
       pr.draw_triangle(a, b, c, pr.DARKGRAY)
       pr.draw_triangle(a, c, d, pr.DARKGRAY)
@@ -185,22 +218,35 @@ class Track:
     for i in self.sector_indexes:
       self.sector_lines.append(self.get_timing_line(i))
       pr.draw_line_ex(
-        self.add_v2_render_offset(self.sector_lines[-1][0]),
-        self.add_v2_render_offset(self.sector_lines[-1][1]),
-        self.line_thickness,
+        self.add_v2_render_offset(
+          pr.vector2_scale(self.sector_lines[-1][0], PIXELS_PER_METER)
+        ),
+        self.add_v2_render_offset(
+          pr.vector2_scale(self.sector_lines[-1][1], PIXELS_PER_METER)
+        ),
+        line_thickness,
         pr.WHITE,
       )
 
     # Finish line
     self.finish_line = self.get_timing_line(self.finish_index)
     pr.draw_line_ex(
-      self.add_v2_render_offset(self.finish_line[0]),
-      self.add_v2_render_offset(self.finish_line[1]),
-      self.line_thickness,
+      self.add_v2_render_offset(
+        pr.vector2_scale(self.finish_line[0], PIXELS_PER_METER)
+      ),
+      self.add_v2_render_offset(
+        pr.vector2_scale(self.finish_line[1], PIXELS_PER_METER)
+      ),
+      line_thickness,
       pr.RED,
     )
 
     pr.end_texture_mode()
+
+    # Convert all Vector2s to tuples
+    self.center_pts = [(pt.x, pt.y) for pt in self.center_pts]
+    self.left_bound_pts = [(pt.x, pt.y) for pt in self.left_bound_pts]
+    self.right_bound_pts = [(pt.x, pt.y) for pt in self.right_bound_pts]
 
   def add_v2_render_offset(self, position: pr.Vector2) -> pr.Vector2:
     return pr.vector2_add(position, self.render_offset)
@@ -219,51 +265,47 @@ class Track:
 
     return left, right
 
-  def closest_track_point(self, position: pr.Vector2, index_offset: int):
+  def closest_track_point(
+    self, last_index: int, position: pr.Vector2, index_offset: int
+  ) -> tuple[tuple[float, float], int]:
     closest = None
     closest_dist_sq = float("inf")
 
     num_pts = len(self.center_pts)
-    start = self.last_closest_index - index_offset
-    end = self.last_closest_index + index_offset + 1
+    start = last_index - index_offset
+    end = last_index + index_offset + 1
 
     for i in range(start, end):
       i %= num_pts
       j = (i + 1) % num_pts
 
-      point = closest_point_on_segment(position, self.center_pts[i], self.center_pts[j])
+      pt_x, pt_y = closest_point_on_segment(
+        position, self.center_pts[i], self.center_pts[j]
+      )
 
-      dx = position.x - point.x
-      dy = position.y - point.y
+      dx = position.x - pt_x
+      dy = position.y - pt_y
 
       dist_sq = dx * dx + dy * dy
 
       if dist_sq < closest_dist_sq:
         closest_dist_sq = dist_sq
-        closest = point
-        self.last_closest_index = i
+        closest = (pt_x, pt_y)
+        last_index = i
 
-    return closest, self.last_closest_index
+    return closest, last_index
 
-  def is_point_on_track(self, position: pr.Vector2, index_offset: int):
-    point, index = self.closest_track_point(position, index_offset)
+  def is_point_on_track(self, last_index: int, position: pr.Vector2, index_offset: int):
+    (point_x, point_y), index = self.closest_track_point(last_index, position, index_offset)
 
-    num_pts = len(self.center_pts)
-    j = (index + 1) % num_pts
+    normal_x, normal_y = self.normal_segments[index]
+    offset_x = position.x - point_x
+    offset_y = position.y - point_y
+    lateral_distance = offset_x * normal_x + offset_y * normal_y
 
-    a = self.center_pts[index]
-    b = self.center_pts[j]
-
-    direction = pr.vector2_normalize(pr.vector2_subtract(b, a))
-    normal = pr.Vector2(-direction.y, direction.x)
-    offset = pr.vector2_subtract(position, point)
-    lateral_distance = pr.vector2_dot_product(offset, normal)
-
-    return abs(lateral_distance) <= self.half_width
+    return abs(lateral_distance) <= self.half_width, index
 
   def check_sectors(self, prev_pos: pr.Vector2, curr_pos: pr.Vector2) -> int:
-    prev_pos = pr.vector2_scale(prev_pos, PIXELS_PER_METER)
-    curr_pos = pr.vector2_scale(curr_pos, PIXELS_PER_METER)
     left_pt, right_pt = self.finish_line
     if not self.start_lap:
       if segments_intersect(prev_pos, curr_pos, left_pt, right_pt):
@@ -285,6 +327,32 @@ class Track:
         self.curr_sector = 1
         return self.curr_sector
     return -1
+
+  def check_bounds(self, dt: float, car_speed: float, tire: Tire) -> bool:
+    """Checks if the tire are within track boundaries (white lines).
+
+    Args:
+      dt: Delta time. Used to calculate the index offset.
+      car_speed: Speed of car.
+      tire: A tire.
+
+    Returns:
+      tuple: True if tire is on track and the track index respectively
+    """
+    margin = 2
+    index_offset = math.ceil(car_speed / self.mpp * dt) + margin
+    tire_on_track = False
+    new_track_indices = []
+
+    for i in range(2):
+      point_on_track, track_index = self.is_point_on_track(
+        tire.track_indices[i], tire.outer_corners[i], index_offset
+      )
+      new_track_indices.append(track_index)
+      if point_on_track:
+        tire_on_track = True
+
+    return tire_on_track, new_track_indices
 
   def stop_lap(self):
     self.start_lap = False

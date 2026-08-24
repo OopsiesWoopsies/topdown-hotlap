@@ -5,6 +5,7 @@ import pyray as pr
 from game.car.axle import Axle
 from game.car.engine import Engine
 from game.constants import PIXELS_PER_METER
+from game.track.track import Track
 
 _GRAVITY = -9.81  # m/s^2
 
@@ -191,18 +192,19 @@ class Car:
       r_ax_config,
     )
 
-  def update(self, dt: float, inputs: dict[str, float | bool], steer: float):
-    self.save_prev_pos()
-    self.update_physics(dt, inputs, steer)
+    # State variables
+    self.off_track = False
 
-  def save_prev_pos(self):
-    self.prev_pos = pr.Vector2(self.pos.x, self.pos.y)
-    self.prev_angle_rad = self.angle_rad
+  def update(
+    self, track: Track, dt: float, inputs: dict[str, float | bool], steer: float
+  ) -> int:
+    self.off_track = False
+    curr_sector = self.update_physics(track, dt, inputs, steer)
+    return curr_sector
 
-    self.front_axle.save_prev_pos()
-    self.rear_axle.save_prev_pos()
-
-  def update_physics(self, dt: float, inputs: dict[str, float | bool], steer: float):
+  def update_physics(
+    self, track: Track, dt: float, inputs: dict[str, float | bool], steer: float
+  ) -> int:
     throttle = inputs["throttle"]
     brake = inputs["brake"]
 
@@ -241,6 +243,8 @@ class Car:
       locking_coeff = self.diff_coast_lock
     else:
       locking_coeff = self.diff_preload
+
+    curr_sector = -1
 
     for _ in range(num_steps):
       # Weight transfer
@@ -321,10 +325,8 @@ class Car:
       for tire in rear_tires:
         if tire == rl:
           tire.drive_t = base_drive_t - transfer_t
-          tire.update_outer_corners(-1, self.angle_rad, 0)
         else:
           tire.drive_t = base_drive_t + transfer_t
-          tire.update_outer_corners(1, self.angle_rad, 0)
         tire.brake_t = rear_brake_t
         tire.steer_rad = 0.0
 
@@ -340,10 +342,6 @@ class Car:
 
       # --- FRONT TIRES ---
       for tire in front_tires:
-        if tire == fl:
-          tire.update_outer_corners(-1, self.angle_rad, steer_rad)
-        else:
-          tire.update_outer_corners(1, self.angle_rad, steer_rad)
         tire.drive_t = 0.0
         tire.brake_t = front_brake_t
         tire.steer_rad = steer_rad
@@ -357,9 +355,6 @@ class Car:
         force = tire.get_local_force()
         step_total_f = pr.vector2_add(force, step_total_f)
         step_yaw_t += tire.local_coord.x * force.y - tire.local_coord.y * force.x
-
-      for tire in front_tires + rear_tires:
-        tire.omega = tire.next_omega
 
       if self.speed > 0.01:
         roll_f = self.roll_resist * self.mass * -_GRAVITY
@@ -403,7 +398,22 @@ class Car:
         self.local_velo = pr.Vector2(0, 0)
         self.yaw_rate = 0
 
-      self.update_positions(sub_dt, forward, right)
+      self.update_positions(sub_dt, forward, right, steer_rad)
+
+      any_tire_on_track = False
+
+      for tire in front_tires + rear_tires:
+        tire.omega = tire.next_omega
+        if curr_sector == -1:
+          curr_sector = track.check_sectors(tire.prev_local_pos, tire.local_pos)
+
+        on_track, track_indices = track.check_bounds(sub_dt, self.speed, tire)
+        tire.surface_multi = 1.0 if on_track else 0.4
+        tire.track_indices = [track_indices[0], track_indices[1]]
+        if on_track:
+          any_tire_on_track = True
+
+      self.off_track = not any_tire_on_track
 
     # Update gear
     is_slipping = (
@@ -438,13 +448,25 @@ class Car:
     DEBUG_VALS["YawAccel"] = f"{yaw_accel:>12.3f}"
     DEBUG_VALS["Iner"] = f"{self.inertia:>12.3f}"
 
-  def update_positions(self, dt: float, forward: float, right: float):
+    return curr_sector
+
+  def save_prev_pos(self):
+    self.prev_pos = pr.Vector2(self.pos.x, self.pos.y)
+    self.prev_angle_rad = self.angle_rad
+
+    self.front_axle.save_prev_pos()
+    self.rear_axle.save_prev_pos()
+
+  def update_positions(self, dt: float, forward: float, right: float, steer_rad: float):
+    # Save previous positions
+    self.save_prev_pos()
+
     # Update car body position
     self.pos = pr.vector2_add(self.pos, pr.vector2_scale(self.velo, dt))
 
     # Update axle positions
-    self.front_axle.update_position(self.pos, forward, right)
-    self.rear_axle.update_position(self.pos, forward, right)
+    self.front_axle.update_position(self.pos, forward, right, self.angle_rad, steer_rad)
+    self.rear_axle.update_position(self.pos, forward, right, self.angle_rad, 0)
 
   def calculate_render_state(self, alpha: float):
     self.interp_pos = pr.vector2_lerp(self.prev_pos, self.pos, alpha)
