@@ -31,7 +31,9 @@ DEBUG_VALS = {
 
 
 class Car:
-  def __init__(self, pos: pr.Vector2, angle_deg: float, size: pr.Vector2):
+  def __init__(
+    self, pos: tuple[float, float], angle_deg: float, size: tuple[float, float]
+  ):
     self.engine = Engine()
     # Car body constants
     self.size = size
@@ -42,16 +44,17 @@ class Car:
     self.angle_rad = math.radians(angle_deg)
     self.prev_angle_rad = self.angle_rad
     self.render_angle_rad = self.angle_rad
-    self.mass = 882  # kg
-    self.inertia = self.mass * (self.size.x**2 + self.size.y**2) / 12
+    self.mass = 882.0  # kg
+    self.inertia = self.mass * (self.size[0] ** 2 + self.size[1] ** 2) / 12
 
     self.cg_from_rear = 0.45  # %
-    self.cg_from_front = 1 - self.cg_from_rear  # %
+    self.cg_from_front = 1.0 - self.cg_from_rear  # %
     self.cg_height = 0.15  # m
-    self.cg = pr.Vector2((self.size.x * self.cg_from_rear - self.size.x / 2), 0)  # m
+    self.cg = (self.size[0] * self.cg_from_rear - self.size[0] / 2, 0)  # m
 
     self.wheelbase = 3.6  # m
     self.track_width = 1.9  # m
+    self.half_track_width = self.track_width / 2  # m
     self.dist_cg_front_axle = self.wheelbase * self.cg_from_front
     self.dist_cg_rear_axle = self.wheelbase * self.cg_from_rear
 
@@ -63,17 +66,17 @@ class Car:
     )
 
     # Movement constants
-    self.brake_c = 9000  # Nm
+    self.brake_c = 9000.0  # Nm
     self.drag_c = 0.7
     self.roll_resist = 0.015
     self.downforce_c = 3.7
 
     self.brake_bias_front = 0.6  # %
-    self.brake_bias_rear = 1 - self.brake_bias_front  # %
+    self.brake_bias_rear = 1.0 - self.brake_bias_front  # %
 
-    self.max_steer_angle = 25  # Deg
+    self.max_steer_angle = 25.0  # Deg
     self.steer_speed = 20.0
-    self.steer_resist = 30  # m/s
+    self.steer_resist = 30.0  # m/s
 
     # Movement vars
     self.yaw_rate = 0.0  # Rad/s
@@ -82,7 +85,7 @@ class Car:
 
     # Suspension
     self.sus_stiffness = 10.0
-    self.g_force_filtered = pr.Vector2(0, 0)
+    self.g_force_filtered = (0.0, 0.0)
 
     # LSD constants
     self.max_preload_t = 300.0
@@ -91,13 +94,14 @@ class Car:
     self.diff_preload = 0.15
 
     # Vectors
-    self.local_accel = pr.Vector2(0, 0)
-    self.accel = pr.Vector2(0, 0)
-    self.local_velo = pr.Vector2(0, 0)
-    self.velo = pr.Vector2(0, 0)
+    self.local_accel = (0.0, 0.0)
+    self.accel = (0.0, 0.0)
+    self.local_velo = (0.0, 0.0)
+    self.velo = (0.0, 0.0)
 
     # Axles
-    forward = pr.Vector2(math.cos(self.angle_rad), math.sin(self.angle_rad))
+    forward_x = math.cos(self.angle_rad)
+    forward_y = math.sin(self.angle_rad)
     f_ax_config = {
       "load": self.front_static,
       "long": {
@@ -157,17 +161,19 @@ class Car:
       },
     }
 
-    front_axle_pos = pr.Vector2(
-      self.pos.x + forward.x * self.dist_cg_front_axle,
-      self.pos.y + forward.y * self.dist_cg_front_axle,
-      self.pos.x + forward.x * self.dist_cg_front_axle,
-      self.pos.y + forward.y * self.dist_cg_front_axle,
+    pos_x, pos_y = self.pos
+
+    front_axle_pos = (
+      pos_x + forward_x * self.dist_cg_front_axle,
+      pos_y + forward_y * self.dist_cg_front_axle,
+      pos_x + forward_x * self.dist_cg_front_axle,
+      pos_y + forward_y * self.dist_cg_front_axle,
     )
-    rear_axle_pos = pr.Vector2(
-      self.pos.x - forward.x * self.dist_cg_rear_axle,
-      self.pos.y - forward.y * self.dist_cg_rear_axle,
-      self.pos.x - forward.x * self.dist_cg_rear_axle,
-      self.pos.y - forward.y * self.dist_cg_rear_axle,
+    rear_axle_pos = (
+      pos_x - forward_x * self.dist_cg_rear_axle,
+      pos_y - forward_y * self.dist_cg_rear_axle,
+      pos_x - forward_x * self.dist_cg_rear_axle,
+      pos_y - forward_y * self.dist_cg_rear_axle,
     )
     self.front_axle = Axle(
       front_axle_pos,
@@ -192,6 +198,10 @@ class Car:
       r_ax_config,
     )
 
+    self.front_tires = [self.front_axle.left_tire, self.front_axle.right_tire]
+    self.rear_tires = [self.rear_axle.left_tire, self.rear_axle.right_tire]
+    self.all_tires = self.front_tires + self.rear_tires
+
     # State variables
     self.off_track = False
 
@@ -199,6 +209,7 @@ class Car:
     self, track: Track, dt: float, inputs: dict[str, float | bool], steer: float
   ) -> int:
     self.off_track = False
+    self.prev_angle_rad = self.angle_rad
     curr_sector = self.update_physics(track, dt, inputs, steer)
     return curr_sector
 
@@ -208,19 +219,24 @@ class Car:
     throttle = inputs["throttle"]
     brake = inputs["brake"]
 
-    front_tires = [self.front_axle.left_tire, self.front_axle.right_tire]
-    rear_tires = [self.rear_axle.left_tire, self.rear_axle.right_tire]
-    forward = pr.Vector2(math.cos(self.angle_rad), math.sin(self.angle_rad))
+    forward_x = math.cos(self.angle_rad)
+    forward_y = math.sin(self.angle_rad)
 
     # Update velocity (car)
-    self.local_velo.x = self.velo.x * forward.x + self.velo.y * forward.y
-    self.local_velo.y = self.velo.y * forward.x - self.velo.x * forward.y
-    self.speed = pr.vector2_length(self.local_velo)
+    velo_x, velo_y = self.velo
+    local_velo_x, local_velo_y = self.local_velo
+    self.speed = (local_velo_x**2 + local_velo_y**2) ** 0.5
 
     # Update steering angle
-    steer_reduction = pr.clamp(self.steer_resist / max(self.speed, 1.0), 0.1, 1.0)
+    steer_reduction = self.steer_resist / max(self.speed, 1.0)
+    if steer_reduction < 0.1:
+      steer_reduction = 0.1
+    elif steer_reduction > 1.0:
+      steer_reduction = 1.0
     target_steer = self.max_steer_angle * steer * steer_reduction
-    self.steer_angle = pr.lerp(self.steer_angle, target_steer, self.steer_speed * dt)
+    self.steer_angle = (
+      self.steer_angle + (target_steer - self.steer_angle) * self.steer_speed * dt
+    )
     steer_rad = math.radians(self.steer_angle)
 
     # Building longitudinal force
@@ -253,53 +269,61 @@ class Car:
       rear_downforce_tire = downforce * self.cg_from_front / 2
 
       temp = self.cg_height * self.mass
-      self.g_force_filtered = pr.vector2_lerp(
-        self.g_force_filtered, self.local_accel, self.sus_stiffness * sub_dt
-      )
+      g_force_filtered_x, g_force_filtered_y = self.g_force_filtered
+      t = self.sus_stiffness * sub_dt
 
-      transfer_x = temp * self.g_force_filtered.x / self.wheelbase / 2
-      transfer_y = temp * self.g_force_filtered.y / self.track_width / 2
+      local_accel_x, local_accel_y = self.local_accel
+
+      g_force_filtered_x = g_force_filtered_x + (local_accel_x - g_force_filtered_x) * t
+      g_force_filtered_y = g_force_filtered_y + (local_accel_y - g_force_filtered_y) * t
+
+      transfer_x = temp * g_force_filtered_x / self.wheelbase / 2
+      transfer_y = temp * g_force_filtered_y / self.track_width / 2
+
+      self.g_force_filtered = (g_force_filtered_x, g_force_filtered_y)
 
       weight_front = self.front_static - transfer_x
       weight_rear = self.rear_static + transfer_x
 
-      fl.load = max(0.0, weight_front + transfer_y + front_downforce_tire)
-      fr.load = max(0.0, weight_front - transfer_y + front_downforce_tire)
-      rl.load = max(0.0, weight_rear + transfer_y + rear_downforce_tire)
-      rr.load = max(0.0, weight_rear - transfer_y + rear_downforce_tire)
+      fl.load = weight_front + transfer_y + front_downforce_tire
+      fr.load = weight_front - transfer_y + front_downforce_tire
+      rl.load = weight_rear + transfer_y + rear_downforce_tire
+      rr.load = weight_rear - transfer_y + rear_downforce_tire
+
       # Update slip angles through tire ground speed calculations
-      half_track = self.track_width / 2
-      fl_velo = pr.Vector2(
-        self.local_velo.x + self.yaw_rate * half_track,
-        self.local_velo.y + self.yaw_rate * self.dist_cg_front_axle,
+      fl_velo_x = local_velo_x + self.yaw_rate * self.half_track_width
+      fl_velo_y = local_velo_y + self.yaw_rate * self.dist_cg_front_axle
+      fr_velo_x = local_velo_x - self.yaw_rate * self.half_track_width
+      fr_velo_y = local_velo_y + self.yaw_rate * self.dist_cg_front_axle
+      rl_velo = (
+        local_velo_x + self.yaw_rate * self.half_track_width,
+        local_velo_y - self.yaw_rate * self.dist_cg_rear_axle,
       )
-      fr_velo = pr.Vector2(
-        self.local_velo.x - self.yaw_rate * half_track,
-        self.local_velo.y + self.yaw_rate * self.dist_cg_front_axle,
-      )
-      rl_velo = pr.Vector2(
-        self.local_velo.x + self.yaw_rate * half_track,
-        self.local_velo.y - self.yaw_rate * self.dist_cg_rear_axle,
-      )
-      rr_velo = pr.Vector2(
-        self.local_velo.x - self.yaw_rate * half_track,
-        self.local_velo.y - self.yaw_rate * self.dist_cg_rear_axle,
+      rr_velo = (
+        local_velo_x - self.yaw_rate * self.half_track_width,
+        local_velo_y - self.yaw_rate * self.dist_cg_rear_axle,
       )
 
-      fl_velo_w = pr.Vector2(
-        fl_velo.x * math.cos(steer_rad) + fl_velo.y * math.sin(steer_rad),
-        -fl_velo.x * math.sin(steer_rad) + fl_velo.y * math.cos(steer_rad),
+      sin_steer = math.sin(steer_rad)
+      cos_steer = math.cos(steer_rad)
+
+      fl_velo_w = (
+        fl_velo_x * cos_steer + fl_velo_y * sin_steer,
+        -fl_velo_x * sin_steer + fl_velo_y * cos_steer,
       )
-      fr_velo_w = pr.Vector2(
-        fr_velo.x * math.cos(steer_rad) + fr_velo.y * math.sin(steer_rad),
-        -fr_velo.x * math.sin(steer_rad) + fr_velo.y * math.cos(steer_rad),
+
+      fr_velo_w = (
+        fr_velo_x * cos_steer + fr_velo_y * sin_steer,
+        -fr_velo_x * sin_steer + fr_velo_y * cos_steer,
       )
+
       fl.velo = fl_velo_w
       fr.velo = fr_velo_w
       rl.velo = rl_velo
       rr.velo = rr_velo
 
-      step_total_f = pr.Vector2(0, 0)
+      step_total_f_x = 0.0
+      step_total_f_y = 0.0
       step_yaw_t = 0.0
       avg_tire_omega = (rl.omega + rr.omega) / 2
       self.engine.update_clutch_torque(sub_dt, throttle, avg_tire_omega)
@@ -319,10 +343,13 @@ class Car:
       )
       max_transfer_t = abs(base_drive_t) + self.max_preload_t
       transfer_t = lock_stiffness * slip_diff
-      transfer_t = pr.clamp(transfer_t, -max_transfer_t, max_transfer_t)
+      if transfer_t < -max_transfer_t:
+        transfer_t = -max_transfer_t
+      elif transfer_t > max_transfer_t:
+        transfer_t = max_transfer_t
 
       # --- REAR TIRES ---
-      for tire in rear_tires:
+      for tire in self.rear_tires:
         if tire == rl:
           tire.drive_t = base_drive_t - transfer_t
         else:
@@ -336,12 +363,14 @@ class Car:
         tire.update_lateral_force()
         tire.update_long_force()
 
-        force = tire.get_local_force()
-        step_total_f = pr.vector2_add(force, step_total_f)
-        step_yaw_t += tire.local_coord.x * force.y - tire.local_coord.y * force.x
+        force_x, force_y = tire.get_local_force()
+        tire_local_coord_x, tire_local_coord_y = tire.local_coord
+        step_total_f_x += force_x
+        step_total_f_y += force_y
+        step_yaw_t += tire_local_coord_x * force_y - tire_local_coord_y * force_x
 
       # --- FRONT TIRES ---
-      for tire in front_tires:
+      for tire in self.front_tires:
         tire.drive_t = 0.0
         tire.brake_t = front_brake_t
         tire.steer_rad = steer_rad
@@ -352,57 +381,71 @@ class Car:
         tire.update_lateral_force()
         tire.update_long_force()
 
-        force = tire.get_local_force()
-        step_total_f = pr.vector2_add(force, step_total_f)
-        step_yaw_t += tire.local_coord.x * force.y - tire.local_coord.y * force.x
+        force_x, force_y = tire.get_local_force()
+        tire_local_coord_x, tire_local_coord_y = tire.local_coord
+        step_total_f_x += force_x
+        step_total_f_y += force_y
+        step_yaw_t += tire_local_coord_x * force_y - tire_local_coord_y * force_x
 
       if self.speed > 0.01:
         roll_f = self.roll_resist * self.mass * -_GRAVITY
         drag_f = self.drag_c * self.speed * self.speed
         total_drag = roll_f + drag_f
 
-        drag_f_x = -self.local_velo.x / self.speed * total_drag
-        drag_f_y = -self.local_velo.y / self.speed * total_drag
-        step_total_f = pr.vector2_add(step_total_f, pr.Vector2(drag_f_x, drag_f_y))
+        drag_f_x = -local_velo_x / self.speed * total_drag
+        drag_f_y = -local_velo_y / self.speed * total_drag
+        step_total_f_x += drag_f_x
+        step_total_f_y += drag_f_y
       else:
         drag_f_x = 0.0
         drag_f_y = 0.0
 
-        # Rotate car
+      # Rotate car
       yaw_damping = 300.0  # N*m*s/rad
       step_yaw_t -= yaw_damping * self.yaw_rate
       yaw_accel = step_yaw_t / self.inertia
       self.yaw_rate += yaw_accel * sub_dt
       self.angle_rad += self.yaw_rate * sub_dt
-      forward = pr.Vector2(math.cos(self.angle_rad), math.sin(self.angle_rad))
-      right = pr.Vector2(-math.sin(self.angle_rad), math.cos(self.angle_rad))
+      forward_x = math.cos(self.angle_rad)
+      forward_y = math.sin(self.angle_rad)
+      right = (-math.sin(self.angle_rad), math.cos(self.angle_rad))
 
       # Update acceleration (car)
-      self.local_accel = pr.vector2_scale(step_total_f, 1 / self.mass)
+      local_accel_x = step_total_f_x / self.mass
+      local_accel_y = step_total_f_y / self.mass
+
+      self.local_accel = (local_accel_x, local_accel_y)
 
       # Update acceleration (world)
-      self.accel.x = self.local_accel.x * forward.x - self.local_accel.y * forward.y
-      self.accel.y = self.local_accel.x * forward.y + self.local_accel.y * forward.x
+      accel_x = local_accel_x * forward_x - local_accel_y * forward_y
+      accel_y = local_accel_x * forward_y + local_accel_y * forward_x
+      self.accel = (accel_x, accel_y)
 
       # Update velocity (world)
-      self.velo = pr.vector2_add(self.velo, pr.vector2_scale(self.accel, sub_dt))
-      self.local_velo.x = self.velo.x * forward.x + self.velo.y * forward.y
-      self.local_velo.y = self.velo.y * forward.x - self.velo.x * forward.y
+      velo_x, velo_y = self.velo
+      velo_x = velo_x + accel_x * sub_dt
+      velo_y = velo_y + accel_y * sub_dt
+      self.velo = (velo_x, velo_y)
+
+      self.local_velo = (
+        velo_x * forward_x + velo_y * forward_y,
+        velo_y * forward_x - velo_x * forward_y,
+      )
 
       self.speed = pr.vector2_length(self.local_velo)
 
-      if not throttle and self.speed < 1:
-        self.accel = pr.Vector2(0, 0)
-        self.local_accel = pr.Vector2(0, 0)
-        self.velo = pr.Vector2(0, 0)
-        self.local_velo = pr.Vector2(0, 0)
-        self.yaw_rate = 0
+      if not throttle and self.speed < 0.1:
+        self.accel = (0.0, 0.0)
+        self.local_accel = (0.0, 0.0)
+        self.velo = (0.0, 0.0)
+        self.local_velo = (0.0, 0.0)
+        self.yaw_rate = 0.0
 
-      self.update_positions(sub_dt, forward, right, steer_rad)
+      self.update_positions(sub_dt, (forward_x, forward_y), right, steer_rad)
 
       any_tire_on_track = False
 
-      for tire in front_tires + rear_tires:
+      for tire in self.all_tires:
         tire.omega = tire.next_omega
         if curr_sector == -1:
           curr_sector = track.check_sectors(tire.prev_local_pos, tire.local_pos)
@@ -428,13 +471,13 @@ class Car:
 
     DEBUG_VALS["Throt"] = f"{throttle:>4.3f}"
     DEBUG_VALS["Brake"] = f"{brake:>4.3f}"
-    DEBUG_VALS["Accel"] = [f"{self.accel.x:>12.3f}", f"{self.accel.y:>12.3f}"]
+    DEBUG_VALS["Accel"] = [f"{accel_x:>12.3f}", f"{accel_y:>12.3f}"]
     DEBUG_VALS["LAccel"] = [
-      f"{self.local_accel.x:>12.3f}",
-      f"{self.local_accel.y:>12.3f}",
+      f"{self.local_accel[0]:>12.3f}",
+      f"{self.local_accel[1]:>12.3f}",
     ]
-    DEBUG_VALS["Velo"] = [f"{self.velo.x:>12.3f}", f"{self.velo.y:>12.3f}"]
-    DEBUG_VALS["LVelo"] = [f"{self.local_velo.x:>12.3f}", f"{self.local_velo.y:>12.3f}"]
+    DEBUG_VALS["Velo"] = [f"{velo_x:>12.3f}", f"{velo_y:>12.3f}"]
+    DEBUG_VALS["LVelo"] = [f"{local_velo_x:>12.3f}", f"{local_velo_y:>12.3f}"]
     DEBUG_VALS["Speed"] = f"{self.speed:>12.3f}"
     DEBUG_VALS["DragF"] = [f"{drag_f_x:>12.3f}", f"{drag_f_y:>12.3f}"]
     DEBUG_VALS["DriveT"] = (
@@ -450,50 +493,54 @@ class Car:
 
     return curr_sector
 
-  def save_prev_pos(self):
-    self.prev_pos = pr.Vector2(self.pos.x, self.pos.y)
-    self.prev_angle_rad = self.angle_rad
-
-    self.front_axle.save_prev_pos()
-    self.rear_axle.save_prev_pos()
-
-  def update_positions(self, dt: float, forward: float, right: float, steer_rad: float):
-    # Save previous positions
-    self.save_prev_pos()
-
+  def update_positions(
+    self,
+    dt: float,
+    forward: tuple[float, float],
+    right: tuple[float, float],
+    steer_rad: float,
+  ):
     # Update car body position
-    self.pos = pr.vector2_add(self.pos, pr.vector2_scale(self.velo, dt))
+    self.prev_pos = self.pos
+    pos_x, pos_y = self.pos
+    velo_x, velo_y = self.velo
+    pos_x = pos_x + velo_x * dt
+    pos_y = pos_y + velo_y * dt
+
+    self.pos = (pos_x, pos_y)
 
     # Update axle positions
     self.front_axle.update_position(self.pos, forward, right, self.angle_rad, steer_rad)
     self.rear_axle.update_position(self.pos, forward, right, self.angle_rad, 0)
 
   def calculate_render_state(self, alpha: float):
-    self.interp_pos = pr.vector2_lerp(self.prev_pos, self.pos, alpha)
-    self.render_angle_rad = pr.lerp(self.prev_angle_rad, self.angle_rad, alpha)
-    self.render_pos = pr.vector2_scale(self.interp_pos, PIXELS_PER_METER)
+    interp_pos_x = self.prev_pos[0] + (self.pos[0] - self.prev_pos[0]) * alpha
+    interp_pos_y = self.prev_pos[1] + (self.pos[1] - self.prev_pos[1]) * alpha
+    self.render_angle_rad = (
+      self.prev_angle_rad + (self.angle_rad - self.prev_angle_rad) * alpha
+    )
+    self.interp_pos = (interp_pos_x, interp_pos_y)
+    self.render_pos = (
+      interp_pos_x * PIXELS_PER_METER,
+      interp_pos_y * PIXELS_PER_METER,
+    )
 
   def draw_car(self):
     angle_deg = math.degrees(self.render_angle_rad)
-    forward = pr.Vector2(
-      math.cos(self.render_angle_rad), math.sin(self.render_angle_rad)
-    )
-    right = pr.Vector2(
-      -math.sin(self.render_angle_rad), math.cos(self.render_angle_rad)
-    )
-    size_draw = pr.vector2_scale(self.size, PIXELS_PER_METER)
-    cg_draw = pr.Vector2(
-      (size_draw.x / 2) + (self.cg.x * PIXELS_PER_METER),
-      (size_draw.y / 2) + (self.cg.y * PIXELS_PER_METER),
+    forward = (math.cos(self.render_angle_rad), math.sin(self.render_angle_rad))
+    right = (-math.sin(self.render_angle_rad), math.cos(self.render_angle_rad))
+    size_draw = (self.size[0] * PIXELS_PER_METER, self.size[1] * PIXELS_PER_METER)
+    cg_x, cg_y = self.cg
+    cg_draw = (
+      (size_draw[0] / 2) + (cg_x * PIXELS_PER_METER),
+      (size_draw[1] / 2) + (cg_y * PIXELS_PER_METER),
     )
 
-    rec = pr.Rectangle(self.render_pos.x, self.render_pos.y, size_draw.x, size_draw.y)
-    car_origin = pr.Vector2(
-      cg_draw.x,
-      cg_draw.y,
+    rec = pr.Rectangle(
+      self.render_pos[0], self.render_pos[1], size_draw[0], size_draw[1]
     )
 
-    pr.draw_rectangle_pro(rec, car_origin, angle_deg, pr.RED)
+    pr.draw_rectangle_pro(rec, cg_draw, angle_deg, pr.RED)
     self.front_axle.draw(forward, right, self.interp_pos, angle_deg, self.steer_angle)
     self.rear_axle.draw(forward, right, self.interp_pos, angle_deg, 0)
 
@@ -633,7 +680,7 @@ class Car:
       d_t["Wt"] = f"{tire.load:>7.3f}"
       # d_t["F"] = [f"{force.x:>9.3f}", f"{force.y:>9.3f}"]
       d_t["WS"] = f"{(tire.omega * tire.radius):>7.3f}"
-      d_t["TV"] = [f"{tire.velo.x:>7.3f}", f"{tire.velo.y:>7.3f}"]
+      d_t["TV"] = [f"{tire.velo[0]:>7.3f}", f"{tire.velo[1]:>7.3f}"]
       d_t["GU"] = f"{tire.grip_usage:>7.3f}"
 
     DEBUG_VALS["FLTire"] = debug_fl_tire

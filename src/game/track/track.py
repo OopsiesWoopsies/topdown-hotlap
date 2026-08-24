@@ -30,10 +30,11 @@ def catmull_rom(
 
 
 def closest_point_on_segment(
-  p: pr.Vector2, a: tuple[float, float], b: tuple[float, float]
+  p: tuple[float, float], a: tuple[float, float], b: tuple[float, float]
 ) -> tuple[float, float]:
   a_x, a_y = a
   b_x, b_y = b
+  p_x, p_y = p
 
   ab_x = b_x - a_x
   ab_y = b_y - a_y
@@ -41,8 +42,8 @@ def closest_point_on_segment(
   if ab_x == 0 and ab_y == 0:
     return a
 
-  ap_x = p.x - a_x
-  ap_y = p.y - a_y
+  ap_x = p_x - a_x
+  ap_y = p_y - a_y
 
   dot_ap_ab = ap_x * ab_x + ap_y * ab_y
   dot_ab_ab = ab_x**2 + ab_y**2
@@ -56,7 +57,10 @@ def closest_point_on_segment(
 
 
 def segments_intersect(
-  p1: pr.Vector2, p2: pr.Vector2, p3: pr.Vector2, p4: pr.Vector2
+  p1: tuple[float, float],
+  p2: tuple[float, float],
+  p3: tuple[float, float],
+  p4: tuple[float, float],
 ) -> bool:
   """Checks if line segment p1-p2 intersects with line segment p3-p4.
 
@@ -70,8 +74,10 @@ def segments_intersect(
     True if any part of either segment intersects the other.
   """
 
-  def ccw(A: pr.Vector2, B: pr.Vector2, C: pr.Vector2) -> bool:
-    return (C.y - A.y) * (B.x - A.x) > (B.y - A.y) * (C.x - A.x)
+  def ccw(
+    A: tuple[float, float], B: tuple[float, float], C: tuple[float, float]
+  ) -> bool:
+    return (C[1] - A[1]) * (B[0] - A[0]) > (B[1] - A[1]) * (C[0] - A[0])
 
   return ccw(p1, p3, p4) != ccw(p2, p3, p4) and ccw(p1, p2, p3) != ccw(p1, p2, p4)
 
@@ -244,14 +250,27 @@ class Track:
     pr.end_texture_mode()
 
     # Convert all Vector2s to tuples
-    self.center_pts = [(pt.x, pt.y) for pt in self.center_pts]
-    self.left_bound_pts = [(pt.x, pt.y) for pt in self.left_bound_pts]
-    self.right_bound_pts = [(pt.x, pt.y) for pt in self.right_bound_pts]
+    self.center_pts: list[tuple[float, float]] = [
+      (pt.x, pt.y) for pt in self.center_pts
+    ]
+    self.left_bound_pts: list[tuple[float, float]] = [
+      (pt.x, pt.y) for pt in self.left_bound_pts
+    ]
+    self.right_bound_pts: list[tuple[float, float]] = [
+      (pt.x, pt.y) for pt in self.right_bound_pts
+    ]
+    self.sector_lines: list[tuple[tuple[float, float], tuple[float, float]]] = [
+      ((pt[0].x, pt[0].y), (pt[1].x, pt[1].y)) for pt in self.sector_lines
+    ]
+    self.finish_line: tuple[tuple[float, float], tuple[float, float]] = (
+      (self.finish_line[0].x, self.finish_line[0].y),
+      (self.finish_line[1].x, self.finish_line[1].y),
+    )
 
   def add_v2_render_offset(self, position: pr.Vector2) -> pr.Vector2:
     return pr.vector2_add(position, self.render_offset)
 
-  def get_timing_line(self, index: int):
+  def get_timing_line(self, index: int) -> tuple[pr.Vector2, pr.Vector2]:
     num_pts = len(self.center_line_pts)
     prev_pt = self.center_line_pts[index - 1]
     next_pt = self.center_line_pts[(index + 1) % num_pts]
@@ -266,7 +285,7 @@ class Track:
     return left, right
 
   def closest_track_point(
-    self, last_index: int, position: pr.Vector2, index_offset: int
+    self, last_index: int, position: tuple[float, float], index_offset: int
   ) -> tuple[tuple[float, float], int]:
     closest = None
     closest_dist_sq = float("inf")
@@ -283,8 +302,8 @@ class Track:
         position, self.center_pts[i], self.center_pts[j]
       )
 
-      dx = position.x - pt_x
-      dy = position.y - pt_y
+      dx = position[0] - pt_x
+      dy = position[1] - pt_y
 
       dist_sq = dx * dx + dy * dy
 
@@ -295,17 +314,22 @@ class Track:
 
     return closest, last_index
 
-  def is_point_on_track(self, last_index: int, position: pr.Vector2, index_offset: int):
-    (point_x, point_y), index = self.closest_track_point(last_index, position, index_offset)
+  def is_point_on_track(
+    self, last_index: int, position: tuple[float, float], index_offset: int
+  ) -> tuple[bool, int]:
+    (pt_x, pt_y), index = self.closest_track_point(last_index, position, index_offset)
+    position_x, position_y = position
 
     normal_x, normal_y = self.normal_segments[index]
-    offset_x = position.x - point_x
-    offset_y = position.y - point_y
+    offset_x = position_x - pt_x
+    offset_y = position_y - pt_y
     lateral_distance = offset_x * normal_x + offset_y * normal_y
 
     return abs(lateral_distance) <= self.half_width, index
 
-  def check_sectors(self, prev_pos: pr.Vector2, curr_pos: pr.Vector2) -> int:
+  def check_sectors(
+    self, prev_pos: tuple[float, float], curr_pos: tuple[float, float]
+  ) -> int:
     left_pt, right_pt = self.finish_line
     if not self.start_lap:
       if segments_intersect(prev_pos, curr_pos, left_pt, right_pt):
