@@ -9,7 +9,7 @@ from game.constants import PIXELS_PER_METER
 class Axle:
   def __init__(
     self,
-    local_pos: pr.Vector2,
+    local_pos: tuple[float, float],
     distance_to_cg: float,
     track_width: float,
     angle_rad: float,
@@ -23,38 +23,42 @@ class Axle:
     self.prev_local_pos = local_pos
     self.distance_to_cg = distance_to_cg
     self.track_width = track_width
+    self.half_track_width = track_width / 2
     self.axle_width = 0.05
     tire_radius = 0.35
 
-    forward = pr.Vector2(math.cos(angle_rad), math.sin(angle_rad))
-    right = pr.Vector2(-math.sin(angle_rad), math.cos(angle_rad))
+    forward = (math.cos(angle_rad), math.sin(angle_rad))
+    right = (-math.sin(angle_rad), math.cos(angle_rad))
 
-    left_tire_pos = pr.vector2_subtract(
-      self.local_pos, pr.vector2_scale(right, self.track_width / 2)
+    left_tire_pos = (
+      self.local_pos[0] - right[0] * self.half_track_width,
+      self.local_pos[1] - right[1] * self.half_track_width,
     )
-    right_tire_pos = pr.vector2_add(
-      self.local_pos, pr.vector2_scale(right, self.track_width / 2)
+    right_tire_pos = (
+      self.local_pos[0] + right[0] * self.half_track_width,
+      self.local_pos[1] + right[1] * self.half_track_width,
     )
-    forward_offset = pr.Vector2(forward.x * tire_radius, forward.y * tire_radius)
-    right_offset = pr.Vector2(right.x * tire_width, right.y * tire_width)
+
+    forward_offset = (forward[0] * tire_radius, forward[1] * tire_radius)
+    right_offset = (right[0] * tire_width, right[1] * tire_width)
     l_outer_corners = [
-      pr.Vector2(
-        left_tire_pos.x + forward_offset.x - right_offset.x,
-        left_tire_pos.y + forward_offset.y - right_offset.y,
+      (
+        left_tire_pos[0] + forward_offset[0] - right_offset[0],
+        left_tire_pos[1] + forward_offset[1] - right_offset[1],
       ),
-      pr.Vector2(
-        left_tire_pos.x - forward_offset.x - right_offset.x,
-        left_tire_pos.y - forward_offset.y - right_offset.y,
+      (
+        left_tire_pos[0] - forward_offset[0] - right_offset[0],
+        left_tire_pos[1] - forward_offset[1] - right_offset[1],
       ),
     ]
     r_outer_corners = [
-      pr.Vector2(
-        right_tire_pos.x + forward_offset.x + right_offset.x,
-        right_tire_pos.y + forward_offset.y + right_offset.y,
+      (
+        right_tire_pos[0] + forward_offset[0] + right_offset[0],
+        right_tire_pos[1] + forward_offset[1] + right_offset[1],
       ),
-      pr.Vector2(
-        right_tire_pos.x - forward_offset.x + right_offset.x,
-        right_tire_pos.y - forward_offset.y + right_offset.y,
+      (
+        right_tire_pos[0] - forward_offset[0] + right_offset[0],
+        right_tire_pos[1] - forward_offset[1] + right_offset[1],
       ),
     ]
 
@@ -64,7 +68,7 @@ class Axle:
       tire_radius,
       tire_mass,
       tire_load,
-      pr.Vector2(distance_to_cg, track_width / 2),
+      (distance_to_cg, track_width / 2),
       l_outer_corners,
       powered,
       config,
@@ -75,7 +79,7 @@ class Axle:
       tire_radius,
       tire_mass,
       tire_load,
-      pr.Vector2(distance_to_cg, -track_width / 2),
+      (distance_to_cg, -track_width / 2),
       r_outer_corners,
       powered,
       config,
@@ -86,55 +90,48 @@ class Axle:
 
   def update_position(
     self,
-    car_pos: pr.Vector2,
-    forward: float,
-    right: float,
+    car_pos: tuple[float, float],
+    forward: tuple[float, float],
+    right: tuple[float, float],
     angle_rad: float,
     steer_rad: float,
   ):
-    self.local_pos = pr.vector2_add(
-      car_pos, pr.vector2_scale(forward, self.distance_to_cg)
-    )
-
-    self.left_tire.update_position(
-      pr.vector2_subtract, self.local_pos, right, self.track_width
-    )
-    self.left_tire.update_outer_corners(-1, angle_rad, steer_rad)
-    self.right_tire.update_position(
-      pr.vector2_add, self.local_pos, right, self.track_width
-    )
-    self.right_tire.update_outer_corners(1, angle_rad, steer_rad)
-
-  def save_prev_pos(self):
     self.prev_local_pos = self.local_pos
+    self.local_pos = (
+      car_pos[0] + forward[0] * self.distance_to_cg,
+      car_pos[1] + forward[1] * self.distance_to_cg,
+    )
 
-    self.left_tire.save_prev_pos()
-    self.right_tire.save_prev_pos()
+    self.left_tire.update_position(-1, self.local_pos, right, self.half_track_width)
+    self.left_tire.update_outer_corners(-1, angle_rad, steer_rad)
+    self.right_tire.update_position(1, self.local_pos, right, self.half_track_width)
+    self.right_tire.update_outer_corners(1, angle_rad, steer_rad)
 
   def draw(
     self,
-    forward: float,
-    right: float,
-    car_interp_pos: pr.Vector2,
+    forward: tuple[float, float],
+    right: tuple[float, float],
+    car_interp_pos: tuple[float, float],
     angle_deg: float,
     steer_deg: float,
   ):
-    render_pos = pr.vector2_add(
-      car_interp_pos, pr.vector2_scale(forward, self.distance_to_cg)
+    render_pos = (
+      car_interp_pos[0] + forward[0] * self.distance_to_cg,
+      car_interp_pos[1] + forward[1] * self.distance_to_cg,
     )
 
-    pos_draw = pr.vector2_scale(render_pos, PIXELS_PER_METER)
+    pos_draw = (render_pos[0] * PIXELS_PER_METER, render_pos[1] * PIXELS_PER_METER)
     axle_width_draw = self.axle_width * PIXELS_PER_METER
     track_width_draw = self.track_width * PIXELS_PER_METER
 
-    rec = pr.Rectangle(pos_draw.x, pos_draw.y, axle_width_draw, track_width_draw)
-    origin = pr.Vector2(axle_width_draw / 2, track_width_draw / 2)
+    rec = pr.Rectangle(pos_draw[0], pos_draw[1], axle_width_draw, track_width_draw)
+    origin = (axle_width_draw / 2, track_width_draw / 2)
 
     pr.draw_rectangle_pro(rec, origin, angle_deg, pr.BLACK)
 
     self.left_tire.draw(
-      pr.vector2_subtract, render_pos, right, angle_deg, steer_deg, self.track_width
+      -1, render_pos, right, angle_deg, steer_deg, self.half_track_width
     )
     self.right_tire.draw(
-      pr.vector2_add, render_pos, right, angle_deg, steer_deg, self.track_width
+      1, render_pos, right, angle_deg, steer_deg, self.half_track_width
     )

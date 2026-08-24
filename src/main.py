@@ -42,8 +42,10 @@ while not pr.window_should_close():
 
   renderer.camera.rotation = -angle_deg
   target_zoom = max(1.0 - (world.car.speed * 0.0099), 0.5)
-  renderer.camera.zoom = pr.lerp(renderer.camera.zoom, target_zoom, frame_time * 5)
-  renderer.camera.target = pr.Vector2(render_pos.x + offset_x, render_pos.y + offset_y)
+  renderer.camera.zoom = (
+    renderer.camera.zoom + (target_zoom - renderer.camera.zoom) * frame_time * 5
+  )
+  renderer.camera.target = (render_pos[0] + offset_x, render_pos[1] + offset_y)
 
   # Drawing world
   pr.begin_drawing()

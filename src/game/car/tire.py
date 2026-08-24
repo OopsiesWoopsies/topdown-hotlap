@@ -1,5 +1,4 @@
 import math
-from collections.abc import Callable
 
 import pyray as pr
 
@@ -35,13 +34,13 @@ def pacejka_model(
 class Tire:
   def __init__(
     self,
-    local_pos: pr.Vector2,
+    local_pos: tuple[float, float],
     width: float,
     radius: float,
     mass: float,
     load: float,
-    local_coord: pr.Vector2,
-    outer_corners: list[pr.Vector2],
+    local_coord: tuple[float, float],
+    outer_corners: list[tuple[float, float]],
     powered: bool,
     config: dict[str, any],
   ):
@@ -54,6 +53,7 @@ class Tire:
 
     self.radius = radius  # m
     self.width = width  # m
+    self.half_width = width / 2  # m
     self.mass = mass  # kg
 
     self.config = config
@@ -68,7 +68,7 @@ class Tire:
     self.load = load  # N
     self.omega = 0.0  # Rad/s
     self.next_omega = 0.0  # Rad/s
-    self.velo = pr.Vector2(0, 0)  # m/s
+    self.velo = (0.0, 0.0)  # m/s
     self.inertia = mass * self.radius**2 / 2  # kg * m^2
 
     self.drive_t = 0.0  # Nm
@@ -91,28 +91,24 @@ class Tire:
     angle_rad: float,
     steer_rad: float,
   ):
-    forward = pr.Vector2(
-      math.cos(angle_rad + steer_rad), math.sin(angle_rad + steer_rad)
-    )
-    right = pr.Vector2(
-      -math.sin(angle_rad + steer_rad), math.cos(angle_rad + steer_rad)
-    )
-    forward_offset = pr.Vector2(forward.x * self.radius, forward.y * self.radius)
-    right_offset = pr.Vector2(right.x * self.width / 2, right.y * self.width / 2)
+    forward = (math.cos(angle_rad + steer_rad), math.sin(angle_rad + steer_rad))
+    right = (-math.sin(angle_rad + steer_rad), math.cos(angle_rad + steer_rad))
+    forward_offset = (forward[0] * self.radius, forward[1] * self.radius)
+    right_offset = (right[0] * self.width / 2, right[1] * self.width / 2)
     self.outer_corners = [
-      pr.Vector2(
-        self.local_pos.x + forward_offset.x + right_offset.x * sign,
-        self.local_pos.y + forward_offset.y + right_offset.y * sign,
+      (
+        self.local_pos[0] + forward_offset[0] + right_offset[0] * sign,
+        self.local_pos[1] + forward_offset[1] + right_offset[1] * sign,
       ),
-      pr.Vector2(
-        self.local_pos.x - forward_offset.x + right_offset.x * sign,
-        self.local_pos.y - forward_offset.y + right_offset.y * sign,
+      (
+        self.local_pos[0] - forward_offset[0] + right_offset[0] * sign,
+        self.local_pos[1] - forward_offset[1] + right_offset[1] * sign,
       ),
     ]
 
   def update_slip_ratio(self, dt: float):
     wheel_speed = self.omega * self.radius
-    vehicle_speed = self.velo.x
+    vehicle_speed = self.velo[0]
 
     denom = max(
       abs(vehicle_speed),
@@ -121,19 +117,20 @@ class Tire:
     )
 
     target_sr = (wheel_speed - vehicle_speed) / denom
-    roll_speed = max(abs(self.velo.x), 0.5)
+    roll_speed = max(abs(vehicle_speed), 0.5)
     alpha_factor = math.exp(-(roll_speed * dt) / self.sr_relaxation)
 
     self.slip_ratio = target_sr + (self.slip_ratio - target_sr) * alpha_factor
 
   def update_slip_angle(self, dt: float):
-    speed = pr.vector2_length(self.velo)
-    if abs(self.velo.x) < 0.1:
-      x_anchor = 0.1 if self.velo.x >= 0 else -0.1
+    velo_x, velo_y = self.velo
+    speed = (velo_x**2 + velo_y**2) ** 0.5
+    if abs(velo_x) < 0.1:
+      x_anchor = 0.1 if velo_x >= 0 else -0.1
 
-      target_sa = math.atan2(self.velo.y, x_anchor) * (speed / 0.1)
+      target_sa = math.atan2(velo_y, x_anchor) * (speed / 0.1)
     else:
-      target_sa = math.atan2(self.velo.y, self.velo.x)
+      target_sa = math.atan2(velo_y, velo_x)
 
     if target_sa > RIGHT_ANGLE:
       target_sa -= math.pi
@@ -142,7 +139,7 @@ class Tire:
       target_sa += math.pi
       target_sa *= -1
 
-    roll_speed = max(abs(self.velo.x), 0.5)
+    roll_speed = max(abs(velo_x), 0.5)
     alpha_factor = math.exp(-(roll_speed * dt) / self.sa_relaxation)
 
     self.slip_angle = target_sa + (self.slip_angle - target_sa) * alpha_factor
@@ -222,7 +219,10 @@ class Tire:
 
     self.next_omega = next_omega
 
-  def get_local_force(self) -> pr.Vector2:
+  def get_local_force(self) -> tuple[float, float]:
+    if self.load <= 0.0:
+      return (0.0, 0.0)
+
     fx = self.long_f
     fy = self.lateral_f
 
@@ -271,45 +271,46 @@ class Tire:
       fy = self.lateral_f
       self.grip_usage = 1.0
 
-    return pr.Vector2(
-      fx * math.cos(self.steer_rad) - fy * math.sin(self.steer_rad),
-      fx * math.sin(self.steer_rad) + fy * math.cos(self.steer_rad),
-    )
+    return fx * math.cos(self.steer_rad) - fy * math.sin(self.steer_rad), fx * math.sin(
+      self.steer_rad
+    ) + fy * math.cos(self.steer_rad)
 
   def update_position(
     self,
-    vector2_op: Callable[[pr.Vector2, pr.Vector2], pr.Vector2],
-    axle_local_pos: pr.Vector2,
-    right: float,
-    track_width: float,
+    sign: int,
+    axle_local_pos: tuple[float, float],
+    right: tuple[float, float],
+    half_track_width: float,
   ):
-    self.local_pos = vector2_op(
-      axle_local_pos,
-      pr.vector2_scale(right, track_width / 2 + self.width / 2),
-    )
-
-  def save_prev_pos(self):
     self.prev_local_pos = self.local_pos
+    self.local_pos = (
+      axle_local_pos[0] + right[0] * (half_track_width + self.half_width) * sign,
+      axle_local_pos[1] + right[1] * (half_track_width + self.half_width) * sign,
+    )
 
   def draw(
     self,
-    vector2_op: Callable[[pr.Vector2, pr.Vector2], pr.Vector2],
-    axle_render_pos: pr.Vector2,
-    right: float,
+    sign: int,
+    axle_render_pos: tuple[float, float],
+    right: tuple[float, float],
     angle_deg: float,
     steer_deg: float,
-    track_width: float,
+    half_track_width: float,
   ):
-    self.render_pos = vector2_op(
-      axle_render_pos, pr.vector2_scale(right, track_width / 2 + self.width / 2)
+    self.render_pos = (
+      (axle_render_pos[0] + right[0] * (half_track_width + self.half_width) * sign)
+      * PIXELS_PER_METER,
+      (axle_render_pos[1] + right[1] * (half_track_width + self.half_width) * sign)
+      * PIXELS_PER_METER,
     )
 
-    self.render_pos = pr.vector2_scale(self.render_pos, PIXELS_PER_METER)
     diameter_draw = self.radius * 2 * PIXELS_PER_METER
     width_draw = self.width * PIXELS_PER_METER
 
-    rec = pr.Rectangle(self.render_pos.x, self.render_pos.y, diameter_draw, width_draw)
-    origin = pr.Vector2(diameter_draw / 2, width_draw / 2)
+    rec = pr.Rectangle(
+      self.render_pos[0], self.render_pos[1], diameter_draw, width_draw
+    )
+    origin = (diameter_draw / 2, width_draw / 2)
 
     pr.draw_rectangle_pro(rec, origin, angle_deg + steer_deg, pr.BLUE)
     pr.draw_circle_v(

@@ -1,7 +1,5 @@
 import math
 
-import pyray as pr
-
 OMEGA_TO_RPM = 60.0 / (2 * math.pi)
 RPM_TO_OMEGA = 2.0 * math.pi / 60.0
 
