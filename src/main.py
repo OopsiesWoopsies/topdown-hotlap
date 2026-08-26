@@ -41,7 +41,12 @@ while not pr.window_should_close():
   angle_deg = math.degrees(world.car.render_angle_rad) + 90
 
   renderer.camera.rotation = -angle_deg
-  target_zoom = max(1.0 - (world.car.speed * 0.0099), 0.5)
+  if pr.is_key_down(pr.KEY_C):
+    target_zoom = 0.3
+  elif pr.is_key_down(pr.KEY_SPACE):
+    target_zoom = 0.08
+  else:
+    target_zoom = max(1.0 - (world.car.speed * 0.0099), 0.5)
   renderer.camera.zoom = (
     renderer.camera.zoom + (target_zoom - renderer.camera.zoom) * frame_time * 5
   )
@@ -50,6 +55,12 @@ while not pr.window_should_close():
   # Drawing world
   pr.begin_drawing()
   pr.clear_background(pr.DARKGREEN)
+
+  if pr.is_key_pressed(pr.KEY_R):
+    world_coords = pr.vector2_scale(
+      pr.get_screen_to_world_2d(pr.get_mouse_position(), renderer.camera), 1 / 30
+    )
+    print(world_coords.x, world_coords.y)
 
   renderer.begin_world()
   renderer.draw(world)

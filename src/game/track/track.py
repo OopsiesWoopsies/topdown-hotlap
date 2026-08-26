@@ -7,26 +7,50 @@ from game.constants import PIXELS_PER_METER
 
 
 def catmull_rom(
-  p0: pr.Vector2, p1: pr.Vector2, p2: pr.Vector2, p3: pr.Vector2, t: float
-) -> pr.Vector2:
-  t2 = t**2
-  t3 = t2 * t
+  p0: tuple[float, float],
+  p1: tuple[float, float],
+  p2: tuple[float, float],
+  p3: tuple[float, float],
+  t: float,
+) -> tuple[float, float]:
 
-  x = 0.5 * (
-    2 * p1.x
-    + (-p0.x + p2.x) * t
-    + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2
-    + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3
-  )
+  alpha = 0.5
 
-  y = 0.5 * (
-    2 * p1.y
-    + (-p0.y + p2.y) * t
-    + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2
-    + (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3
-  )
+  def tj(
+    ti: float,
+    pa: tuple[float, float],
+    pb: tuple[float, float],
+  ) -> float:
+    dx = pb[0] - pa[0]
+    dy = pb[1] - pa[1]
+    return ti + (dx * dx + dy * dy) ** (alpha * 0.5)
 
-  return pr.Vector2(x, y)
+  t0 = 0.0
+  t1 = tj(t0, p0, p1)
+  t2 = tj(t1, p1, p2)
+  t3 = tj(t2, p2, p3)
+
+  tt = t1 + t * (t2 - t1)
+
+  A1_x = (t1 - tt) / (t1 - t0) * p0[0] + (tt - t0) / (t1 - t0) * p1[0]
+  A1_y = (t1 - tt) / (t1 - t0) * p0[1] + (tt - t0) / (t1 - t0) * p1[1]
+
+  A2_x = (t2 - tt) / (t2 - t1) * p1[0] + (tt - t1) / (t2 - t1) * p2[0]
+  A2_y = (t2 - tt) / (t2 - t1) * p1[1] + (tt - t1) / (t2 - t1) * p2[1]
+
+  A3_x = (t3 - tt) / (t3 - t2) * p2[0] + (tt - t2) / (t3 - t2) * p3[0]
+  A3_y = (t3 - tt) / (t3 - t2) * p2[1] + (tt - t2) / (t3 - t2) * p3[1]
+
+  B1_x = (t2 - tt) / (t2 - t0) * A1_x + (tt - t0) / (t2 - t0) * A2_x
+  B1_y = (t2 - tt) / (t2 - t0) * A1_y + (tt - t0) / (t2 - t0) * A2_y
+
+  B2_x = (t3 - tt) / (t3 - t1) * A2_x + (tt - t1) / (t3 - t1) * A3_x
+  B2_y = (t3 - tt) / (t3 - t1) * A2_y + (tt - t1) / (t3 - t1) * A3_y
+
+  C_x = (t2 - tt) / (t2 - t1) * B1_x + (tt - t1) / (t2 - t1) * B2_x
+  C_y = (t2 - tt) / (t2 - t1) * B1_y + (tt - t1) / (t2 - t1) * B2_y
+
+  return C_x, C_y
 
 
 def closest_point_on_segment(
@@ -95,14 +119,37 @@ class Track:
 
     # Track points
     self.center_line_pts = [
-      pr.Vector2(0, 0),
-      pr.Vector2(-50, 0),
-      pr.Vector2(-100, 0),
-      pr.Vector2(-100, 50),
-      pr.Vector2(-100, 100),
-      pr.Vector2(-50, 100),
-      pr.Vector2(0, 100),
-      pr.Vector2(0, 50),
+      # Right straight (going down)
+      (0, 90),
+      (0, 70),
+      (0, 55),
+      (0, 45),
+      (0, 30),
+      (0, 10),
+      
+      # Bottom straight (going left)
+      (-10, 0),
+      (-30, 0),
+      (-45, 0),
+      (-55, 0),
+      (-70, 0),
+      (-90, 0),
+      
+      # Left straight (going up)
+      (-100, 10),
+      (-100, 30),
+      (-100, 45),
+      (-100, 55),
+      (-100, 70),
+      (-100, 90),
+      
+      # Top straight (going right)
+      (-90, 100),
+      (-70, 100),
+      (-55, 100),
+      (-45, 100),
+      (-30, 100),
+      (-10, 100),
     ]  # Dictates the main path of the track
     num_pts = len(self.center_line_pts)
     sector_index = num_pts / 3
@@ -114,7 +161,7 @@ class Track:
       self.sector_indexes.append(int((sector_index * i + self.finish_index) % num_pts))
 
     # Track precision points that help smoothen the track out (the following arrays includes precision points)
-    self.mpp = 1  # meters per point (approx)
+    self.mpp = 0.25  # meters per point (approx)
     self.center_pts = []
     self.left_bound_pts = []
     self.right_bound_pts = []
@@ -126,8 +173,11 @@ class Track:
       cen_p2 = self.center_line_pts[(i + 1) % num_pts]
       cen_p3 = self.center_line_pts[(i + 2) % num_pts]
 
+      cen_p1_x, cen_p1_y = cen_p1
+      cen_p2_x, cen_p2_y = cen_p2
+
       precision = round(
-        pr.vector2_length(pr.vector2_subtract(cen_p2, cen_p1)) / self.mpp
+        ((cen_p2_x - cen_p1_x) ** 2 + (cen_p2_y - cen_p1_y) ** 2) ** 0.5 / self.mpp
       )
 
       for n in range(precision):
@@ -184,23 +234,6 @@ class Track:
 
     pr.begin_texture_mode(self.render_texture)
     num_pts = len(self.center_pts)
-    for i in range(num_pts):
-      left_pt_1 = self.add_v2_render_offset(
-        pr.vector2_scale(self.left_bound_pts[i], PIXELS_PER_METER)
-      )
-      left_pt_2 = self.add_v2_render_offset(
-        pr.vector2_scale(self.left_bound_pts[(i + 1) % num_pts], PIXELS_PER_METER)
-      )
-      right_pt_1 = self.add_v2_render_offset(
-        pr.vector2_scale(self.right_bound_pts[i], PIXELS_PER_METER)
-      )
-      right_pt_2 = self.add_v2_render_offset(
-        pr.vector2_scale(self.right_bound_pts[(i + 1) % num_pts], PIXELS_PER_METER)
-      )
-
-      pr.draw_line_ex(left_pt_1, left_pt_2, line_thickness, pr.WHITE)
-      pr.draw_line_ex(right_pt_1, right_pt_2, line_thickness, pr.WHITE)
-
     for i in range(len(self.left_bound_pts)):
       j = (i + 1) % len(self.left_bound_pts)
 
@@ -219,6 +252,23 @@ class Track:
 
       pr.draw_triangle(a, b, c, pr.DARKGRAY)
       pr.draw_triangle(a, c, d, pr.DARKGRAY)
+
+    for i in range(num_pts):
+      left_pt_1 = self.add_v2_render_offset(
+        pr.vector2_scale(self.left_bound_pts[i], PIXELS_PER_METER)
+      )
+      left_pt_2 = self.add_v2_render_offset(
+        pr.vector2_scale(self.left_bound_pts[(i + 1) % num_pts], PIXELS_PER_METER)
+      )
+      right_pt_1 = self.add_v2_render_offset(
+        pr.vector2_scale(self.right_bound_pts[i], PIXELS_PER_METER)
+      )
+      right_pt_2 = self.add_v2_render_offset(
+        pr.vector2_scale(self.right_bound_pts[(i + 1) % num_pts], PIXELS_PER_METER)
+      )
+
+      pr.draw_line_ex(left_pt_1, left_pt_2, line_thickness, pr.WHITE)
+      pr.draw_line_ex(right_pt_1, right_pt_2, line_thickness, pr.WHITE)
 
     # Sectors
     for i in self.sector_indexes:
@@ -248,11 +298,9 @@ class Track:
     )
 
     pr.end_texture_mode()
+    print(len(self.center_pts))
 
     # Convert all Vector2s to tuples
-    self.center_pts: list[tuple[float, float]] = [
-      (pt.x, pt.y) for pt in self.center_pts
-    ]
     self.left_bound_pts: list[tuple[float, float]] = [
       (pt.x, pt.y) for pt in self.left_bound_pts
     ]
@@ -318,14 +366,10 @@ class Track:
     self, last_index: int, position: tuple[float, float], index_offset: int
   ) -> tuple[bool, int]:
     (pt_x, pt_y), index = self.closest_track_point(last_index, position, index_offset)
-    position_x, position_y = position
+    pos_x, pos_y = position
+    dist = math.hypot(pos_x - pt_x, pos_y - pt_y)
 
-    normal_x, normal_y = self.normal_segments[index]
-    offset_x = position_x - pt_x
-    offset_y = position_y - pt_y
-    lateral_distance = offset_x * normal_x + offset_y * normal_y
-
-    return abs(lateral_distance) <= self.half_width, index
+    return dist <= self.half_width, index
 
   def check_sectors(
     self, prev_pos: tuple[float, float], curr_pos: tuple[float, float]
