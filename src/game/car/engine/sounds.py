@@ -21,6 +21,7 @@ class EngineAudSynthesizer:
 
     self.last_rpm = 0.0
     self.last_throttle = 0.0
+    self.shifting_gear = False
 
     self.exhaust_body = butter(
       3,
@@ -210,20 +211,25 @@ class EngineAudSynthesizer:
     throttle: float,
     n_samples: int,
   ):
-    rpm_curve = np.linspace(
-      self.last_rpm,
-      rpm,
-      n_samples,
-    )
+    if self.shifting_gear:
+      rpm_curve = np.full(n_samples, rpm)
+      self.last_rpm = rpm
+      self.shifting_gear = False
+    else:
+      rpm_curve = np.linspace(
+        self.last_rpm,
+        rpm,
+        n_samples,
+      )
+      self.last_rpm = rpm
 
     throttle_curve = np.linspace(
       self.last_throttle,
       throttle,
       n_samples,
     )
-
-    self.last_rpm = rpm
     self.last_throttle = throttle
+
     f_rot = rpm_curve / 60.0
 
     base_phase = self.phase + np.cumsum(f_rot) / self.sample_rate

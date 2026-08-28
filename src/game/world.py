@@ -22,7 +22,7 @@ class World:
       channels=1,
       dtype="float32",
       callback=self.aud_callback,
-      blocksize=512,
+      blocksize=128,
     )
     self.aud_stream.start()
 
@@ -38,8 +38,12 @@ class World:
   def update(self, dt):
     inputs = self.controls.get_inputs(dt)
     steer = self.controls.get_steering()
+    old_gear = self.car.engine.gear
     sector = self.car.update(self.track, dt, inputs, steer)
+    new_gear = self.car.engine.gear
     self.throttle = inputs["throttle"]
+    self.engine_sound.shifting_gear = old_gear != new_gear
+
 
     if self.car.off_track and not self.timer.lap_timer_stopped:
       self.timer.stop_lap_timer()
