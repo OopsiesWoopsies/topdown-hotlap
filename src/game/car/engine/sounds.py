@@ -18,6 +18,8 @@ class EngineAudSynthesizer:
     self.sample_rate = sample_rate
     self.firing_order = cylinders / 2.0
     self.rng = np.random.default_rng(seed)
+    self.pulse_width = 0.1
+    self.pulse_width = 1 / self.pulse_width
 
     self.last_rpm = 0.0
     self.last_throttle = 0.0
@@ -66,6 +68,13 @@ class EngineAudSynthesizer:
     self.air_zi = sosfilt_zi(self.exhaust_air)
     self.rasp_zi = sosfilt_zi(self.rasp_filter)
 
+    self.engine_orders = np.array([0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0])
+    self.engine_weights = np.array([0.06, 0.12, 0.03, 0.05, 0.15, 0.03, 0.001, 0.006])
+    self.engine_high_mask = self.engine_orders >= 3.0
+
+    self.mechanical_orders = np.array([1.0, 2.0, 4.0, 6.0, 8.0])
+    self.mechanical_weights = np.array([0.08, 0.05, 0.035, 0.025, 0.015])
+
   def gen_combustion_pulses(
     self,
     base_phase: np.ndarray,
@@ -73,13 +82,14 @@ class EngineAudSynthesizer:
   ):
     firing_phase = base_phase * self.firing_order
     phase = firing_phase % 1.0
-    pulse_width = 0.1
-    distance = np.minimum(
+    dist = np.minimum(
       phase,
       1.0 - phase,
     )
 
-    pulse = np.exp(-0.5 * (distance / pulse_width) ** 2)
+    dist_scaled = dist * self.pulse_width
+
+    pulse = np.exp(-0.5 * dist_scaled * dist_scaled)
     decay = np.exp(-phase * 10.0)
     pulse *= 0.15 + 0.85 * decay
     pulse *= 0.4 + 0.6 * throttle_curve
@@ -104,7 +114,7 @@ class EngineAudSynthesizer:
       0.0,
     )
 
-    rasp = noise * envelope**2.0
+    rasp = noise * envelope * envelope
 
     return rasp * (0.25 + 0.75 * throttle_curve)
 
@@ -114,41 +124,26 @@ class EngineAudSynthesizer:
     rpm_curve: np.ndarray,
     throttle_curve: np.ndarray,
   ):
-    primary_order = self.cylinders / 2.0
+    firing_phase = base_phase * (self.cylinders / 2.0)
+    phases = 2.0 * np.pi * firing_phase[:, np.newaxis] * self.engine_orders
 
-    orders = {
-      0.5: 0.06,
-      1.0: 0.12,
-      1.5: 0.03,
-      2.0: 0.05,
-      3.0: 0.15,
-      4.0: 0.03,
-      5.0: 0.001,
-      6.0: 0.006,
-      7.0: 0.0,
-      8.0: 0.0,
-    }
+    wave_b = np.sin(2.0 * np.pi * phases * 1.105)
+    wave_c = np.sin(2.0 * np.pi * phases * 0.895)
+    wave_d = np.sin(2.0 * np.pi * phases * 2.0) * 0.25
+    wave = (wave_b + wave_c + wave_d) * 0.7
 
-    firing_phase = base_phase * primary_order
-    sound = np.zeros_like(base_phase)
     rpm_norm = np.clip(
       rpm_curve / self.redline,
       0.0,
       1.0,
     )
-    for order, weight in orders.items():
-      phase = firing_phase * order
-      wave_b = np.sin(2.0 * np.pi * phase * 1.105)
-      wave_c = np.sin(2.0 * np.pi * phase * 0.895)
-      wave_d = np.sin(2.0 * np.pi * phase * 2.0) * 0.25
-      wave = (wave_b + wave_c + wave_d) * 0.7
 
-      if order >= 3.0:
-        rpm_gain = 0.15 + 0.85 * rpm_norm
-      else:
-        rpm_gain = 1.0
+    rpm_gain = np.where(
+      self.engine_high_mask, 0.15 + 0.85 * rpm_norm[:, np.newaxis], 1.0
+    )
 
-      sound += wave * weight * rpm_gain * (0.55 + 0.45 * throttle_curve)
+    weighted_waves = wave * self.engine_weights * rpm_gain
+    sound = np.sum(weighted_waves, axis=1) * (0.55 + 0.45 * throttle_curve)
 
     return sound
 
@@ -158,27 +153,18 @@ class EngineAudSynthesizer:
     rpm_curve: np.ndarray,
     throttle_curve: np.ndarray,
   ):
-    sound = np.zeros_like(base_phase)
-    orders = {
-      1.0: 0.08,
-      2.0: 0.05,
-      4.0: 0.035,
-      6.0: 0.025,
-      8.0: 0.015,
-    }
+    phases = 2.0 * np.pi * base_phase[:, np.newaxis] * self.mechanical_orders
+    weighted_waves = np.sin(phases) * self.mechanical_weights
     rpm_norm = np.clip(
       rpm_curve / self.redline,
       0.0,
       1.0,
     )
-    for order, weight in orders.items():
-      phase = base_phase * order
-      sound += (
-        np.sin(2.0 * np.pi * phase)
-        * weight
-        * (0.25 + 0.75 * rpm_norm)
-        * (0.8 + 0.2 * throttle_curve)
-      )
+    sound = (
+      np.sum(weighted_waves, axis=1)
+      * (0.25 + 0.75 * rpm_norm)
+      * (0.8 + 0.2 * throttle_curve)
+    )
 
     return sound
 
@@ -317,10 +303,10 @@ def main():
   print(f"Playing V{aud.cylinders}: 4000 -> 15,000 RPM...")
 
   sound = aud._gen_rev_sweep(
-    dur=3.0,
+    dur=1.3,
     start_rpm=4000,
     end_rpm=15000,
-    throttle=0.0,
+    throttle=1.0,
   )
 
   sd.play(sound, samplerate=aud.sample_rate)

@@ -42,7 +42,8 @@ class World:
     sector = self.car.update(self.track, dt, inputs, steer)
     new_gear = self.car.engine.gear
     self.throttle = inputs["throttle"]
-    self.engine_sound.shifting_gear = old_gear != new_gear
+    if old_gear != new_gear:
+      self.engine_sound.shifting_gear = True
 
 
     if self.car.off_track and not self.timer.lap_timer_stopped:
