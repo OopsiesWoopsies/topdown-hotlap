@@ -1,6 +1,6 @@
 import numpy as np
 import sounddevice as sd
-from scipy.signal import butter, sosfilt
+from scipy.signal import butter, sosfilt, sosfilt_zi
 
 
 class EngineAudSynthesizer:
@@ -18,6 +18,9 @@ class EngineAudSynthesizer:
     self.sample_rate = sample_rate
     self.firing_order = cylinders / 2.0
     self.rng = np.random.default_rng(seed)
+
+    self.last_rpm = 0.0
+    self.last_throttle = 0.0
 
     self.exhaust_body = butter(
       3,
@@ -55,13 +58,19 @@ class EngineAudSynthesizer:
       output="sos",
     )
 
+    self.phase = 0
+    self.body_zi = sosfilt_zi(self.exhaust_body)
+    self.low_zi = sosfilt_zi(self.exhaust_low)
+    self.high_zi = sosfilt_zi(self.exhaust_high)
+    self.air_zi = sosfilt_zi(self.exhaust_air)
+    self.rasp_zi = sosfilt_zi(self.rasp_filter)
+
   def gen_combustion_pulses(
     self,
-    rpm_curve: np.ndarray,
+    base_phase: np.ndarray,
     throttle_curve: np.ndarray,
   ):
-    firing_freq = rpm_curve / 60.0 * self.firing_order
-    firing_phase = np.cumsum(firing_freq) / self.sample_rate
+    firing_phase = base_phase * self.firing_order
     phase = firing_phase % 1.0
     pulse_width = 0.1
     distance = np.minimum(
@@ -72,7 +81,7 @@ class EngineAudSynthesizer:
     pulse = np.exp(-0.5 * (distance / pulse_width) ** 2)
     decay = np.exp(-phase * 10.0)
     pulse *= 0.15 + 0.85 * decay
-    pulse *= 0.12 + 0.88 * throttle_curve
+    pulse *= 0.4 + 0.6 * throttle_curve
 
     return pulse
 
@@ -87,10 +96,7 @@ class EngineAudSynthesizer:
       len(combustion_pulses),
     )
 
-    noise = sosfilt(
-      self.rasp_filter,
-      noise,
-    )
+    noise, self.rasp_zi = sosfilt(self.rasp_filter, noise, zi=self.rasp_zi)
 
     envelope = np.maximum(
       combustion_pulses,
@@ -99,7 +105,7 @@ class EngineAudSynthesizer:
 
     rasp = noise * envelope**2.0
 
-    return rasp * (0.1 + 0.9 * throttle_curve)
+    return rasp * (0.25 + 0.75 * throttle_curve)
 
   def gen_engine_orders(
     self,
@@ -141,7 +147,7 @@ class EngineAudSynthesizer:
       else:
         rpm_gain = 1.0
 
-      sound += wave * weight * rpm_gain * (0.25 + 0.75 * throttle_curve)
+      sound += wave * weight * rpm_gain * (0.55 + 0.45 * throttle_curve)
 
     return sound
 
@@ -170,7 +176,7 @@ class EngineAudSynthesizer:
         np.sin(2.0 * np.pi * phase)
         * weight
         * (0.25 + 0.75 * rpm_norm)
-        * (0.2 + 0.8 * throttle_curve)
+        * (0.8 + 0.2 * throttle_curve)
       )
 
     return sound
@@ -180,22 +186,10 @@ class EngineAudSynthesizer:
     sound: np.ndarray,
     rpm_curve: np.ndarray,
   ):
-    body = sosfilt(
-      self.exhaust_body,
-      sound,
-    )
-    low = sosfilt(
-      self.exhaust_low,
-      sound,
-    )
-    high = sosfilt(
-      self.exhaust_high,
-      sound,
-    )
-    air = sosfilt(
-      self.exhaust_air,
-      sound,
-    )
+    body, self.body_zi = sosfilt(self.exhaust_body, sound, zi=self.body_zi)
+    low, self.low_zi = sosfilt(self.exhaust_low, sound, zi=self.low_zi)
+    high, self.high_zi = sosfilt(self.exhaust_high, sound, zi=self.high_zi)
+    air, self.air_zi = sosfilt(self.exhaust_air, sound, zi=self.air_zi)
     rpm_norm = np.clip(
       rpm_curve / self.redline,
       0.0,
@@ -210,25 +204,32 @@ class EngineAudSynthesizer:
 
     return output
 
-  def generate(
+  def generate_instance(
     self,
     rpm: float,
     throttle: float,
     n_samples: int,
   ):
-    rpm_curve = np.full(
+    rpm_curve = np.linspace(
+      self.last_rpm,
+      rpm,
       n_samples,
-      max(rpm, 0.0),
     )
-    throttle_curve = np.full(
+
+    throttle_curve = np.linspace(
+      self.last_throttle,
+      throttle,
       n_samples,
-      np.clip(throttle, 0.0, 1.0),
     )
+
+    self.last_rpm = rpm
+    self.last_throttle = throttle
     f_rot = rpm_curve / 60.0
 
-    base_phase = np.cumsum(f_rot) / self.sample_rate
+    base_phase = self.phase + np.cumsum(f_rot) / self.sample_rate
+    self.phase = base_phase[-1] % 1.0
     combustion = self.gen_combustion_pulses(
-      rpm_curve,
+      base_phase,
       throttle_curve,
     )
     engine_orders = self.gen_engine_orders(
@@ -253,27 +254,38 @@ class EngineAudSynthesizer:
       rpm_curve,
     )
     mixed_sound = np.tanh(mixed_sound * 3.5)
-    max_val = np.max(np.abs(mixed_sound))
-    if max_val > 0:
-      mixed_sound /= max_val
 
     return mixed_sound * self.amp
 
-  def gen_rev_sweep(
+  def _gen_rev_sweep(
     self, dur: float, start_rpm: float, end_rpm: float, throttle: float = 1.0
   ):
     n_samples = int(dur * self.sample_rate)
 
     rpm_curve = np.linspace(start_rpm, end_rpm, n_samples)
-    throttle_curve = np.full(n_samples, np.clip(throttle, 0.0, 1.0))
+    throttle_curve = np.full(n_samples, throttle)
 
     f_rot = rpm_curve / 60.0
     base_phase = np.cumsum(f_rot) / self.sample_rate
 
-    combustion = self.gen_combustion_pulses(rpm_curve, throttle_curve)
-    engine_orders = self.gen_engine_orders(base_phase, rpm_curve, throttle_curve)
-    mechanical = self.gen_mechanical_orders(base_phase, rpm_curve, throttle_curve)
-    rasp = self.gen_exhaust_rasp(combustion, throttle_curve)
+    combustion = self.gen_combustion_pulses(
+      base_phase,
+      throttle_curve,
+    )
+    engine_orders = self.gen_engine_orders(
+      base_phase,
+      rpm_curve,
+      throttle_curve,
+    )
+    mechanical = self.gen_mechanical_orders(
+      base_phase,
+      rpm_curve,
+      throttle_curve,
+    )
+    rasp = self.gen_exhaust_rasp(
+      combustion,
+      throttle_curve,
+    )
 
     mixed_sound = (
       combustion * 0.9 + engine_orders * 0.5 + mechanical * 0.65 + rasp * 0.01
@@ -298,11 +310,11 @@ def main():
 
   print(f"Playing V{aud.cylinders}: 4000 -> 15,000 RPM...")
 
-  sound = aud.gen_rev_sweep(
-    dur=6.0,
+  sound = aud._gen_rev_sweep(
+    dur=3.0,
     start_rpm=4000,
     end_rpm=15000,
-    throttle=1.0,
+    throttle=0.0,
   )
 
   sd.play(sound, samplerate=aud.sample_rate)

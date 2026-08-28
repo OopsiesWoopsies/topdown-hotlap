@@ -97,4 +97,5 @@ while not pr.window_should_close():
   world.timer.draw_timer(5, 10)
   pr.end_drawing()
 
+world.close()
 pr.close_window()
