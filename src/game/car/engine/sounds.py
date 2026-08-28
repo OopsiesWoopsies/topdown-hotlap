@@ -27,35 +27,35 @@ class EngineAudSynthesizer:
 
     self.exhaust_body = butter(
       3,
-      [200, 7000],
+      [100, 1200],
       btype="bandpass",
       fs=sample_rate,
       output="sos",
     )
     self.exhaust_low = butter(
       3,
-      [350, 2000],
+      [40, 1000],
       btype="bandpass",
       fs=sample_rate,
       output="sos",
     )
     self.exhaust_high = butter(
       3,
-      [300, 5500],
+      [500, 2000],
       btype="bandpass",
       fs=sample_rate,
       output="sos",
     )
     self.exhaust_air = butter(
       2,
-      [700, 7500],
+      [200, 3500],
       btype="bandpass",
       fs=sample_rate,
       output="sos",
     )
     self.rasp_filter = butter(
       2,
-      1800,
+      3000,
       btype="lowpass",
       fs=sample_rate,
       output="sos",
@@ -69,11 +69,11 @@ class EngineAudSynthesizer:
     self.rasp_zi = sosfilt_zi(self.rasp_filter)
 
     self.engine_orders = np.array([0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0])
-    self.engine_weights = np.array([0.06, 0.12, 0.03, 0.05, 0.15, 0.03, 0.001, 0.006])
+    self.engine_weights = np.array([0.19, 0.12, 0.17, 0.08, 0.01, 0.008, 0.00, 0.00])
     self.engine_high_mask = self.engine_orders >= 3.0
 
     self.mechanical_orders = np.array([1.0, 2.0, 4.0, 6.0, 8.0])
-    self.mechanical_weights = np.array([0.08, 0.05, 0.035, 0.025, 0.015])
+    self.mechanical_weights = np.array([0.28, 0.15, 0.015, 0.005, 0.002])
 
   def gen_combustion_pulses(
     self,
@@ -81,7 +81,7 @@ class EngineAudSynthesizer:
     throttle_curve: np.ndarray,
   ):
     firing_phase = base_phase * self.firing_order
-    phase = firing_phase % 1.0
+    phase = (firing_phase) % 1.0
     dist = np.minimum(
       phase,
       1.0 - phase,
@@ -91,8 +91,8 @@ class EngineAudSynthesizer:
 
     pulse = np.exp(-0.5 * dist_scaled * dist_scaled)
     decay = np.exp(-phase * 10.0)
-    pulse *= 0.15 + 0.85 * decay
-    pulse *= 0.4 + 0.6 * throttle_curve
+    pulse *= 0.95 + 0.05 * decay
+    pulse *= 0.9 + 0.1 * throttle_curve
 
     return pulse
 
@@ -130,7 +130,7 @@ class EngineAudSynthesizer:
     wave_b = np.sin(2.0 * np.pi * phases * 1.105)
     wave_c = np.sin(2.0 * np.pi * phases * 0.895)
     wave_d = np.sin(2.0 * np.pi * phases * 2.0) * 0.25
-    wave = (wave_b + wave_c + wave_d) * 0.7
+    wave = (wave_b + wave_c + wave_d) * 1.5
 
     rpm_norm = np.clip(
       rpm_curve / self.redline,
@@ -138,9 +138,9 @@ class EngineAudSynthesizer:
       1.0,
     )
 
-    rpm_gain = np.where(
-      self.engine_high_mask, 0.15 + 0.85 * rpm_norm[:, np.newaxis], 1.0
-    )
+    high_gain = 0.1 + 0.08 * rpm_norm[:, np.newaxis]
+    low_gain = 1.0 + 1.2 * rpm_norm[:, np.newaxis]
+    rpm_gain = np.where(self.engine_high_mask, high_gain, low_gain)
 
     weighted_waves = wave * self.engine_weights * rpm_gain
     sound = np.sum(weighted_waves, axis=1) * (0.55 + 0.45 * throttle_curve)
@@ -162,7 +162,7 @@ class EngineAudSynthesizer:
     )
     sound = (
       np.sum(weighted_waves, axis=1)
-      * (0.25 + 0.75 * rpm_norm)
+      * (0.85 + 0.15 * rpm_norm)
       * (0.8 + 0.2 * throttle_curve)
     )
 
@@ -183,9 +183,9 @@ class EngineAudSynthesizer:
       1.0,
     )
     output = (
-      body * 0.90
-      + low * 0.25
-      + high * (0.1 + 0.40 * rpm_norm)
+      body * 1.20
+      + low * 0.65
+      + high * (0.1 + 0.20 * rpm_norm)
       + air * (0.01 + 0.05 * rpm_norm)
     )
 
@@ -239,7 +239,7 @@ class EngineAudSynthesizer:
       throttle_curve,
     )
     mixed_sound = (
-      combustion * 0.9 + engine_orders * 0.5 + mechanical * 0.65 + rasp * 0.01
+      combustion * 1.5 + engine_orders * 0.45 + mechanical * 0.6 + rasp * 0.3
     )
     mixed_sound = self.process_exhaust(
       mixed_sound,
@@ -280,7 +280,7 @@ class EngineAudSynthesizer:
     )
 
     mixed_sound = (
-      combustion * 0.9 + engine_orders * 0.5 + mechanical * 0.65 + rasp * 0.01
+      combustion * 1.5 + engine_orders * 0.45 + mechanical * 0.6 + rasp * 0.3
     )
     mixed_sound = self.process_exhaust(mixed_sound, rpm_curve)
     mixed_sound = np.tanh(mixed_sound * 3.5)
