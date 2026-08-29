@@ -50,13 +50,15 @@ class Car:
     self.cg_from_rear = 0.45  # %
     self.cg_from_front = 1.0 - self.cg_from_rear  # %
     self.cg_height = 0.15  # m
-    self.cg = (self.size[0] * self.cg_from_rear - self.size[0] / 2, 0)  # m
 
     self.wheelbase = 3.6  # m
     self.track_width = 1.9  # m
     self.half_track_width = self.track_width / 2  # m
     self.dist_cg_front_axle = self.wheelbase * self.cg_from_front
     self.dist_cg_rear_axle = self.wheelbase * self.cg_from_rear
+    self.rear_overhang = 0.81  # m
+    cg_dist_from_rear_edge = self.rear_overhang + self.dist_cg_rear_axle
+    self.cg = (cg_dist_from_rear_edge - (self.size[0] / 2.0), 0)  # m
 
     self.front_static = (
       self.mass * -_GRAVITY * self.dist_cg_rear_axle / self.wheelbase / 2
