@@ -11,7 +11,7 @@ from input.control import Control
 class World:
   def __init__(self):
     self.controls = Control()
-    self.car = Car(pos=(0.0, 0.0), angle_deg=180, size=(5.2, 1.9))
+    self.car = Car(pos=(0.0, 0.0), angle_deg=180, size=(5.6, 2.0))
     self.track = Track()
     self.timer = Timer()
 
