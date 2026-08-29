@@ -166,12 +166,8 @@ class Car:
     front_axle_pos = (
       pos_x + forward_x * self.dist_cg_front_axle,
       pos_y + forward_y * self.dist_cg_front_axle,
-      pos_x + forward_x * self.dist_cg_front_axle,
-      pos_y + forward_y * self.dist_cg_front_axle,
     )
     rear_axle_pos = (
-      pos_x - forward_x * self.dist_cg_rear_axle,
-      pos_y - forward_y * self.dist_cg_rear_axle,
       pos_x - forward_x * self.dist_cg_rear_axle,
       pos_y - forward_y * self.dist_cg_rear_axle,
     )

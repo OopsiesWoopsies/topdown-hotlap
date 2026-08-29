@@ -284,8 +284,8 @@ class Tire:
   ):
     self.prev_local_pos = self.local_pos
     self.local_pos = (
-      axle_local_pos[0] + right[0] * (half_track_width + self.half_width) * sign,
-      axle_local_pos[1] + right[1] * (half_track_width + self.half_width) * sign,
+      axle_local_pos[0] + right[0] * half_track_width * sign,
+      axle_local_pos[1] + right[1] * half_track_width * sign,
     )
 
   def draw(
@@ -298,10 +298,8 @@ class Tire:
     half_track_width: float,
   ):
     self.render_pos = (
-      (axle_render_pos[0] + right[0] * (half_track_width + self.half_width) * sign)
-      * PIXELS_PER_METER,
-      (axle_render_pos[1] + right[1] * (half_track_width + self.half_width) * sign)
-      * PIXELS_PER_METER,
+      (axle_render_pos[0] + right[0] * half_track_width * sign) * PIXELS_PER_METER,
+      (axle_render_pos[1] + right[1] * half_track_width * sign) * PIXELS_PER_METER,
     )
 
     diameter_draw = self.radius * 2 * PIXELS_PER_METER
