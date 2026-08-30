@@ -310,10 +310,4 @@ class Tire:
     )
     origin = (diameter_draw / 2, width_draw / 2)
 
-    pr.draw_rectangle_pro(rec, origin, angle_deg + steer_deg, pr.BLUE)
-    pr.draw_circle_v(
-      pr.vector2_scale(self.outer_corners[0], PIXELS_PER_METER), 2, pr.PURPLE
-    )
-    pr.draw_circle_v(
-      pr.vector2_scale(self.outer_corners[1], PIXELS_PER_METER), 2, pr.PURPLE
-    )
+    pr.draw_rectangle_pro(rec, origin, angle_deg + steer_deg, pr.BLACK)

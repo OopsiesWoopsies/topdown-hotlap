@@ -523,7 +523,7 @@ class Car:
       interp_pos_y * PIXELS_PER_METER,
     )
 
-  def draw_car(self):
+  def draw_car(self, car_texture: pr.Texture2D):
     angle_deg = math.degrees(self.render_angle_rad)
     forward = (math.cos(self.render_angle_rad), math.sin(self.render_angle_rad))
     right = (-math.sin(self.render_angle_rad), math.cos(self.render_angle_rad))
@@ -534,19 +534,14 @@ class Car:
       (size_draw[1] / 2) + (cg_y * PIXELS_PER_METER),
     )
 
-    rec = pr.Rectangle(
+    src_rec = pr.Rectangle(0.0, 0.0, car_texture.width, car_texture.height)
+    dest_rec = pr.Rectangle(
       self.render_pos[0], self.render_pos[1], size_draw[0], size_draw[1]
     )
 
-    pr.draw_rectangle_pro(rec, cg_draw, angle_deg, pr.RED)
     self.front_axle.draw(forward, right, self.interp_pos, angle_deg, self.steer_angle)
     self.rear_axle.draw(forward, right, self.interp_pos, angle_deg, 0)
-
-    pr.draw_circle_v(
-      self.render_pos,
-      5.0,
-      pr.BLACK,
-    )
+    pr.draw_texture_pro(car_texture, src_rec, dest_rec, cg_draw, angle_deg, pr.WHITE)
 
   def draw_data(self, screen_width: int, screen_height: int):
     """Show information such as the current gear, rpm, speed, and whether or not the tires are currently slipping.

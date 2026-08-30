@@ -5,17 +5,15 @@ import pyray as pr
 from game.world import World
 from render.renderer import Renderer
 
-# from os.path import join
-
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 
 pr.init_window(SCREEN_WIDTH, SCREEN_HEIGHT, "Top Down Hotlap")
 
-# pr.set_target_fps(144)
+pr.set_target_fps(144)
 
 world = World()
-renderer = Renderer(SCREEN_WIDTH, SCREEN_HEIGHT)
+renderer = Renderer(SCREEN_WIDTH, SCREEN_HEIGHT, world.car)
 
 fixed_dt = 1.0 / 144.0
 accumulator = 0.0
@@ -45,6 +43,8 @@ while not pr.window_should_close():
     target_zoom = 0.3
   elif pr.is_key_down(pr.KEY_SPACE):
     target_zoom = 0.08
+  elif pr.is_key_down(pr.KEY_V):
+    target_zoom = 2.5
   else:
     target_zoom = max(1.0 - (world.car.speed * 0.0099), 0.5)
   renderer.camera.zoom = (
@@ -98,4 +98,5 @@ while not pr.window_should_close():
   pr.end_drawing()
 
 world.close()
+renderer.close()
 pr.close_window()
