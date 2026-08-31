@@ -4,6 +4,7 @@ import pyray as pr
 
 from game.constants import Constants
 from game.world import Car, World
+from input.control import Control
 
 
 class Renderer:
@@ -44,9 +45,11 @@ class Renderer:
     world.track.draw()
     world.car.draw_car(self.car_texture)
 
-  def draw_screen(self, world: World, screen_width: int, screen_height: int):
+  def draw_screen(
+    self, ctrls: Control, world: World, screen_width: int, screen_height: int
+  ):
     world.car.draw_data(screen_width, screen_height)
-    world.controls.draw(world.car.steer_angle)
+    ctrls.draw(world.car.steer_angle)
 
   def close(self):
     pr.unload_texture(self.car_texture)
