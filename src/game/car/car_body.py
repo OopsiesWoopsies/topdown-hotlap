@@ -57,7 +57,7 @@ class Car:
     self.half_track_width = self.track_width / 2  # m
     self.dist_cg_front_axle = self.wheelbase * self.cg_from_front
     self.dist_cg_rear_axle = self.wheelbase * self.cg_from_rear
-    self.rear_overhang = 0.81  # m
+    self.rear_overhang = 0.85  # m
     cg_dist_from_rear_edge = self.rear_overhang + self.dist_cg_rear_axle
     self.cg = (cg_dist_from_rear_edge - (self.size[0] / 2.0), 0)  # m
 
@@ -541,10 +541,10 @@ class Car:
     dest_rec = pr.Rectangle(
       self.render_pos[0], self.render_pos[1], size_draw[0], size_draw[1]
     )
+    pr.draw_texture_pro(car_texture, src_rec, dest_rec, cg_draw, angle_deg, pr.WHITE)
 
     self.front_axle.draw(forward, right, self.interp_pos, angle_deg, self.steer_angle)
     self.rear_axle.draw(forward, right, self.interp_pos, angle_deg, 0)
-    pr.draw_texture_pro(car_texture, src_rec, dest_rec, cg_draw, angle_deg, pr.WHITE)
 
   def draw_data(self, screen_width: int, screen_height: int):
     """Show information such as the current gear, rpm, speed, and whether or not the tires are currently slipping.
