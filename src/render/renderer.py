@@ -2,21 +2,33 @@ from os.path import join
 
 import pyray as pr
 
-from game.constants import PIXELS_PER_METER
+from game.constants import Constants
 from game.world import Car, World
 
 
 class Renderer:
-  def __init__(self, screen_width: int, screen_height: int, car: Car):
+  def __init__(self, screen_width: int, screen_height: int, car: Car, cons: Constants):
     self.camera = pr.Camera2D((screen_width / 2, screen_height * 0.7), (0, 0), 0, 1.0)
 
-    path = join("assets", "imgs", "car.png")
-    car_image = pr.load_image(path)
+    self.car_path = join("assets", "imgs", "car.png")
+    car_image = pr.load_image(self.car_path)
     pr.image_rotate(car_image, 90)
     pr.image_resize_nn(
       car_image,
-      int(car.size[0] * PIXELS_PER_METER),
-      int(car.size[1] * PIXELS_PER_METER),
+      int(car.size[0] * cons.PPM),
+      int(car.size[1] * cons.PPM),
+    )
+
+    self.car_texture: pr.Texture2D = pr.load_texture_from_image(car_image)
+    pr.unload_image(car_image)
+
+  def update_textures(self, car: Car, cons: Constants):
+    car_image = pr.load_image(self.car_path)
+    pr.image_rotate(car_image, 90)
+    pr.image_resize_nn(
+      car_image,
+      int(car.size[0] * cons.PPM),
+      int(car.size[1] * cons.PPM),
     )
 
     self.car_texture: pr.Texture2D = pr.load_texture_from_image(car_image)

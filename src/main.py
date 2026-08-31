@@ -2,23 +2,48 @@ import math
 
 import pyray as pr
 
+from game.constants import Constants
 from game.world import World
 from render.renderer import Renderer
 
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
+monitor = pr.get_current_monitor()
+FULLSCREEN_WIDTH = pr.get_monitor_width(monitor)
+FULLSCREEN_HEIGHT = pr.get_monitor_height(monitor)
 
 pr.init_window(SCREEN_WIDTH, SCREEN_HEIGHT, "Top Down Hotlap")
 
 pr.set_target_fps(144)
 
-world = World()
-renderer = Renderer(SCREEN_WIDTH, SCREEN_HEIGHT, world.car)
+cons = Constants()
+world = World(cons)
+renderer = Renderer(SCREEN_WIDTH, SCREEN_HEIGHT, world.car, cons)
 
 fixed_dt = 1.0 / 144.0
 accumulator = 0.0
 
 while not pr.window_should_close():
+  if pr.is_key_pressed(pr.KEY_F11):
+    if not pr.is_window_fullscreen():
+      monitor = pr.get_current_monitor()
+      FULLSCREEN_WIDTH = pr.get_monitor_width(monitor)
+      FULLSCREEN_HEIGHT = pr.get_monitor_height(monitor)
+
+      pr.set_window_size(FULLSCREEN_WIDTH, FULLSCREEN_HEIGHT)
+      pr.toggle_fullscreen()
+      cons.update_PPM(int(FULLSCREEN_HEIGHT / SCREEN_HEIGHT * cons.PPM))
+      world.track.create_track()
+      renderer.update_textures(world.car, cons)
+      renderer.camera.offset = pr.Vector2(FULLSCREEN_WIDTH / 2, FULLSCREEN_HEIGHT * 0.7)
+    else:
+      pr.toggle_fullscreen()
+      pr.set_window_size(SCREEN_WIDTH, SCREEN_HEIGHT)
+      cons.update_PPM(int(SCREEN_HEIGHT / FULLSCREEN_HEIGHT * cons.PPM))
+      world.track.create_track()
+      renderer.update_textures(world.car, cons)
+      renderer.camera.offset = pr.Vector2(SCREEN_WIDTH / 2, SCREEN_HEIGHT * 0.7)
+
   # Static delta time
   frame_time = min(pr.get_frame_time(), 0.25)
   accumulator += frame_time

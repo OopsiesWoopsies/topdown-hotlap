@@ -3,7 +3,7 @@ import math
 import pyray as pr
 
 from game.car.tire import Tire
-from game.constants import PIXELS_PER_METER
+from game.constants import Constants
 
 
 def catmull_rom(
@@ -107,15 +107,19 @@ def segments_intersect(
 
 
 class Track:
-  def __init__(self):
+  def __init__(self, cons: Constants):
+    self.cons = cons
     # Track size
     self.width = 17  # m
     self.half_width = self.width / 2.0  # m
-    line_thickness = 0.1 * PIXELS_PER_METER  # pixels
 
-    # Track vars
+    # In-game Track vars
     self.curr_sector = 1
     self.start_lap = False
+
+    # Render Track Vars
+    self.render_offset = (0, 0)
+    self.render_position = (0, 0)
 
     # Track points
     self.center_line_pts = [
@@ -126,7 +130,6 @@ class Track:
       (0, 45),
       (0, 30),
       (0, 10),
-      
       # Bottom straight (going left)
       (-10, 0),
       (-30, 0),
@@ -134,7 +137,6 @@ class Track:
       (-55, 0),
       (-70, 0),
       (-90, 0),
-      
       # Left straight (going up)
       (-100, 10),
       (-100, 30),
@@ -142,7 +144,6 @@ class Track:
       (-100, 55),
       (-100, 70),
       (-100, 90),
-      
       # Top straight (going right)
       (-90, 100),
       (-70, 100),
@@ -151,6 +152,12 @@ class Track:
       (-30, 100),
       (-10, 100),
     ]  # Dictates the main path of the track
+
+    self.render_texture = None
+    self.create_track()
+
+  def create_track(self):
+    line_thickness = 0.1 * self.cons.PPM  # pixels
     num_pts = len(self.center_line_pts)
     sector_index = num_pts / 3
     self.finish_index = 1
@@ -213,17 +220,17 @@ class Track:
       min_y = min(min_y, self.left_bound_pts[i].y, self.right_bound_pts[i].y)
       max_y = max(max_y, self.left_bound_pts[i].y, self.right_bound_pts[i].y)
 
-    min_x *= PIXELS_PER_METER
-    max_x *= PIXELS_PER_METER
-    min_y *= PIXELS_PER_METER
-    max_y *= PIXELS_PER_METER
+    min_x *= self.cons.PPM
+    max_x *= self.cons.PPM
+    min_y *= self.cons.PPM
+    max_y *= self.cons.PPM
 
     padding = 10  # pixels
-    self.render_offset = pr.Vector2(
+    self.render_offset = (
       -min_x + padding,
       -min_y + padding,
     )
-    self.render_position = pr.Vector2(
+    self.render_position = (
       min_x - padding,
       min_y - padding,
     )
@@ -238,16 +245,16 @@ class Track:
       j = (i + 1) % len(self.left_bound_pts)
 
       a = self.add_v2_render_offset(
-        pr.vector2_scale(self.left_bound_pts[i], PIXELS_PER_METER)
+        pr.vector2_scale(self.left_bound_pts[i], self.cons.PPM)
       )
       b = self.add_v2_render_offset(
-        pr.vector2_scale(self.left_bound_pts[j], PIXELS_PER_METER)
+        pr.vector2_scale(self.left_bound_pts[j], self.cons.PPM)
       )
       c = self.add_v2_render_offset(
-        pr.vector2_scale(self.right_bound_pts[j], PIXELS_PER_METER)
+        pr.vector2_scale(self.right_bound_pts[j], self.cons.PPM)
       )
       d = self.add_v2_render_offset(
-        pr.vector2_scale(self.right_bound_pts[i], PIXELS_PER_METER)
+        pr.vector2_scale(self.right_bound_pts[i], self.cons.PPM)
       )
 
       pr.draw_triangle(a, b, c, pr.DARKGRAY)
@@ -255,16 +262,16 @@ class Track:
 
     for i in range(num_pts):
       left_pt_1 = self.add_v2_render_offset(
-        pr.vector2_scale(self.left_bound_pts[i], PIXELS_PER_METER)
+        pr.vector2_scale(self.left_bound_pts[i], self.cons.PPM)
       )
       left_pt_2 = self.add_v2_render_offset(
-        pr.vector2_scale(self.left_bound_pts[(i + 1) % num_pts], PIXELS_PER_METER)
+        pr.vector2_scale(self.left_bound_pts[(i + 1) % num_pts], self.cons.PPM)
       )
       right_pt_1 = self.add_v2_render_offset(
-        pr.vector2_scale(self.right_bound_pts[i], PIXELS_PER_METER)
+        pr.vector2_scale(self.right_bound_pts[i], self.cons.PPM)
       )
       right_pt_2 = self.add_v2_render_offset(
-        pr.vector2_scale(self.right_bound_pts[(i + 1) % num_pts], PIXELS_PER_METER)
+        pr.vector2_scale(self.right_bound_pts[(i + 1) % num_pts], self.cons.PPM)
       )
 
       pr.draw_line_ex(left_pt_1, left_pt_2, line_thickness, pr.WHITE)
@@ -275,10 +282,10 @@ class Track:
       self.sector_lines.append(self.get_timing_line(i))
       pr.draw_line_ex(
         self.add_v2_render_offset(
-          pr.vector2_scale(self.sector_lines[-1][0], PIXELS_PER_METER)
+          pr.vector2_scale(self.sector_lines[-1][0], self.cons.PPM)
         ),
         self.add_v2_render_offset(
-          pr.vector2_scale(self.sector_lines[-1][1], PIXELS_PER_METER)
+          pr.vector2_scale(self.sector_lines[-1][1], self.cons.PPM)
         ),
         line_thickness,
         pr.WHITE,
@@ -287,12 +294,8 @@ class Track:
     # Finish line
     self.finish_line = self.get_timing_line(self.finish_index)
     pr.draw_line_ex(
-      self.add_v2_render_offset(
-        pr.vector2_scale(self.finish_line[0], PIXELS_PER_METER)
-      ),
-      self.add_v2_render_offset(
-        pr.vector2_scale(self.finish_line[1], PIXELS_PER_METER)
-      ),
+      self.add_v2_render_offset(pr.vector2_scale(self.finish_line[0], self.cons.PPM)),
+      self.add_v2_render_offset(pr.vector2_scale(self.finish_line[1], self.cons.PPM)),
       line_thickness,
       pr.RED,
     )

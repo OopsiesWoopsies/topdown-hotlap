@@ -4,7 +4,7 @@ import pyray as pr
 
 from game.car.axle import Axle
 from game.car.engine.engine import Engine
-from game.constants import PIXELS_PER_METER
+from game.constants import Constants
 from game.track.track import Track
 
 _GRAVITY = -9.81  # m/s^2
@@ -32,15 +32,16 @@ DEBUG_VALS = {
 
 class Car:
   def __init__(
-    self, pos: tuple[float, float], angle_deg: float, size: tuple[float, float]
+    self, cons: Constants, pos: tuple[float, float], angle_deg: float, size: tuple[float, float]
   ):
     self.engine = Engine()
+    self.cons = cons
     # Car body constants
     self.size = size
     self.pos = pos
     self.prev_pos = pos
     self.interp_pos = pos
-    self.render_pos = pr.vector2_scale(pos, PIXELS_PER_METER)
+    self.render_pos = pr.vector2_scale(pos, cons.PPM)
     self.angle_rad = math.radians(angle_deg)
     self.prev_angle_rad = self.angle_rad
     self.render_angle_rad = self.angle_rad
@@ -174,6 +175,7 @@ class Car:
       pos_y - forward_y * self.dist_cg_rear_axle,
     )
     self.front_axle = Axle(
+      cons,
       front_axle_pos,
       self.dist_cg_front_axle,
       self.track_width,
@@ -185,6 +187,7 @@ class Car:
       f_ax_config,
     )
     self.rear_axle = Axle(
+      cons,
       rear_axle_pos,
       -self.dist_cg_rear_axle,
       self.track_width,
@@ -519,19 +522,19 @@ class Car:
     )
     self.interp_pos = (interp_pos_x, interp_pos_y)
     self.render_pos = (
-      interp_pos_x * PIXELS_PER_METER,
-      interp_pos_y * PIXELS_PER_METER,
+      interp_pos_x * self.cons.PPM,
+      interp_pos_y * self.cons.PPM,
     )
 
   def draw_car(self, car_texture: pr.Texture2D):
     angle_deg = math.degrees(self.render_angle_rad)
     forward = (math.cos(self.render_angle_rad), math.sin(self.render_angle_rad))
     right = (-math.sin(self.render_angle_rad), math.cos(self.render_angle_rad))
-    size_draw = (self.size[0] * PIXELS_PER_METER, self.size[1] * PIXELS_PER_METER)
+    size_draw = (self.size[0] * self.cons.PPM, self.size[1] * self.cons.PPM)
     cg_x, cg_y = self.cg
     cg_draw = (
-      (size_draw[0] / 2) + (cg_x * PIXELS_PER_METER),
-      (size_draw[1] / 2) + (cg_y * PIXELS_PER_METER),
+      (size_draw[0] / 2) + (cg_x * self.cons.PPM),
+      (size_draw[1] / 2) + (cg_y * self.cons.PPM),
     )
 
     src_rec = pr.Rectangle(0.0, 0.0, car_texture.width, car_texture.height)
