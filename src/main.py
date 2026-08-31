@@ -6,19 +6,19 @@ from game.constants import Constants
 from game.world import World
 from render.renderer import Renderer
 
-SCREEN_WIDTH = 1280
-SCREEN_HEIGHT = 720
-monitor = pr.get_current_monitor()
-FULLSCREEN_WIDTH = pr.get_monitor_width(monitor)
-FULLSCREEN_HEIGHT = pr.get_monitor_height(monitor)
+DEFAULT_SCREEN_WIDTH = 1280
+DEFAULT_SCREEN_HEIGHT = 720
 
-pr.init_window(SCREEN_WIDTH, SCREEN_HEIGHT, "Top Down Hotlap")
+screen_width = DEFAULT_SCREEN_WIDTH
+screen_height = DEFAULT_SCREEN_HEIGHT
+
+pr.init_window(screen_width, screen_height, "Top Down Hotlap")
 
 pr.set_target_fps(144)
 
 cons = Constants()
 world = World(cons)
-renderer = Renderer(SCREEN_WIDTH, SCREEN_HEIGHT, world.car, cons)
+renderer = Renderer(screen_width, screen_height, world.car, cons)
 
 fixed_dt = 1.0 / 144.0
 accumulator = 0.0
@@ -32,17 +32,22 @@ while not pr.window_should_close():
 
       pr.set_window_size(FULLSCREEN_WIDTH, FULLSCREEN_HEIGHT)
       pr.toggle_fullscreen()
-      cons.update_PPM(int(FULLSCREEN_HEIGHT / SCREEN_HEIGHT * cons.PPM))
+      cons.update_PPM(round(FULLSCREEN_HEIGHT / screen_height * cons.PPM))
       world.track.create_track()
       renderer.update_textures(world.car, cons)
       renderer.camera.offset = pr.Vector2(FULLSCREEN_WIDTH / 2, FULLSCREEN_HEIGHT * 0.7)
+      screen_width = FULLSCREEN_WIDTH
+      screen_height = FULLSCREEN_HEIGHT
     else:
+      screen_width = DEFAULT_SCREEN_WIDTH
+      screen_height = DEFAULT_SCREEN_HEIGHT
+
       pr.toggle_fullscreen()
-      pr.set_window_size(SCREEN_WIDTH, SCREEN_HEIGHT)
-      cons.update_PPM(int(SCREEN_HEIGHT / FULLSCREEN_HEIGHT * cons.PPM))
+      pr.set_window_size(screen_width, screen_height)
+      cons.update_PPM(round(screen_height / FULLSCREEN_HEIGHT * cons.PPM))
       world.track.create_track()
       renderer.update_textures(world.car, cons)
-      renderer.camera.offset = pr.Vector2(SCREEN_WIDTH / 2, SCREEN_HEIGHT * 0.7)
+      renderer.camera.offset = pr.Vector2(screen_width / 2, screen_height * 0.7)
 
   # Static delta time
   frame_time = min(pr.get_frame_time(), 0.25)
@@ -88,7 +93,7 @@ while not pr.window_should_close():
     print(world_coords.x, world_coords.y)
 
   renderer.begin_world()
-  renderer.draw(world)
+  renderer.draw_world(world)
 
   # Grid (temp)
   # for x in range(-100000, 100000, 100):
@@ -100,11 +105,7 @@ while not pr.window_should_close():
   renderer.end_world()
 
   # Drawing on screen
-  world.car.draw_data(SCREEN_WIDTH, SCREEN_HEIGHT)
-  world.controls.draw(world.car.steer_angle)
-
-  # text = f"{round(world.car.render_pos.x, 3)}\n{round(world.car.render_pos.y, 3)}\n{round(pr.vector2_length(world.car.velo) * 3600 / 1000, 3)} km/h"
-  # pr.draw_text(text, 5, 30, 20, pr.BLACK)
+  renderer.draw_screen(world, screen_width, screen_height)
 
   debug_vals = world.car.get_debug_vals()
   # print(debug_vals)

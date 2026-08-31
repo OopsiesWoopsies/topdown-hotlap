@@ -40,9 +40,13 @@ class Renderer:
   def end_world(self):
     pr.end_mode_2d()
 
-  def draw(self, world: World):
+  def draw_world(self, world: World):
     world.track.draw()
     world.car.draw_car(self.car_texture)
+
+  def draw_screen(self, world: World, screen_width: int, screen_height: int):
+    world.car.draw_data(screen_width, screen_height)
+    world.controls.draw(world.car.steer_angle)
 
   def close(self):
     pr.unload_texture(self.car_texture)
