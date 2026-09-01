@@ -609,12 +609,21 @@ class Car:
     y_offset = screen_height * 0.01
     p1 = pr.Vector2(screen_width_half - 200 - x_offset, screen_height)  # Bottom-left
     p2 = pr.Vector2(screen_width_half + 200 + x_offset, screen_height)  # Bottom-right
-    p3 = pr.Vector2(
+    p3 = (
       screen_width_half + 150 + x_offset, screen_height - 100 - y_offset
     )  # Top-right
-    p4 = pr.Vector2(
+    p4 = (
       screen_width_half - 150 - x_offset, screen_height - 100 - y_offset
     )  # Top-left
+
+    eng_rpm_ratio = self.engine.rpm / self.engine.peak_rpm
+    if eng_rpm_ratio > 1.05:
+      shift_light = (27, 119, 239, 200)
+    elif eng_rpm_ratio > 0.6:
+      shift_light = (255, 239, 1, 200)
+    else:
+      shift_light = (74, 250, 0, 200)
+    pr.draw_rectangle_rounded(pr.Rectangle(p4[0], p4[1] - 10, p3[0] - p4[0], 8), 0.2, 10, shift_light)
 
     pr.draw_triangle(p1, p2, p3, (0, 0, 0, 120))  # Translucent black
     pr.draw_triangle(p1, p3, p4, (0, 0, 0, 120))  # Translucent black
