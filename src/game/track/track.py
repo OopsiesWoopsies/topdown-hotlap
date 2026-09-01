@@ -70,7 +70,7 @@ def closest_point_on_segment(
   ap_y = p_y - a_y
 
   dot_ap_ab = ap_x * ab_x + ap_y * ab_y
-  dot_ab_ab = ab_x**2 + ab_y**2
+  dot_ab_ab = ab_x * ab_x + ab_y * ab_y
   t = dot_ap_ab / dot_ab_ab
   if t < 0.0:
     t = 0.0

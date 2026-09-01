@@ -159,7 +159,7 @@ class Tire:
 
     B_lat_scaled = (
       max(B * (1.0 / (1.0 + sens_B * (load_ratio - 1.0))), 0.5 * B)
-    ) * self.surface_multi**0.5
+    ) * math.sqrt(self.surface_multi)
 
     self.lateral_f = (
       -pacejka_model(B_lat_scaled, C, self.max_lat_D, E, self.slip_angle) * self.load
@@ -253,9 +253,10 @@ class Tire:
     self.long_f = fx
     self.lateral_f = fy
 
-    self.grip_usage = (self.lateral_f / (self.max_lat_D * self.load)) ** 2 + (
-      self.long_f / (self.max_long_D * self.load)
-    ) ** 2
+    numerator = self.lateral_f / (self.max_lat_D * self.load)
+    denom = self.long_f / (self.max_long_D * self.load)
+
+    self.grip_usage = numerator * numerator + denom * denom
 
     # Clamp at 100% grip usage
     if self.grip_usage > 1.0:

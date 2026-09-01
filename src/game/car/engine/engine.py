@@ -18,7 +18,7 @@ class Engine:
 
     # Limits
     self.redline = 15000.0  # RPM
-    self.peak_rpm = 11000.0  # RPM
+    self.peak_rpm = 12500.0  # RPM
     self.idle_rpm = 4000.0  # RPM
     self.max_omega = self.redline * RPM_TO_OMEGA
     self.idle_omega = self.idle_rpm * RPM_TO_OMEGA
@@ -46,7 +46,8 @@ class Engine:
   def torque_curve(self, rpm: float) -> float:
     if rpm <= self.peak_rpm:
       x = rpm / self.peak_rpm
-      return self.max_t * (1.0 - (1.0 - x) ** 2)
+      temp = 1.0 - x
+      return self.max_t * (1.0 - temp * temp)
 
     x = (rpm - self.peak_rpm) / (self.redline - self.peak_rpm)
     if x < 0.0:
@@ -189,7 +190,7 @@ class Engine:
     if not self.is_locked:
       return 0.0
     total_ratio = self.gear_ratios[self.gear] * self.final_drive
-    return self.overall_inertia * total_ratio**2
+    return self.overall_inertia * total_ratio * total_ratio
 
   def update_shift(
     self, is_slipping: bool, inputs: dict[str, float | bool], auto_shift: bool = True
