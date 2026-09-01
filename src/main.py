@@ -121,8 +121,7 @@ def main():
     # pr.draw_text(text, 5, 90, 20, pr.BLACK)
     # pr.draw_text(text4, 5, 380, 15, pr.BLACK)
 
-    pr.draw_fps(0, 0)
-    world.timer.draw_timer(5, 10)
+    pr.draw_fps(screen_width - 100, 0)
     pr.end_drawing()
 
   world.close()

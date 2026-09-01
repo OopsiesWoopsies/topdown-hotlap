@@ -50,6 +50,7 @@ class Renderer:
   ):
     world.car.draw_data(screen_width, screen_height)
     ctrls.draw(world.car.steer_angle)
+    world.timer.draw_timer(10, 10)
 
   def close(self):
     pr.unload_texture(self.car_texture)
