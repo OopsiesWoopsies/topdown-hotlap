@@ -126,13 +126,7 @@ class Tire:
 
   def update_slip_angle(self, dt: float):
     velo_x, velo_y = self.velo
-    speed = (velo_x**2 + velo_y**2) ** 0.5
-    if abs(velo_x) < 0.1:
-      x_anchor = 0.1 if velo_x >= 0 else -0.1
-
-      target_sa = math.atan2(velo_y, x_anchor) * (speed / 0.1)
-    else:
-      target_sa = math.atan2(velo_y, velo_x)
+    target_sa = math.atan2(velo_y, velo_x)
 
     if target_sa > RIGHT_ANGLE:
       target_sa -= math.pi
@@ -289,6 +283,11 @@ class Tire:
       axle_local_pos[0] + right[0] * half_track_width * sign,
       axle_local_pos[1] + right[1] * half_track_width * sign,
     )
+
+  def stop_forces(self):
+    self.velo = (0, 0)
+    self.slip_angle = 0
+    self.slip_ratio = 0
 
   def draw(
     self,

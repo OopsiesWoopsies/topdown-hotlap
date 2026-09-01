@@ -17,14 +17,14 @@ def main():
 
   pr.init_window(screen_width, screen_height, "Top Down Hotlap")
 
-  pr.set_target_fps(144)
+  # pr.set_target_fps(144)
 
   cons = Constants()
   ctrls = Control(screen_width, screen_height)
   world = World(cons, ctrls)
   renderer = Renderer(screen_width, screen_height, world.car, cons)
 
-  fixed_dt = 1.0 / 144.0
+  fixed_dt = 1.0 / 360.0
   accumulator = 0.0
 
   while not pr.window_should_close():
@@ -110,7 +110,7 @@ def main():
     renderer.draw_screen(ctrls, world, screen_width, screen_height)
 
     # debug_vals = world.car.get_debug_vals()
-    # # print(debug_vals)
+    # print(debug_vals)
     # text1 = f"Accel: {debug_vals['Accel']}\nLocal Accel: {debug_vals['LAccel']}\nVelo: {debug_vals['Velo']}\nLocal Velo: {debug_vals['LVelo']}\n"
     # text2 = f"Speed: {debug_vals['Speed']}\nDragF: {debug_vals['DragF']}\n"
     # text3 = f"DriveT: {debug_vals['DriveT']}\nBrakeT: {debug_vals['BrakeT']}\n"

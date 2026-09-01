@@ -230,7 +230,7 @@ class Car:
     # Update velocity (car)
     velo_x, velo_y = self.velo
     local_velo_x, local_velo_y = self.local_velo
-    self.speed = (local_velo_x**2 + local_velo_y**2) ** 0.5
+    self.speed = math.sqrt(local_velo_x * local_velo_x + local_velo_y * local_velo_y)
 
     # Update steering angle
     steer_reduction = self.steer_resist / max(self.speed, 1.0)
@@ -432,19 +432,20 @@ class Car:
       velo_y = velo_y + accel_y * sub_dt
       self.velo = (velo_x, velo_y)
 
-      self.local_velo = (
-        velo_x * forward_x + velo_y * forward_y,
-        velo_y * forward_x - velo_x * forward_y,
-      )
+      local_velo_x = velo_x * forward_x + velo_y * forward_y
+      local_velo_y = velo_y * forward_x - velo_x * forward_y
 
-      self.speed = pr.vector2_length(self.local_velo)
+      self.local_velo = (local_velo_x, local_velo_y)
+      self.speed = math.sqrt(local_velo_x * local_velo_x + local_velo_y * local_velo_y)
 
-      if not throttle and self.speed < 0.1:
+      if not throttle and self.speed < 0.5:
         self.accel = (0.0, 0.0)
         self.local_accel = (0.0, 0.0)
         self.velo = (0.0, 0.0)
         self.local_velo = (0.0, 0.0)
         self.yaw_rate = 0.0
+        for tire in self.all_tires:
+          tire.stop_forces()
 
       self.update_positions(sub_dt, (forward_x, forward_y), right, steer_rad)
 
@@ -610,10 +611,12 @@ class Car:
     p1 = pr.Vector2(screen_width_half - 200 - x_offset, screen_height)  # Bottom-left
     p2 = pr.Vector2(screen_width_half + 200 + x_offset, screen_height)  # Bottom-right
     p3 = (
-      screen_width_half + 150 + x_offset, screen_height - 100 - y_offset
+      screen_width_half + 150 + x_offset,
+      screen_height - 100 - y_offset,
     )  # Top-right
     p4 = (
-      screen_width_half - 150 - x_offset, screen_height - 100 - y_offset
+      screen_width_half - 150 - x_offset,
+      screen_height - 100 - y_offset,
     )  # Top-left
 
     eng_rpm_ratio = self.engine.rpm / self.engine.peak_rpm
@@ -623,7 +626,9 @@ class Car:
       shift_light = (255, 239, 1, 200)
     else:
       shift_light = (74, 250, 0, 200)
-    pr.draw_rectangle_rounded(pr.Rectangle(p4[0], p4[1] - 10, p3[0] - p4[0], 8), 0.2, 10, shift_light)
+    pr.draw_rectangle_rounded(
+      pr.Rectangle(p4[0], p4[1] - 10, p3[0] - p4[0], 8), 0.2, 10, shift_light
+    )
 
     pr.draw_triangle(p1, p2, p3, (0, 0, 0, 120))  # Translucent black
     pr.draw_triangle(p1, p3, p4, (0, 0, 0, 120))  # Translucent black
