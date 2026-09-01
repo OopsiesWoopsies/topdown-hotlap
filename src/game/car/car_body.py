@@ -32,7 +32,11 @@ DEBUG_VALS = {
 
 class Car:
   def __init__(
-    self, cons: Constants, pos: tuple[float, float], angle_deg: float, size: tuple[float, float]
+    self,
+    cons: Constants,
+    pos: tuple[float, float],
+    angle_deg: float,
+    size: tuple[float, float],
   ):
     self.engine = Engine()
     self.cons = cons
@@ -601,39 +605,45 @@ class Car:
     rpm_draw_pos_y = screen_height - 70
 
     # Dashboard
-    p1 = pr.Vector2(screen_width_half - 200, screen_height)  # Bottom-left
-    p2 = pr.Vector2(screen_width_half + 200, screen_height)  # Bottom-right
-    p3 = pr.Vector2(screen_width_half + 150, screen_height - 100)  # Top-right
-    p4 = pr.Vector2(screen_width_half - 150, screen_height - 100)  # Top-left
+    x_offset = screen_width_half * 0.07
+    y_offset = screen_height * 0.01
+    p1 = pr.Vector2(screen_width_half - 200 - x_offset, screen_height)  # Bottom-left
+    p2 = pr.Vector2(screen_width_half + 200 + x_offset, screen_height)  # Bottom-right
+    p3 = pr.Vector2(
+      screen_width_half + 150 + x_offset, screen_height - 100 - y_offset
+    )  # Top-right
+    p4 = pr.Vector2(
+      screen_width_half - 150 - x_offset, screen_height - 100 - y_offset
+    )  # Top-left
 
-    pr.draw_triangle(p1, p2, p3, pr.BLUE)
-    pr.draw_triangle(p1, p3, p4, pr.BLUE)
+    pr.draw_triangle(p1, p2, p3, (0, 0, 0, 120))  # Translucent black
+    pr.draw_triangle(p1, p3, p4, (0, 0, 0, 120))  # Translucent black
 
     pr.draw_text(
-      curr_gear_text, gear_draw_pos_x, gear_draw_pos_y, gear_draw_font_size, pr.BLACK
+      curr_gear_text, gear_draw_pos_x, gear_draw_pos_y, gear_draw_font_size, pr.WHITE
     )
     pr.draw_text(
       anti_stall_text,
       anti_stall_draw_pos_x,
       anti_stall_draw_pos_y,
       anti_stall_draw_font_size,
-      pr.BLACK,
+      pr.WHITE,
     )
     pr.draw_text(
       speed_kph_text,
       speed_kph_draw_pos_x,
       speed_kph_draw_pos_y,
       speed_kph_draw_font_size,
-      pr.BLACK,
+      pr.WHITE,
     )
     pr.draw_text(
       speed_mph_text,
       speed_mph_draw_pos_x,
       speed_mph_draw_pos_y,
       speed_mph_draw_font_size,
-      pr.BLACK,
+      pr.WHITE,
     )
-    pr.draw_text(rpm_text, rpm_draw_pos_x, rpm_draw_pos_y, rpm_draw_font_size, pr.BLACK)
+    pr.draw_text(rpm_text, rpm_draw_pos_x, rpm_draw_pos_y, rpm_draw_font_size, pr.WHITE)
 
   def get_debug_vals(self) -> dict:
     def set_debug_tires():
