@@ -3,12 +3,13 @@ import math
 import pyray as pr
 
 from game.car.tire import Tire
-from game.constants import PIXELS_PER_METER
+from game.constants import Constants
 
 
 class Axle:
   def __init__(
     self,
+    cons: Constants,
     local_pos: tuple[float, float],
     distance_to_cg: float,
     track_width: float,
@@ -19,6 +20,8 @@ class Axle:
     powered: bool,
     config: dict[str, any],
   ):
+    self.cons = cons
+    
     self.local_pos = local_pos
     self.prev_local_pos = local_pos
     self.distance_to_cg = distance_to_cg
@@ -63,6 +66,7 @@ class Axle:
     ]
 
     self.left_tire = Tire(
+      cons,
       left_tire_pos,
       tire_width,
       tire_radius,
@@ -74,6 +78,7 @@ class Axle:
       config,
     )
     self.right_tire = Tire(
+      cons,
       right_tire_pos,
       tire_width,
       tire_radius,
@@ -120,9 +125,9 @@ class Axle:
       car_interp_pos[1] + forward[1] * self.distance_to_cg,
     )
 
-    pos_draw = (render_pos[0] * PIXELS_PER_METER, render_pos[1] * PIXELS_PER_METER)
-    axle_width_draw = self.axle_width * PIXELS_PER_METER
-    track_width_draw = self.track_width * PIXELS_PER_METER
+    pos_draw = (render_pos[0] * self.cons.PPM, render_pos[1] * self.cons.PPM)
+    axle_width_draw = self.axle_width * self.cons.PPM
+    track_width_draw = self.track_width * self.cons.PPM
 
     rec = pr.Rectangle(pos_draw[0], pos_draw[1], axle_width_draw, track_width_draw)
     origin = (axle_width_draw / 2, track_width_draw / 2)

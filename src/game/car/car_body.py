@@ -4,7 +4,7 @@ import pyray as pr
 
 from game.car.axle import Axle
 from game.car.engine.engine import Engine
-from game.constants import PIXELS_PER_METER
+from game.constants import Constants
 from game.track.track import Track
 
 _GRAVITY = -9.81  # m/s^2
@@ -32,15 +32,20 @@ DEBUG_VALS = {
 
 class Car:
   def __init__(
-    self, pos: tuple[float, float], angle_deg: float, size: tuple[float, float]
+    self,
+    cons: Constants,
+    pos: tuple[float, float],
+    angle_deg: float,
+    size: tuple[float, float],
   ):
     self.engine = Engine()
+    self.cons = cons
     # Car body constants
     self.size = size
     self.pos = pos
     self.prev_pos = pos
     self.interp_pos = pos
-    self.render_pos = pr.vector2_scale(pos, PIXELS_PER_METER)
+    self.render_pos = pr.vector2_scale(pos, cons.PPM)
     self.angle_rad = math.radians(angle_deg)
     self.prev_angle_rad = self.angle_rad
     self.render_angle_rad = self.angle_rad
@@ -56,7 +61,7 @@ class Car:
     self.half_track_width = self.track_width / 2  # m
     self.dist_cg_front_axle = self.wheelbase * self.cg_from_front
     self.dist_cg_rear_axle = self.wheelbase * self.cg_from_rear
-    self.rear_overhang = 0.81  # m
+    self.rear_overhang = 0.85  # m
     cg_dist_from_rear_edge = self.rear_overhang + self.dist_cg_rear_axle
     self.cg = (cg_dist_from_rear_edge - (self.size[0] / 2.0), 0)  # m
 
@@ -174,6 +179,7 @@ class Car:
       pos_y - forward_y * self.dist_cg_rear_axle,
     )
     self.front_axle = Axle(
+      cons,
       front_axle_pos,
       self.dist_cg_front_axle,
       self.track_width,
@@ -185,6 +191,7 @@ class Car:
       f_ax_config,
     )
     self.rear_axle = Axle(
+      cons,
       rear_axle_pos,
       -self.dist_cg_rear_axle,
       self.track_width,
@@ -519,34 +526,29 @@ class Car:
     )
     self.interp_pos = (interp_pos_x, interp_pos_y)
     self.render_pos = (
-      interp_pos_x * PIXELS_PER_METER,
-      interp_pos_y * PIXELS_PER_METER,
+      interp_pos_x * self.cons.PPM,
+      interp_pos_y * self.cons.PPM,
     )
 
-  def draw_car(self):
+  def draw_car(self, car_texture: pr.Texture2D):
     angle_deg = math.degrees(self.render_angle_rad)
     forward = (math.cos(self.render_angle_rad), math.sin(self.render_angle_rad))
     right = (-math.sin(self.render_angle_rad), math.cos(self.render_angle_rad))
-    size_draw = (self.size[0] * PIXELS_PER_METER, self.size[1] * PIXELS_PER_METER)
+    size_draw = (self.size[0] * self.cons.PPM, self.size[1] * self.cons.PPM)
     cg_x, cg_y = self.cg
     cg_draw = (
-      (size_draw[0] / 2) + (cg_x * PIXELS_PER_METER),
-      (size_draw[1] / 2) + (cg_y * PIXELS_PER_METER),
+      (size_draw[0] / 2) + (cg_x * self.cons.PPM),
+      (size_draw[1] / 2) + (cg_y * self.cons.PPM),
     )
 
-    rec = pr.Rectangle(
+    src_rec = pr.Rectangle(0.0, 0.0, car_texture.width, car_texture.height)
+    dest_rec = pr.Rectangle(
       self.render_pos[0], self.render_pos[1], size_draw[0], size_draw[1]
     )
+    pr.draw_texture_pro(car_texture, src_rec, dest_rec, cg_draw, angle_deg, pr.WHITE)
 
-    pr.draw_rectangle_pro(rec, cg_draw, angle_deg, pr.RED)
     self.front_axle.draw(forward, right, self.interp_pos, angle_deg, self.steer_angle)
     self.rear_axle.draw(forward, right, self.interp_pos, angle_deg, 0)
-
-    pr.draw_circle_v(
-      self.render_pos,
-      5.0,
-      pr.BLACK,
-    )
 
   def draw_data(self, screen_width: int, screen_height: int):
     """Show information such as the current gear, rpm, speed, and whether or not the tires are currently slipping.
@@ -603,39 +605,54 @@ class Car:
     rpm_draw_pos_y = screen_height - 70
 
     # Dashboard
-    p1 = pr.Vector2(screen_width_half - 200, screen_height)  # Bottom-left
-    p2 = pr.Vector2(screen_width_half + 200, screen_height)  # Bottom-right
-    p3 = pr.Vector2(screen_width_half + 150, screen_height - 100)  # Top-right
-    p4 = pr.Vector2(screen_width_half - 150, screen_height - 100)  # Top-left
+    x_offset = screen_width_half * 0.07
+    y_offset = screen_height * 0.01
+    p1 = pr.Vector2(screen_width_half - 200 - x_offset, screen_height)  # Bottom-left
+    p2 = pr.Vector2(screen_width_half + 200 + x_offset, screen_height)  # Bottom-right
+    p3 = (
+      screen_width_half + 150 + x_offset, screen_height - 100 - y_offset
+    )  # Top-right
+    p4 = (
+      screen_width_half - 150 - x_offset, screen_height - 100 - y_offset
+    )  # Top-left
 
-    pr.draw_triangle(p1, p2, p3, pr.BLUE)
-    pr.draw_triangle(p1, p3, p4, pr.BLUE)
+    eng_rpm_ratio = self.engine.rpm / self.engine.peak_rpm
+    if eng_rpm_ratio > 1.05:
+      shift_light = (27, 119, 239, 200)
+    elif eng_rpm_ratio > 0.6:
+      shift_light = (255, 239, 1, 200)
+    else:
+      shift_light = (74, 250, 0, 200)
+    pr.draw_rectangle_rounded(pr.Rectangle(p4[0], p4[1] - 10, p3[0] - p4[0], 8), 0.2, 10, shift_light)
+
+    pr.draw_triangle(p1, p2, p3, (0, 0, 0, 120))  # Translucent black
+    pr.draw_triangle(p1, p3, p4, (0, 0, 0, 120))  # Translucent black
 
     pr.draw_text(
-      curr_gear_text, gear_draw_pos_x, gear_draw_pos_y, gear_draw_font_size, pr.BLACK
+      curr_gear_text, gear_draw_pos_x, gear_draw_pos_y, gear_draw_font_size, pr.WHITE
     )
     pr.draw_text(
       anti_stall_text,
       anti_stall_draw_pos_x,
       anti_stall_draw_pos_y,
       anti_stall_draw_font_size,
-      pr.BLACK,
+      pr.WHITE,
     )
     pr.draw_text(
       speed_kph_text,
       speed_kph_draw_pos_x,
       speed_kph_draw_pos_y,
       speed_kph_draw_font_size,
-      pr.BLACK,
+      pr.WHITE,
     )
     pr.draw_text(
       speed_mph_text,
       speed_mph_draw_pos_x,
       speed_mph_draw_pos_y,
       speed_mph_draw_font_size,
-      pr.BLACK,
+      pr.WHITE,
     )
-    pr.draw_text(rpm_text, rpm_draw_pos_x, rpm_draw_pos_y, rpm_draw_font_size, pr.BLACK)
+    pr.draw_text(rpm_text, rpm_draw_pos_x, rpm_draw_pos_y, rpm_draw_font_size, pr.WHITE)
 
   def get_debug_vals(self) -> dict:
     def set_debug_tires():

@@ -2,7 +2,7 @@ import math
 
 import pyray as pr
 
-from game.constants import PIXELS_PER_METER
+from game.constants import Constants
 
 RIGHT_ANGLE = math.pi / 2
 
@@ -34,6 +34,7 @@ def pacejka_model(
 class Tire:
   def __init__(
     self,
+    cons: Constants,
     local_pos: tuple[float, float],
     width: float,
     radius: float,
@@ -44,6 +45,7 @@ class Tire:
     powered: bool,
     config: dict[str, any],
   ):
+    self.cons = cons
     # Constants
     self.powered = powered
     self.local_pos = local_pos
@@ -298,22 +300,16 @@ class Tire:
     half_track_width: float,
   ):
     self.render_pos = (
-      (axle_render_pos[0] + right[0] * half_track_width * sign) * PIXELS_PER_METER,
-      (axle_render_pos[1] + right[1] * half_track_width * sign) * PIXELS_PER_METER,
+      (axle_render_pos[0] + right[0] * half_track_width * sign) * self.cons.PPM,
+      (axle_render_pos[1] + right[1] * half_track_width * sign) * self.cons.PPM,
     )
 
-    diameter_draw = self.radius * 2 * PIXELS_PER_METER
-    width_draw = self.width * PIXELS_PER_METER
+    diameter_draw = self.radius * 2 * self.cons.PPM
+    width_draw = self.width * self.cons.PPM
 
     rec = pr.Rectangle(
       self.render_pos[0], self.render_pos[1], diameter_draw, width_draw
     )
     origin = (diameter_draw / 2, width_draw / 2)
 
-    pr.draw_rectangle_pro(rec, origin, angle_deg + steer_deg, pr.BLUE)
-    pr.draw_circle_v(
-      pr.vector2_scale(self.outer_corners[0], PIXELS_PER_METER), 2, pr.PURPLE
-    )
-    pr.draw_circle_v(
-      pr.vector2_scale(self.outer_corners[1], PIXELS_PER_METER), 2, pr.PURPLE
-    )
+    pr.draw_rectangle_pro(rec, origin, angle_deg + steer_deg, pr.BLACK)

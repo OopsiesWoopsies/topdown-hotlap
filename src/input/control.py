@@ -2,7 +2,71 @@ import pyray as pr
 
 
 class Control:
-  def __init__(self):
+  def __init__(self, screen_width: int, screen_height: int):
+    # Draw coords
+    self.throt_draw_x = 10
+    self.throt_draw_y = screen_height * 0.9
+    self.throt_draw_width = 70
+    self.throt_draw_height = 15
+
+    self.brake_draw_x = 10
+    self.brake_draw_y = self.throt_draw_y + 30
+    self.brake_draw_width = 70
+    self.brake_draw_height = 15
+
+    self.steer_wheel_width = 100
+    self.steer_wheel_height = 50
+    self.steer_wheel_x = screen_width - self.steer_wheel_width
+    self.steer_wheel_y = screen_height * 0.9
+
+    self.wheel = pr.Rectangle(
+      self.steer_wheel_x,
+      self.steer_wheel_y,
+      self.steer_wheel_width,
+      self.steer_wheel_height,
+    )
+    self.wheel_origin = pr.Vector2(
+      self.steer_wheel_width / 2, self.steer_wheel_height / 2
+    )
+
+    self.throttle_rec_1 = pr.Rectangle(
+      self.throt_draw_x,
+      self.throt_draw_y,
+      self.throt_draw_width * 0,
+      self.throt_draw_height,
+    )
+    self.throttle_rec_2 = pr.Rectangle(
+      self.throt_draw_x + self.throt_draw_width * 2,
+      self.throt_draw_y + self.throt_draw_height,
+      self.throt_draw_width * 0,
+      self.throt_draw_height,
+    )
+    self.throttle_otln = pr.Rectangle(
+      self.throt_draw_x,
+      self.throt_draw_y,
+      self.throt_draw_width * 2,
+      self.throt_draw_height,
+    )
+    self.brake_otln = pr.Rectangle(
+      self.brake_draw_x,
+      self.brake_draw_y,
+      self.brake_draw_width * 2,
+      self.brake_draw_height,
+    )
+    self.brake_rec_1 = pr.Rectangle(
+      self.brake_draw_x,
+      self.brake_draw_y,
+      self.brake_draw_width * 0,
+      self.brake_draw_height,
+    )
+    self.brake_rec_2 = pr.Rectangle(
+      self.brake_draw_x + self.brake_draw_width * 2,
+      self.brake_draw_y + self.brake_draw_height,
+      self.brake_draw_width * 0,
+      self.brake_draw_height,
+    )
+    self.tb_origin = pr.Vector2(0, 0)
+
     # Keybinds
     self.throttle_keybind = pr.MOUSE_LEFT_BUTTON
     self.brake_keybind = pr.MOUSE_RIGHT_BUTTON
@@ -109,63 +173,74 @@ class Control:
       self.steer_amt = 1.0
     return self.steer_amt
 
+  def update_draw_positions(self, screen_width: int, screen_height: int):
+    self.throt_draw_y = screen_height * 0.9
+    self.brake_draw_y = self.throt_draw_y + 30
+    self.steer_wheel_y = screen_height * 0.9
+    self.steer_wheel_x = screen_width - self.wheel.width
+
+    self.throttle_rec_1 = pr.Rectangle(
+      self.throt_draw_x,
+      self.throt_draw_y,
+      self.throt_draw_width * self.throttle_amt,
+      self.throt_draw_height,
+    )
+    self.throttle_rec_2 = pr.Rectangle(
+      self.throt_draw_x + self.throt_draw_width * 2,
+      self.throt_draw_y + self.throt_draw_height,
+      self.throt_draw_width * self.throttle_amt,
+      self.throt_draw_height,
+    )
+    self.throttle_otln = pr.Rectangle(
+      self.throt_draw_x,
+      self.throt_draw_y,
+      self.throt_draw_width * 2,
+      self.throt_draw_height,
+    )
+    self.brake_otln = pr.Rectangle(
+      self.brake_draw_x,
+      self.brake_draw_y,
+      self.brake_draw_width * 2,
+      self.brake_draw_height,
+    )
+    self.brake_rec_1 = pr.Rectangle(
+      self.brake_draw_x,
+      self.brake_draw_y,
+      self.brake_draw_width * self.brake_amt,
+      self.brake_draw_height,
+    )
+    self.brake_rec_2 = pr.Rectangle(
+      self.brake_draw_x + self.brake_draw_width * 2,
+      self.brake_draw_y + self.brake_draw_height,
+      self.brake_draw_width * self.brake_amt,
+      self.brake_draw_height,
+    )
+
+    self.wheel = pr.Rectangle(
+      self.steer_wheel_x,
+      self.steer_wheel_y,
+      self.steer_wheel_width,
+      self.steer_wheel_height,
+    )
+
   def draw(self, steer_deg: float):
     # Throttle and brake
-    throt_draw_x = 10
-    throt_draw_y = 650
-    throt_draw_width = 70
-    throt_draw_height = 15
+    self.throttle_rec_1.width = self.throt_draw_width * self.throttle_amt
+    self.throttle_rec_2.width = self.throt_draw_width * self.throttle_amt
+    self.brake_rec_1.width = self.brake_draw_width * self.brake_amt
+    self.brake_rec_2.width = self.brake_draw_width * self.brake_amt
 
-    brake_draw_x = 10
-    brake_draw_y = 680
-    brake_draw_width = 70
-    brake_draw_height = 15
-
-    throttle_rec_1 = pr.Rectangle(
-      throt_draw_x,
-      throt_draw_y,
-      throt_draw_width * self.throttle_amt,
-      throt_draw_height,
-    )
-    throttle_rec_2 = pr.Rectangle(
-      throt_draw_x + throt_draw_width * 2,
-      throt_draw_y + throt_draw_height,
-      throt_draw_width * self.throttle_amt,
-      throt_draw_height,
-    )
-    throttle_otln = pr.Rectangle(
-      throt_draw_x, throt_draw_y, throt_draw_width * 2, throt_draw_height
-    )
-    brake_otln = pr.Rectangle(
-      brake_draw_x, brake_draw_y, brake_draw_width * 2, brake_draw_height
-    )
-    brake_rec_1 = pr.Rectangle(
-      brake_draw_x,
-      brake_draw_y,
-      brake_draw_width * self.brake_amt,
-      brake_draw_height,
-    )
-    brake_rec_2 = pr.Rectangle(
-      brake_draw_x + brake_draw_width * 2,
-      brake_draw_y + brake_draw_height,
-      brake_draw_width * self.brake_amt,
-      brake_draw_height,
-    )
-    origin = pr.Vector2(0, 0)
-
-    pr.draw_rectangle_pro(throttle_rec_1, origin, 0, pr.GREEN)
-    pr.draw_rectangle_pro(throttle_rec_2, origin, 180, pr.GREEN)
-    pr.draw_rectangle_lines_ex(throttle_otln, 2, pr.LIME)
-    pr.draw_rectangle_pro(brake_rec_1, origin, 0, pr.RED)
-    pr.draw_rectangle_pro(brake_rec_2, origin, 180, pr.RED)
-    pr.draw_rectangle_lines_ex(brake_otln, 2, pr.Color(152, 19, 28, 255))
+    pr.draw_rectangle_pro(self.throttle_rec_1, self.tb_origin, 0, pr.GREEN)
+    pr.draw_rectangle_pro(self.throttle_rec_2, self.tb_origin, 180, pr.GREEN)
+    pr.draw_rectangle_lines_ex(self.throttle_otln, 2, pr.LIME)
+    pr.draw_rectangle_pro(self.brake_rec_1, self.tb_origin, 0, pr.RED)
+    pr.draw_rectangle_pro(self.brake_rec_2, self.tb_origin, 180, pr.RED)
+    pr.draw_rectangle_lines_ex(self.brake_otln, 2, pr.Color(152, 19, 28, 255))
 
     # Steering wheel (temp rectangle)
-    wheel = pr.Rectangle(1100, 650, 100, 50)
-    origin = pr.Vector2(wheel.width / 2, wheel.height / 2)
     pr.draw_rectangle_pro(
-      wheel,
-      origin,
+      self.wheel,
+      self.wheel_origin,
       steer_deg * 180 / 25,
       pr.DARKPURPLE,
     )
