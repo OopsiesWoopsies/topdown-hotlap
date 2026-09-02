@@ -6,6 +6,8 @@ from game.car.tire import Tire
 from game.constants import Constants
 
 # Comments are based off of starting position (0, 0) and a starting rotation of 180 deg
+# Make sure points are >= 10m apart to avoid boundary loops if turning and points don't create a jagged inner corner
+# Add more points in between if jagged to smoothen it out
 tracks = [
   {
     "finish": 8,
@@ -47,26 +49,28 @@ tracks = [
       (750, 0),
       (720, 0),
       (680, 0),
-      (0, 0),
+      (0, 0),  # Finish line
       (-680, 0),
       (-720, 0),
       (-750, 0),
-      # Top hairpin (up -> right -> down)
-      (-770, 10),
-      (-775, 20),
-      (-770, 30),
+      # Top hairpin (up -> left -> down)
+      (-775, 5),
+      (-790, 15),
+      (-790, 30),
+      (-775, 40),
       # Straight 2 (down)
-      (-750, 40),
-      (-720, 40),
-      (-680, 40),
-      (0, 40),
-      (680, 40),
-      (720, 40),
-      (750, 40),
-      # Bottom hairpin (down -> left -> up)
-      (770, 30),
-      (775, 20),
-      (770, 10),
+      (-750, 30),
+      (-720, 30),
+      (-680, 30),
+      (0, 30),
+      (680, 30),
+      (720, 30),
+      (750, 30),
+      # Bottom hairpin (down -> right -> up)
+      (775, 25),
+      (790, 15),
+      (790, 0),
+      (775, -10),
     ),
   },
 ]
@@ -191,9 +195,10 @@ class Track:
     self.render_position = (0, 0)
 
     # Track points
-    self.track_selection = 1
-    # Dictates the main path of the track
-    self.center_line_pts = tracks[self.track_selection]["track"]
+    self.track_selection = 0
+    self.center_line_pts = tracks[self.track_selection][
+      "track"
+    ]  # Dictates the main path of the track
 
     self.finish_index = tracks[self.track_selection]["finish"]
     self.sector_indexes = []
@@ -270,6 +275,7 @@ class Track:
 
     active_chunk_keys = set()
 
+    # Create empty chunks with a 1 chunk margin
     for i in range(num_pts):
       for pt in (self.left_bound_pts[i], self.right_bound_pts[i]):
         px = pt.x * self.cons.PPM
@@ -290,7 +296,16 @@ class Track:
     # Finish line
     self.finish_line = self.get_timing_line(self.finish_index)
 
-    for cx, cy in active_chunk_keys:
+    total_chunks = len(active_chunk_keys)
+
+    # Draw track on to empty chunks
+    for idx, (cx, cy) in enumerate(active_chunk_keys):
+      pr.begin_drawing()
+      pr.clear_background(pr.BLACK)
+      pr.draw_text(
+        f"Generating Track... {idx} / {total_chunks} chunks", 10, 10, 20, pr.WHITE
+      )
+      pr.end_drawing()
       chunk_tex = pr.load_render_texture(self.CHUNK_SIZE, self.CHUNK_SIZE)
 
       pr.begin_texture_mode(chunk_tex)
@@ -298,34 +313,37 @@ class Track:
 
       render_offset = pr.Vector2(-cx * self.CHUNK_SIZE, -cy * self.CHUNK_SIZE)
 
+      # Draw pavement and boundary lines
       for i in range(num_pts):
         j = (i + 1) % num_pts
 
-        a = self.add_v2_render_offset(
+        a = pr.vector2_add(
           pr.vector2_scale(self.left_bound_pts[i], self.cons.PPM), render_offset
         )
-        b = self.add_v2_render_offset(
+        b = pr.vector2_add(
           pr.vector2_scale(self.left_bound_pts[j], self.cons.PPM), render_offset
         )
-        c = self.add_v2_render_offset(
+        c = pr.vector2_add(
           pr.vector2_scale(self.right_bound_pts[j], self.cons.PPM), render_offset
         )
-        d = self.add_v2_render_offset(
+        d = pr.vector2_add(
           pr.vector2_scale(self.right_bound_pts[i], self.cons.PPM), render_offset
         )
 
+        # Pavement
         pr.draw_triangle(a, b, c, pr.DARKGRAY)
         pr.draw_triangle(a, c, d, pr.DARKGRAY)
+        # Boundaries
         pr.draw_line_ex(a, b, line_thickness, pr.WHITE)
         pr.draw_line_ex(d, c, line_thickness, pr.WHITE)
 
       # Sectors
       for sector_line in self.sector_lines:
         pr.draw_line_ex(
-          self.add_v2_render_offset(
+          pr.vector2_add(
             pr.vector2_scale(sector_line[0], self.cons.PPM), render_offset
           ),
-          self.add_v2_render_offset(
+          pr.vector2_add(
             pr.vector2_scale(sector_line[1], self.cons.PPM), render_offset
           ),
           line_thickness,
@@ -333,12 +351,11 @@ class Track:
         )
 
       # Finish line
-      self.finish_line = self.get_timing_line(self.finish_index)
       pr.draw_line_ex(
-        self.add_v2_render_offset(
+        pr.vector2_add(
           pr.vector2_scale(self.finish_line[0], self.cons.PPM), render_offset
         ),
-        self.add_v2_render_offset(
+        pr.vector2_add(
           pr.vector2_scale(self.finish_line[1], self.cons.PPM), render_offset
         ),
         line_thickness,
@@ -357,11 +374,6 @@ class Track:
       (self.finish_line[0].x, self.finish_line[0].y),
       (self.finish_line[1].x, self.finish_line[1].y),
     )
-
-  def add_v2_render_offset(
-    self, position: pr.Vector2, render_offset: pr.Vector2
-  ) -> pr.Vector2:
-    return pr.vector2_add(position, render_offset)
 
   def get_timing_line(self, index: int) -> tuple[pr.Vector2, pr.Vector2]:
     num_pts = len(self.center_line_pts)
@@ -450,7 +462,7 @@ class Track:
       tire: A tire.
 
     Returns:
-      tuple: True if tire is on track and the track index respectively
+      bool: True if tire is on track and the track index respectively
     """
     margin = 2
     index_offset = math.ceil(car_speed / self.mpp * dt) + margin
@@ -501,7 +513,7 @@ class Track:
 
         world_x = cx * self.CHUNK_SIZE
         world_y = cy * self.CHUNK_SIZE
-        source_rec = pr.Rectangle(0, 0, self.CHUNK_SIZE, -self.CHUNK_SIZE)  # Flip Y
+        source_rec = pr.Rectangle(0, 0, self.CHUNK_SIZE, -self.CHUNK_SIZE)
         dest_rec = pr.Rectangle(world_x, world_y, self.CHUNK_SIZE, self.CHUNK_SIZE)
 
         pr.draw_texture_pro(

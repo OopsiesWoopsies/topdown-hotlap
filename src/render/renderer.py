@@ -9,7 +9,8 @@ from input.control import Control
 
 class Renderer:
   def __init__(self, screen_width: int, screen_height: int, car: Car, cons: Constants):
-    self.camera = pr.Camera2D((screen_width / 2, screen_height * 0.7), (0, 0), 0, 1.0)
+    self.base_cam_zoom = 1 / cons.PPM * 20
+    self.camera = pr.Camera2D((screen_width / 2, screen_height * 0.7), (0, 0), 0, self.base_cam_zoom)
 
     self.car_path = join("assets", "imgs", "car.png")
     car_image = pr.load_image(self.car_path)
