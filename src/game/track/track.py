@@ -41,8 +41,33 @@ tracks = [
     ),
   },
   {
-    "finish": 4,
-    "track": (),
+    "finish": 3,
+    "track": (
+      # Main straight (up)
+      (750, 0),
+      (720, 0),
+      (680, 0),
+      (0, 0),
+      (-680, 0),
+      (-720, 0),
+      (-750, 0),
+      # Top hairpin (up -> right -> down)
+      (-770, 10),
+      (-775, 20),
+      (-770, 30),
+      # Straight 2 (down)
+      (-750, 40),
+      (-720, 40),
+      (-680, 40),
+      (0, 40),
+      (680, 40),
+      (720, 40),
+      (750, 40),
+      # Bottom hairpin (down -> left -> up)
+      (770, 30),
+      (775, 20),
+      (770, 10),
+    ),
   },
 ]
 
@@ -154,16 +179,19 @@ class Track:
     self.width = 17  # m
     self.half_width = self.width / 2.0  # m
 
+    # Chunks
+    self.CHUNK_SIZE = 1024
+    self.chunks: dict[tuple, pr.RenderTexture] = {}
+
     # In-game Track vars
     self.curr_sector = 1
     self.start_lap = False
 
     # Render Track Vars
-    self.render_offset = (0, 0)
     self.render_position = (0, 0)
 
     # Track points
-    self.track_selection = 0
+    self.track_selection = 1
     # Dictates the main path of the track
     self.center_line_pts = tracks[self.track_selection]["track"]
 
@@ -181,17 +209,16 @@ class Track:
     self.create_track()
 
   def create_track(self):
+    self.center_line_pts = tracks[self.track_selection]["track"]
     line_thickness = 0.1 * self.cons.PPM  # pixels
     num_pts = len(self.center_line_pts)
     sector_index = num_pts // 3
-    self.center_line_pts = tracks[self.track_selection]["track"]
 
     self.finish_index = tracks[self.track_selection]["finish"]
-    self.sector_indexes = []
+    self.sector_indexes = [
+      int((sector_index * i + self.finish_index) % num_pts) for i in range(1, 3)
+    ]
     self.sector_lines = []
-
-    for i in range(1, 3):
-      self.sector_indexes.append(int((sector_index * i + self.finish_index) % num_pts))
 
     # Track precision points that help smoothen the track out (the following arrays includes precision points)
     self.center_pts = []
@@ -208,8 +235,11 @@ class Track:
       cen_p1_x, cen_p1_y = cen_p1
       cen_p2_x, cen_p2_y = cen_p2
 
-      precision = round(
-        ((cen_p2_x - cen_p1_x) ** 2 + (cen_p2_y - cen_p1_y) ** 2) ** 0.5 / self.mpp
+      precision = max(
+        1,
+        round(
+          ((cen_p2_x - cen_p1_x) ** 2 + (cen_p2_y - cen_p1_y) ** 2) ** 0.5 / self.mpp
+        ),
       )
 
       for n in range(precision):
@@ -218,8 +248,6 @@ class Track:
         )
 
     num_pts = len(self.center_pts)
-    min_x = min_y = float("inf")
-    max_x = max_y = float("-inf")
     for i in range(num_pts):  # Adds left and right boundary points
       j = (i + 1) % num_pts
       a = self.center_pts[i]
@@ -239,106 +267,101 @@ class Track:
       self.right_bound_pts.append(
         pr.vector2_subtract(cen_pt, pr.vector2_scale(normal, self.half_width))
       )
-      # Calculate points for texture coordinates
-      min_x = min(min_x, self.left_bound_pts[i].x, self.right_bound_pts[i].x)
-      max_x = max(max_x, self.left_bound_pts[i].x, self.right_bound_pts[i].x)
-      min_y = min(min_y, self.left_bound_pts[i].y, self.right_bound_pts[i].y)
-      max_y = max(max_y, self.left_bound_pts[i].y, self.right_bound_pts[i].y)
 
-    min_x *= self.cons.PPM
-    max_x *= self.cons.PPM
-    min_y *= self.cons.PPM
-    max_y *= self.cons.PPM
-
-    padding = 10  # pixels
-    self.render_offset = (
-      -min_x + padding,
-      -min_y + padding,
-    )
-    self.render_position = (
-      min_x - padding,
-      min_y - padding,
-    )
-    texture_width = int(max_x - min_x + padding * 2)
-    texture_height = int(max_y - min_y + padding * 2)
-
-    self.render_texture = pr.load_render_texture(texture_width, texture_height)
-
-    pr.begin_texture_mode(self.render_texture)
-    num_pts = len(self.center_pts)
-    for i in range(len(self.left_bound_pts)):
-      j = (i + 1) % len(self.left_bound_pts)
-
-      a = self.add_v2_render_offset(
-        pr.vector2_scale(self.left_bound_pts[i], self.cons.PPM)
-      )
-      b = self.add_v2_render_offset(
-        pr.vector2_scale(self.left_bound_pts[j], self.cons.PPM)
-      )
-      c = self.add_v2_render_offset(
-        pr.vector2_scale(self.right_bound_pts[j], self.cons.PPM)
-      )
-      d = self.add_v2_render_offset(
-        pr.vector2_scale(self.right_bound_pts[i], self.cons.PPM)
-      )
-
-      pr.draw_triangle(a, b, c, pr.DARKGRAY)
-      pr.draw_triangle(a, c, d, pr.DARKGRAY)
+    active_chunk_keys = set()
 
     for i in range(num_pts):
-      left_pt_1 = self.add_v2_render_offset(
-        pr.vector2_scale(self.left_bound_pts[i], self.cons.PPM)
-      )
-      left_pt_2 = self.add_v2_render_offset(
-        pr.vector2_scale(self.left_bound_pts[(i + 1) % num_pts], self.cons.PPM)
-      )
-      right_pt_1 = self.add_v2_render_offset(
-        pr.vector2_scale(self.right_bound_pts[i], self.cons.PPM)
-      )
-      right_pt_2 = self.add_v2_render_offset(
-        pr.vector2_scale(self.right_bound_pts[(i + 1) % num_pts], self.cons.PPM)
-      )
+      for pt in (self.left_bound_pts[i], self.right_bound_pts[i]):
+        px = pt.x * self.cons.PPM
+        py = pt.y * self.cons.PPM
+        cx = int(px // self.CHUNK_SIZE)
+        cy = int(py // self.CHUNK_SIZE)
 
-      pr.draw_line_ex(left_pt_1, left_pt_2, line_thickness, pr.WHITE)
-      pr.draw_line_ex(right_pt_1, right_pt_2, line_thickness, pr.WHITE)
+        for dx in (-1, 0, 1):
+          for dy in (-1, 0, 1):
+            active_chunk_keys.add((cx + dx, cy + dy))
 
-    # Sectors
+    self.chunks: dict[tuple, pr.RenderTexture] = {}
+
+    # Sector lines
     for i in self.sector_indexes:
       self.sector_lines.append(self.get_timing_line(i))
-      pr.draw_line_ex(
-        self.add_v2_render_offset(
-          pr.vector2_scale(self.sector_lines[-1][0], self.cons.PPM)
-        ),
-        self.add_v2_render_offset(
-          pr.vector2_scale(self.sector_lines[-1][1], self.cons.PPM)
-        ),
-        line_thickness,
-        pr.WHITE,
-      )
 
     # Finish line
     self.finish_line = self.get_timing_line(self.finish_index)
-    pr.draw_line_ex(
-      self.add_v2_render_offset(pr.vector2_scale(self.finish_line[0], self.cons.PPM)),
-      self.add_v2_render_offset(pr.vector2_scale(self.finish_line[1], self.cons.PPM)),
-      line_thickness,
-      pr.RED,
-    )
 
-    pr.end_texture_mode()
+    for cx, cy in active_chunk_keys:
+      chunk_tex = pr.load_render_texture(self.CHUNK_SIZE, self.CHUNK_SIZE)
+
+      pr.begin_texture_mode(chunk_tex)
+      pr.clear_background(pr.BLANK)
+
+      render_offset = pr.Vector2(-cx * self.CHUNK_SIZE, -cy * self.CHUNK_SIZE)
+
+      for i in range(num_pts):
+        j = (i + 1) % num_pts
+
+        a = self.add_v2_render_offset(
+          pr.vector2_scale(self.left_bound_pts[i], self.cons.PPM), render_offset
+        )
+        b = self.add_v2_render_offset(
+          pr.vector2_scale(self.left_bound_pts[j], self.cons.PPM), render_offset
+        )
+        c = self.add_v2_render_offset(
+          pr.vector2_scale(self.right_bound_pts[j], self.cons.PPM), render_offset
+        )
+        d = self.add_v2_render_offset(
+          pr.vector2_scale(self.right_bound_pts[i], self.cons.PPM), render_offset
+        )
+
+        pr.draw_triangle(a, b, c, pr.DARKGRAY)
+        pr.draw_triangle(a, c, d, pr.DARKGRAY)
+        pr.draw_line_ex(a, b, line_thickness, pr.WHITE)
+        pr.draw_line_ex(d, c, line_thickness, pr.WHITE)
+
+      # Sectors
+      for sector_line in self.sector_lines:
+        pr.draw_line_ex(
+          self.add_v2_render_offset(
+            pr.vector2_scale(sector_line[0], self.cons.PPM), render_offset
+          ),
+          self.add_v2_render_offset(
+            pr.vector2_scale(sector_line[1], self.cons.PPM), render_offset
+          ),
+          line_thickness,
+          pr.WHITE,
+        )
+
+      # Finish line
+      self.finish_line = self.get_timing_line(self.finish_index)
+      pr.draw_line_ex(
+        self.add_v2_render_offset(
+          pr.vector2_scale(self.finish_line[0], self.cons.PPM), render_offset
+        ),
+        self.add_v2_render_offset(
+          pr.vector2_scale(self.finish_line[1], self.cons.PPM), render_offset
+        ),
+        line_thickness,
+        pr.RED,
+      )
+
+      pr.end_texture_mode()
+      self.chunks[(cx, cy)] = chunk_tex
     print(len(self.center_pts))
 
     # Convert all Vector2s to tuples
-    self.sector_lines: list[tuple[tuple[float, float], tuple[float, float]]] = [
-      ((pt[0].x, pt[0].y), (pt[1].x, pt[1].y)) for pt in self.sector_lines
+    self.sector_lines = [
+      ((pt1.x, pt1.y), (pt2.x, pt2.y)) for pt1, pt2 in self.sector_lines
     ]
     self.finish_line: tuple[tuple[float, float], tuple[float, float]] = (
       (self.finish_line[0].x, self.finish_line[0].y),
       (self.finish_line[1].x, self.finish_line[1].y),
     )
 
-  def add_v2_render_offset(self, position: pr.Vector2) -> pr.Vector2:
-    return pr.vector2_add(position, self.render_offset)
+  def add_v2_render_offset(
+    self, position: pr.Vector2, render_offset: pr.Vector2
+  ) -> pr.Vector2:
+    return pr.vector2_add(position, render_offset)
 
   def get_timing_line(self, index: int) -> tuple[pr.Vector2, pr.Vector2]:
     num_pts = len(self.center_line_pts)
@@ -448,16 +471,39 @@ class Track:
     self.start_lap = False
     self.curr_sector = 1
 
-  def draw(self):
-    src_rec = pr.Rectangle(
-      0,
-      0,
-      float(self.render_texture.texture.width),
-      -float(self.render_texture.texture.height),
-    )
-    pr.draw_texture_rec(
-      self.render_texture.texture,
-      src_rec,
-      self.render_position,
-      pr.WHITE,
-    )
+  def draw(self, camera: pr.Camera2D):
+    screen_w = pr.get_screen_width()
+    screen_h = pr.get_screen_height()
+
+    p1 = pr.get_screen_to_world_2d(pr.Vector2(0, 0), camera)
+    p2 = pr.get_screen_to_world_2d(pr.Vector2(screen_w, 0), camera)
+    p3 = pr.get_screen_to_world_2d(pr.Vector2(0, screen_h), camera)
+    p4 = pr.get_screen_to_world_2d(pr.Vector2(screen_w, screen_h), camera)
+
+    cam_min_x = min(p1.x, p2.x, p3.x, p4.x)
+    cam_max_x = max(p1.x, p2.x, p3.x, p4.x)
+    cam_min_y = min(p1.y, p2.y, p3.y, p4.y)
+    cam_max_y = max(p1.y, p2.y, p3.y, p4.y)
+
+    # Get bounding chunk coords
+    min_cx = math.floor(cam_min_x / self.CHUNK_SIZE)
+    max_cx = math.floor(cam_max_x / self.CHUNK_SIZE)
+
+    min_cy = math.floor(cam_min_y / self.CHUNK_SIZE)
+    max_cy = math.floor(cam_max_y / self.CHUNK_SIZE)
+
+    # Draw only those coords
+    for cx in range(min_cx, max_cx + 1):
+      for cy in range(min_cy, max_cy + 1):
+        tex = self.chunks.get((cx, cy))
+        if tex is None:
+          continue
+
+        world_x = cx * self.CHUNK_SIZE
+        world_y = cy * self.CHUNK_SIZE
+        source_rec = pr.Rectangle(0, 0, self.CHUNK_SIZE, -self.CHUNK_SIZE)  # Flip Y
+        dest_rec = pr.Rectangle(world_x, world_y, self.CHUNK_SIZE, self.CHUNK_SIZE)
+
+        pr.draw_texture_pro(
+          tex.texture, source_rec, dest_rec, pr.Vector2(0, 0), 0.0, pr.WHITE
+        )

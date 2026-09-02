@@ -17,7 +17,7 @@ def main():
 
   pr.init_window(screen_width, screen_height, "Top Down Hotlap")
 
-  pr.set_target_fps(144)
+  # pr.set_target_fps(144)
 
   cons = Constants()
   ctrls = Control(screen_width, screen_height)
@@ -33,6 +33,7 @@ def main():
         monitor = pr.get_current_monitor()
         FULLSCREEN_WIDTH = pr.get_monitor_width(monitor)
         FULLSCREEN_HEIGHT = pr.get_monitor_height(monitor)
+        print(FULLSCREEN_HEIGHT)
         old_screen_height = screen_height
         screen_width = FULLSCREEN_WIDTH
         screen_height = FULLSCREEN_HEIGHT
@@ -139,7 +140,6 @@ def update_screen(
   scale,
 ):
   cons.update_PPM(round(scale * cons.PPM))
-  world.track.create_track()
   renderer.update_textures(world.car, cons)
   renderer.camera.offset = pr.Vector2(new_screen_width / 2, new_screen_height * 0.7)
   ctrls.update_draw_positions(new_screen_width, new_screen_height)

@@ -42,7 +42,7 @@ class Renderer:
     pr.end_mode_2d()
 
   def draw_world(self, world: World):
-    world.track.draw()
+    world.track.draw(self.camera)
     world.car.draw_car(self.car_texture)
 
   def draw_screen(
