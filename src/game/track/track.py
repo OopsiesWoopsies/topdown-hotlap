@@ -1,4 +1,5 @@
 import math
+from collections import defaultdict
 
 import pyray as pr
 
@@ -195,7 +196,7 @@ class Track:
     self.render_position = (0, 0)
 
     # Track points
-    self.track_selection = 0
+    self.track_selection = 1
     self.center_line_pts = tracks[self.track_selection][
       "track"
     ]  # Dictates the main path of the track
@@ -205,9 +206,9 @@ class Track:
     self.sector_lines = []
 
     self.mpp = 0.25  # meters per point (approx)
-    self.center_pts = []
-    self.left_bound_pts = []
-    self.right_bound_pts = []
+    self.center_pts: list[tuple[float, float]] = []
+    self.left_bound_pts: list[pr.Vector2] = []
+    self.right_bound_pts: list[pr.Vector2] = []
     self.normal_segments = []
 
     self.render_texture = None
@@ -227,8 +228,8 @@ class Track:
 
     # Track precision points that help smoothen the track out (the following arrays includes precision points)
     self.center_pts = []
-    self.left_bound_pts = []
-    self.right_bound_pts = []
+    self.left_bound_pts: list[pr.Vector2] = []
+    self.right_bound_pts: list[pr.Vector2] = []
     self.normal_segments = []
 
     for i in range(num_pts):  # Adds precision to center line
@@ -273,37 +274,74 @@ class Track:
         pr.vector2_subtract(cen_pt, pr.vector2_scale(normal, self.half_width))
       )
 
-    active_chunk_keys = set()
+    chunk_segments = defaultdict(list)
+    margin = line_thickness
 
-    # Create empty chunks with a 1 chunk margin
     for i in range(num_pts):
-      for pt in (self.left_bound_pts[i], self.right_bound_pts[i]):
-        px = pt.x * self.cons.PPM
-        py = pt.y * self.cons.PPM
-        cx = int(px // self.CHUNK_SIZE)
-        cy = int(py // self.CHUNK_SIZE)
+      j = (i + 1) % num_pts
 
-        for dx in (-1, 0, 1):
-          for dy in (-1, 0, 1):
-            active_chunk_keys.add((cx + dx, cy + dy))
+      # Get the 4 corners of this track segment
+      p1, p2 = self.left_bound_pts[i], self.left_bound_pts[j]
+      p3, p4 = self.right_bound_pts[j], self.right_bound_pts[i]
 
-    self.chunks: dict[tuple, pr.RenderTexture] = {}
+      # Find the min/max pixel bounds for this segment and add margin
+      min_px = min(p1.x, p2.x, p3.x, p4.x) * self.cons.PPM - margin
+      max_px = max(p1.x, p2.x, p3.x, p4.x) * self.cons.PPM + margin
+      min_py = min(p1.y, p2.y, p3.y, p4.y) * self.cons.PPM - margin
+      max_py = max(p1.y, p2.y, p3.y, p4.y) * self.cons.PPM + margin
 
-    # Sector lines
-    for i in self.sector_indexes:
-      self.sector_lines.append(self.get_timing_line(i))
+      min_cx, max_cx = int(min_px // self.CHUNK_SIZE), int(max_px // self.CHUNK_SIZE)
+      min_cy, max_cy = int(min_py // self.CHUNK_SIZE), int(max_py // self.CHUNK_SIZE)
 
-    # Finish line
+      for cx in range(min_cx, max_cx + 1):
+        for cy in range(min_cy, max_cy + 1):
+          chunk_segments[(cx, cy)].append(i)
+
+    # Sector lines and Finish line
+    self.sector_lines = [self.get_timing_line(i) for i in self.sector_indexes]
     self.finish_line = self.get_timing_line(self.finish_index)
 
-    total_chunks = len(active_chunk_keys)
+    chunk_sectors = defaultdict(list)
+    for sector_line in self.sector_lines:
+      # Find the min/max pixel bounds for the sector line and add margin
+      min_px = min(sector_line[0].x, sector_line[1].x) * self.cons.PPM - margin
+      max_px = max(sector_line[0].x, sector_line[1].x) * self.cons.PPM + margin
+      min_py = min(sector_line[0].y, sector_line[1].y) * self.cons.PPM - margin
+      max_py = max(sector_line[0].y, sector_line[1].y) * self.cons.PPM + margin
 
-    # Draw track on to empty chunks
+      min_cx, max_cx = int(min_px // self.CHUNK_SIZE), int(max_px // self.CHUNK_SIZE)
+      min_cy, max_cy = int(min_py // self.CHUNK_SIZE), int(max_py // self.CHUNK_SIZE)
+
+      for cx in range(min_cx, max_cx + 1):
+        for cy in range(min_cy, max_cy + 1):
+          chunk_sectors[(cx, cy)].append(sector_line)
+
+    chunk_finish = []
+    # Find the min/max pixel bounds for the finish line and add margin
+    min_px = min(self.finish_line[0].x, self.finish_line[1].x) * self.cons.PPM - margin
+    max_px = max(self.finish_line[0].x, self.finish_line[1].x) * self.cons.PPM + margin
+    min_py = min(self.finish_line[0].y, self.finish_line[1].y) * self.cons.PPM - margin
+    max_py = max(self.finish_line[0].y, self.finish_line[1].y) * self.cons.PPM + margin
+
+    min_cx, max_cx = int(min_px // self.CHUNK_SIZE), int(max_px // self.CHUNK_SIZE)
+    min_cy, max_cy = int(min_py // self.CHUNK_SIZE), int(max_py // self.CHUNK_SIZE)
+
+    for cx in range(min_cx, max_cx + 1):
+      for cy in range(min_cy, max_cy + 1):
+        chunk_finish.append((cx, cy))
+
+    # Get all unique chunks
+    active_chunk_keys = (
+      set(chunk_segments.keys()) | set(chunk_sectors.keys()) | set(chunk_finish)
+    )
+    num_chunks = len(active_chunk_keys)
+
+    self.chunks: dict[tuple, pr.RenderTexture] = {}
     for idx, (cx, cy) in enumerate(active_chunk_keys):
       pr.begin_drawing()
       pr.clear_background(pr.BLACK)
       pr.draw_text(
-        f"Generating Track... {idx} / {total_chunks} chunks", 10, 10, 20, pr.WHITE
+        f"Generating chunks... {idx} / {num_chunks} chunks", 10, 10, 20, pr.WHITE
       )
       pr.end_drawing()
       chunk_tex = pr.load_render_texture(self.CHUNK_SIZE, self.CHUNK_SIZE)
@@ -313,8 +351,8 @@ class Track:
 
       render_offset = pr.Vector2(-cx * self.CHUNK_SIZE, -cy * self.CHUNK_SIZE)
 
-      # Draw pavement and boundary lines
-      for i in range(num_pts):
+      # Draw pavement and boundary lines ONLY for segments in this chunk
+      for i in chunk_segments.get((cx, cy), []):
         j = (i + 1) % num_pts
 
         a = pr.vector2_add(
@@ -330,15 +368,16 @@ class Track:
           pr.vector2_scale(self.right_bound_pts[i], self.cons.PPM), render_offset
         )
 
-        # Pavement
+        # Pavement (Will work perfectly if uncommented now)
         pr.draw_triangle(a, b, c, pr.DARKGRAY)
         pr.draw_triangle(a, c, d, pr.DARKGRAY)
+
         # Boundaries
         pr.draw_line_ex(a, b, line_thickness, pr.WHITE)
         pr.draw_line_ex(d, c, line_thickness, pr.WHITE)
 
-      # Sectors
-      for sector_line in self.sector_lines:
+      # Draw Sectors ONLY if they fall in this chunk
+      for sector_line in chunk_sectors.get((cx, cy), []):
         pr.draw_line_ex(
           pr.vector2_add(
             pr.vector2_scale(sector_line[0], self.cons.PPM), render_offset
@@ -350,17 +389,18 @@ class Track:
           pr.WHITE,
         )
 
-      # Finish line
-      pr.draw_line_ex(
-        pr.vector2_add(
-          pr.vector2_scale(self.finish_line[0], self.cons.PPM), render_offset
-        ),
-        pr.vector2_add(
-          pr.vector2_scale(self.finish_line[1], self.cons.PPM), render_offset
-        ),
-        line_thickness,
-        pr.RED,
-      )
+      # Draw Finish line ONLY if it falls in this chunk
+      if (cx, cy) in chunk_finish:
+        pr.draw_line_ex(
+          pr.vector2_add(
+            pr.vector2_scale(self.finish_line[0], self.cons.PPM), render_offset
+          ),
+          pr.vector2_add(
+            pr.vector2_scale(self.finish_line[1], self.cons.PPM), render_offset
+          ),
+          line_thickness,
+          pr.RED,
+        )
 
       pr.end_texture_mode()
       self.chunks[(cx, cy)] = chunk_tex
