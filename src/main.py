@@ -17,7 +17,7 @@ def main():
 
   pr.init_window(screen_width, screen_height, "Top Down Hotlap")
 
-  # pr.set_target_fps(144)
+  pr.set_target_fps(144)
 
   cons = Constants()
   ctrls = Control(screen_width, screen_height)
@@ -90,7 +90,7 @@ def main():
 
     if pr.is_key_pressed(pr.KEY_R):
       world_coords = pr.vector2_scale(
-        pr.get_screen_to_world_2d(pr.get_mouse_position(), renderer.camera), 1 / 30
+        pr.get_screen_to_world_2d(pr.get_mouse_position(), renderer.camera), 1 / cons.PPM
       )
       print(world_coords.x, world_coords.y)
 

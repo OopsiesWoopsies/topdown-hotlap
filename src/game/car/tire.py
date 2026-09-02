@@ -286,9 +286,9 @@ class Tire:
     )
 
   def stop_forces(self):
-    self.velo = (0, 0)
-    self.slip_angle = 0
-    self.slip_ratio = 0
+    self.velo = (0.0, 0.0)
+    self.slip_angle = 0.0
+    self.slip_ratio = 0.0
 
   def draw(
     self,

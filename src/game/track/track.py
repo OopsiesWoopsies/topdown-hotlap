@@ -5,6 +5,47 @@ import pyray as pr
 from game.car.tire import Tire
 from game.constants import Constants
 
+# Comments are based off of starting position (0, 0) and a starting rotation of 180 deg
+tracks = [
+  {
+    "finish": 8,
+    "track": (
+      # Bottom straight (going right)
+      (0, 90),
+      (0, 70),
+      (0, 55),
+      (0, 45),
+      (0, 30),
+      (0, 10),
+      # Main straight (going up)
+      (-10, 0),
+      (-30, 0),
+      (-45, 0),  # finish line
+      (-55, 0),
+      (-70, 0),
+      (-90, 0),
+      # Top straight (going Left)
+      (-100, 10),
+      (-100, 30),
+      (-100, 45),
+      (-100, 55),
+      (-100, 70),
+      (-100, 90),
+      # Left straight (going down)
+      (-90, 100),
+      (-70, 100),
+      (-55, 100),
+      (-45, 100),
+      (-30, 100),
+      (-10, 100),
+    ),
+  },
+  {
+    "finish": 4,
+    "track": (),
+  },
+]
+
 
 def catmull_rom(
   p0: tuple[float, float],
@@ -122,36 +163,19 @@ class Track:
     self.render_position = (0, 0)
 
     # Track points
-    self.center_line_pts = [
-      # Right straight (going down)
-      (0, 90),
-      (0, 70),
-      (0, 55),
-      (0, 45),
-      (0, 30),
-      (0, 10),
-      # Bottom straight (going left)
-      (-10, 0),
-      (-30, 0),
-      (-45, 0),
-      (-55, 0),
-      (-70, 0),
-      (-90, 0),
-      # Left straight (going up)
-      (-100, 10),
-      (-100, 30),
-      (-100, 45),
-      (-100, 55),
-      (-100, 70),
-      (-100, 90),
-      # Top straight (going right)
-      (-90, 100),
-      (-70, 100),
-      (-55, 100),
-      (-45, 100),
-      (-30, 100),
-      (-10, 100),
-    ]  # Dictates the main path of the track
+    self.track_selection = 0
+    # Dictates the main path of the track
+    self.center_line_pts = tracks[self.track_selection]["track"]
+
+    self.finish_index = tracks[self.track_selection]["finish"]
+    self.sector_indexes = []
+    self.sector_lines = []
+
+    self.mpp = 0.25  # meters per point (approx)
+    self.center_pts = []
+    self.left_bound_pts = []
+    self.right_bound_pts = []
+    self.normal_segments = []
 
     self.render_texture = None
     self.create_track()
@@ -159,8 +183,10 @@ class Track:
   def create_track(self):
     line_thickness = 0.1 * self.cons.PPM  # pixels
     num_pts = len(self.center_line_pts)
-    sector_index = num_pts / 3
-    self.finish_index = 1
+    sector_index = num_pts // 3
+    self.center_line_pts = tracks[self.track_selection]["track"]
+
+    self.finish_index = tracks[self.track_selection]["finish"]
     self.sector_indexes = []
     self.sector_lines = []
 
@@ -168,7 +194,6 @@ class Track:
       self.sector_indexes.append(int((sector_index * i + self.finish_index) % num_pts))
 
     # Track precision points that help smoothen the track out (the following arrays includes precision points)
-    self.mpp = 0.25  # meters per point (approx)
     self.center_pts = []
     self.left_bound_pts = []
     self.right_bound_pts = []
@@ -304,12 +329,6 @@ class Track:
     print(len(self.center_pts))
 
     # Convert all Vector2s to tuples
-    self.left_bound_pts: list[tuple[float, float]] = [
-      (pt.x, pt.y) for pt in self.left_bound_pts
-    ]
-    self.right_bound_pts: list[tuple[float, float]] = [
-      (pt.x, pt.y) for pt in self.right_bound_pts
-    ]
     self.sector_lines: list[tuple[tuple[float, float], tuple[float, float]]] = [
       ((pt[0].x, pt[0].y), (pt[1].x, pt[1].y)) for pt in self.sector_lines
     ]
