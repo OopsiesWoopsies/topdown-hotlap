@@ -475,27 +475,27 @@ class Car:
     )
     self.engine.update_shift(is_slipping, inputs, auto_shift=False)
 
-    DEBUG_VALS["Throt"] = f"{throttle:>4.3f}"
-    DEBUG_VALS["Brake"] = f"{brake:>4.3f}"
-    DEBUG_VALS["Accel"] = [f"{accel_x:>12.3f}", f"{accel_y:>12.3f}"]
-    DEBUG_VALS["LAccel"] = [
-      f"{self.local_accel[0]:>12.3f}",
-      f"{self.local_accel[1]:>12.3f}",
-    ]
-    DEBUG_VALS["Velo"] = [f"{velo_x:>12.3f}", f"{velo_y:>12.3f}"]
-    DEBUG_VALS["LVelo"] = [f"{local_velo_x:>12.3f}", f"{local_velo_y:>12.3f}"]
-    DEBUG_VALS["Speed"] = f"{self.speed:>12.3f}"
-    DEBUG_VALS["DragF"] = [f"{drag_f_x:>12.3f}", f"{drag_f_y:>12.3f}"]
-    DEBUG_VALS["DriveT"] = (
-      f"{self.rear_axle.left_tire.drive_t + self.rear_axle.right_tire.drive_t:>13.3f}"
-    )
-    DEBUG_VALS["BrakeT"] = f"{brake_t:>13.3f}"
-    DEBUG_VALS["EngRPM"] = f"{self.engine.rpm:>12.3f}"
-    DEBUG_VALS["Gear"] = f"{self.engine.gear - 1:>1}"
-    DEBUG_VALS["Steer"] = f"{steer:>12.3f}"
-    DEBUG_VALS["YawRate"] = f"{math.degrees(self.yaw_rate):>12.3f}"
-    DEBUG_VALS["YawAccel"] = f"{yaw_accel:>12.3f}"
-    DEBUG_VALS["Iner"] = f"{self.inertia:>12.3f}"
+    # DEBUG_VALS["Throt"] = f"{throttle:>4.3f}"
+    # DEBUG_VALS["Brake"] = f"{brake:>4.3f}"
+    # DEBUG_VALS["Accel"] = [f"{accel_x:>12.3f}", f"{accel_y:>12.3f}"]
+    # DEBUG_VALS["LAccel"] = [
+    #   f"{self.local_accel[0]:>12.3f}",
+    #   f"{self.local_accel[1]:>12.3f}",
+    # ]
+    # DEBUG_VALS["Velo"] = [f"{velo_x:>12.3f}", f"{velo_y:>12.3f}"]
+    # DEBUG_VALS["LVelo"] = [f"{local_velo_x:>12.3f}", f"{local_velo_y:>12.3f}"]
+    # DEBUG_VALS["Speed"] = f"{self.speed:>12.3f}"
+    # DEBUG_VALS["DragF"] = [f"{drag_f_x:>12.3f}", f"{drag_f_y:>12.3f}"]
+    # DEBUG_VALS["DriveT"] = (
+    #   f"{self.rear_axle.left_tire.drive_t + self.rear_axle.right_tire.drive_t:>13.3f}"
+    # )
+    # DEBUG_VALS["BrakeT"] = f"{brake_t:>13.3f}"
+    # DEBUG_VALS["EngRPM"] = f"{self.engine.rpm:>12.3f}"
+    # DEBUG_VALS["Gear"] = f"{self.engine.gear - 1:>1}"
+    # DEBUG_VALS["Steer"] = f"{steer:>12.3f}"
+    # DEBUG_VALS["YawRate"] = f"{math.degrees(self.yaw_rate):>12.3f}"
+    # DEBUG_VALS["YawAccel"] = f"{yaw_accel:>12.3f}"
+    # DEBUG_VALS["Iner"] = f"{self.inertia:>12.3f}"
 
     return curr_sector
 
@@ -518,38 +518,6 @@ class Car:
     # Update axle positions
     self.front_axle.update_position(self.pos, forward, right, self.angle_rad, steer_rad)
     self.rear_axle.update_position(self.pos, forward, right, self.angle_rad, 0)
-
-  def calculate_render_state(self, alpha: float):
-    interp_pos_x = self.prev_pos[0] + (self.pos[0] - self.prev_pos[0]) * alpha
-    interp_pos_y = self.prev_pos[1] + (self.pos[1] - self.prev_pos[1]) * alpha
-    self.render_angle_rad = (
-      self.prev_angle_rad + (self.angle_rad - self.prev_angle_rad) * alpha
-    )
-    self.interp_pos = (interp_pos_x, interp_pos_y)
-    self.render_pos = (
-      interp_pos_x * self.cons.PPM,
-      interp_pos_y * self.cons.PPM,
-    )
-
-  def draw_car(self, car_texture: pr.Texture2D):
-    angle_deg = math.degrees(self.render_angle_rad)
-    forward = (math.cos(self.render_angle_rad), math.sin(self.render_angle_rad))
-    right = (-math.sin(self.render_angle_rad), math.cos(self.render_angle_rad))
-    size_draw = (self.size[0] * self.cons.PPM, self.size[1] * self.cons.PPM)
-    cg_x, cg_y = self.cg
-    cg_draw = (
-      (size_draw[0] / 2) + (cg_x * self.cons.PPM),
-      (size_draw[1] / 2) + (cg_y * self.cons.PPM),
-    )
-
-    src_rec = pr.Rectangle(0.0, 0.0, car_texture.width, car_texture.height)
-    dest_rec = pr.Rectangle(
-      self.render_pos[0], self.render_pos[1], size_draw[0], size_draw[1]
-    )
-    pr.draw_texture_pro(car_texture, src_rec, dest_rec, cg_draw, angle_deg, pr.WHITE)
-
-    self.front_axle.draw(forward, right, self.interp_pos, angle_deg, self.steer_angle)
-    self.rear_axle.draw(forward, right, self.interp_pos, angle_deg, 0)
 
   def draw_data(self, screen_width: int, screen_height: int):
     """Show information such as the current gear, rpm, speed, and whether or not the tires are currently slipping.

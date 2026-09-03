@@ -43,7 +43,7 @@ def main():
         pr.set_window_size(screen_width, screen_height)
         pr.toggle_fullscreen()
         scale = screen_height / old_screen_height
-        renderer.update_screen(world.car, screen_width, screen_height, scale)
+        renderer.update_screen(screen_width, screen_height, scale)
       else:
         old_screen_height = screen_height
         screen_width = DEFAULT_SCREEN_WIDTH
@@ -52,7 +52,7 @@ def main():
         pr.toggle_fullscreen()
         pr.set_window_size(screen_width, screen_height)
         scale = screen_height / old_screen_height
-        renderer.update_screen(world.car, screen_width, screen_height, scale)
+        renderer.update_screen(screen_width, screen_height, scale)
 
     # Static delta time
     frame_time = min(pr.get_frame_time(), 0.25)
@@ -67,13 +67,13 @@ def main():
     alpha = accumulator / fixed_dt
 
     # Determine camera stats
-    world.car.calculate_render_state(alpha)
+    renderer.render_car.calculate_render_state(alpha)
     offset_distance = world.car.speed * 0.9
-    render_angle = world.car.render_angle_rad
-    render_pos = world.car.render_pos
+    render_angle = renderer.render_car.render_angle_rad
+    render_pos = renderer.render_car.render_car_pos
     offset_x = math.cos(render_angle) * offset_distance
     offset_y = math.sin(render_angle) * offset_distance
-    angle_deg = math.degrees(world.car.render_angle_rad) + 90
+    angle_deg = math.degrees(renderer.render_car.render_angle_rad) + 90
 
     renderer.camera.rotation = -angle_deg
     if pr.is_key_down(pr.KEY_C):
@@ -105,7 +105,7 @@ def main():
 
     # Drawing in world
     renderer.begin_world()
-    renderer.draw_world(world)
+    renderer.draw_world()
     # draw_grid()
     renderer.end_world()
 

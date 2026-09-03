@@ -1,7 +1,5 @@
 import math
 
-import pyray as pr
-
 from game.car.tire import Tire
 from game.constants import Constants
 
@@ -21,7 +19,7 @@ class Axle:
     config: dict[str, any],
   ):
     self.cons = cons
-    
+
     self.local_pos = local_pos
     self.prev_local_pos = local_pos
     self.distance_to_cg = distance_to_cg
@@ -111,32 +109,3 @@ class Axle:
     self.left_tire.update_outer_corners(-1, angle_rad, steer_rad)
     self.right_tire.update_position(1, self.local_pos, right, self.half_track_width)
     self.right_tire.update_outer_corners(1, angle_rad, steer_rad)
-
-  def draw(
-    self,
-    forward: tuple[float, float],
-    right: tuple[float, float],
-    car_interp_pos: tuple[float, float],
-    angle_deg: float,
-    steer_deg: float,
-  ):
-    render_pos = (
-      car_interp_pos[0] + forward[0] * self.distance_to_cg,
-      car_interp_pos[1] + forward[1] * self.distance_to_cg,
-    )
-
-    pos_draw = (render_pos[0] * self.cons.PPM, render_pos[1] * self.cons.PPM)
-    axle_width_draw = self.axle_width * self.cons.PPM
-    track_width_draw = self.track_width * self.cons.PPM
-
-    rec = pr.Rectangle(pos_draw[0], pos_draw[1], axle_width_draw, track_width_draw)
-    origin = (axle_width_draw / 2, track_width_draw / 2)
-
-    pr.draw_rectangle_pro(rec, origin, angle_deg, pr.BLACK)
-
-    self.left_tire.draw(
-      -1, render_pos, right, angle_deg, steer_deg, self.half_track_width
-    )
-    self.right_tire.draw(
-      1, render_pos, right, angle_deg, steer_deg, self.half_track_width
-    )

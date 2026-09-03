@@ -3,8 +3,9 @@ from os.path import join
 import pyray as pr
 
 from game.constants import Constants
-from game.world import Car, PhysicsTrack, World
+from game.world import PhysicsTrack, World
 from input.control import Control
+from render.render_car import RenderCar
 from render.render_controls import RenderControls
 from render.render_track import RenderTrack
 
@@ -30,8 +31,10 @@ class Renderer:
       int(car.size[0] * cons.PPM),
       int(car.size[1] * cons.PPM),
     )
-    self.car_texture = pr.load_texture_from_image(car_image)
+    car_texture = pr.load_texture_from_image(car_image)
     pr.unload_image(car_image)
+
+    self.render_car = RenderCar(cons, car_texture, car)
 
     # Track
     self.render_track = RenderTrack()
@@ -40,25 +43,10 @@ class Renderer:
     # Controls
     self.render_ctrls = RenderControls(screen_width, screen_height)
 
-  def update_screen(
-    self, car: Car, screen_width: int, screen_height: int, scale: float
-  ):
-    self.update_textures(car)
+  def update_screen(self, screen_width: int, screen_height: int, scale: float):
     self.camera.offset = (screen_width / 2, screen_height * 0.7)
     self.base_cam_zoom = self.base_cam_zoom * scale
     self.render_ctrls.update_draw_positions(screen_width, screen_height)
-
-  def update_textures(self, car: Car):
-    car_image = pr.load_image(self.car_path)
-    pr.image_rotate(car_image, 90)
-    pr.image_resize_nn(
-      car_image,
-      int(car.size[0] * self.cons.PPM),
-      int(car.size[1] * self.cons.PPM),
-    )
-
-    self.car_texture = pr.load_texture_from_image(car_image)
-    pr.unload_image(car_image)
 
   def begin_world(self):
     pr.begin_mode_2d(self.camera)
@@ -76,9 +64,9 @@ class Renderer:
       track.finish_line,
     )
 
-  def draw_world(self, world: World):
+  def draw_world(self):
     self.render_track.draw(self.camera)
-    world.car.draw_car(self.car_texture)
+    self.render_car.draw_car()
 
   def draw_screen(
     self, ctrls: Control, world: World, screen_width: int, screen_height: int
@@ -89,4 +77,4 @@ class Renderer:
 
   def close(self):
     self.render_track.close()
-    pr.unload_texture(self.car_texture)
+    self.render_car.close()
