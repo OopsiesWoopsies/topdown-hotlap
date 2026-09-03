@@ -1,3 +1,5 @@
 raylib
 raylib-py
-numpy
+numpy==2.4.1
+scipy==1.17.1
+sounddevice
