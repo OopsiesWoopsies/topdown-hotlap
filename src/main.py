@@ -22,7 +22,7 @@ def main():
   cons = Constants()
   ctrls = Control(screen_width, screen_height)
   world = World(cons, ctrls)
-  renderer = Renderer(screen_width, screen_height, world.car, cons)
+  renderer = Renderer(cons, world, screen_width, screen_height)
 
   fixed_dt = 1.0 / 360.0
   accumulator = 0.0
@@ -125,8 +125,6 @@ def main():
     pr.draw_fps(screen_width - 100, 0)
     pr.end_drawing()
 
-  for chunk_tex in world.track.chunks.values():
-    pr.unload_render_texture(chunk_tex)
   world.close()
   renderer.close()
   pr.close_window()
