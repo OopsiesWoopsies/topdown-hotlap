@@ -17,12 +17,12 @@ def main():
 
   pr.init_window(screen_width, screen_height, "Top Down Hotlap")
 
-  # pr.set_target_fps(144)
+  pr.set_target_fps(144)
 
   cons = Constants()
   ctrls = Control(screen_width, screen_height)
   world = World(cons, ctrls)
-  renderer = Renderer(screen_width, screen_height, world.car, cons)
+  renderer = Renderer(cons, world, screen_width, screen_height)
 
   fixed_dt = 1.0 / 360.0
   accumulator = 0.0
@@ -72,13 +72,13 @@ def main():
 
     renderer.camera.rotation = -angle_deg
     if pr.is_key_down(pr.KEY_C):
-      target_zoom = 0.3
+      target_zoom = renderer.base_cam_zoom * 0.35
     elif pr.is_key_down(pr.KEY_SPACE):
-      target_zoom = 0.08
+      target_zoom = renderer.base_cam_zoom * 0.1
     elif pr.is_key_down(pr.KEY_V):
-      target_zoom = 2.5
+      target_zoom = renderer.base_cam_zoom * 4
     else:
-      target_zoom = max(1.0 - (world.car.speed * 0.0099), 0.5)
+      target_zoom = max(renderer.base_cam_zoom - (renderer.base_cam_zoom * world.car.speed * 0.0099), 0.2 * renderer.base_cam_zoom)
     renderer.camera.zoom = (
       renderer.camera.zoom + (target_zoom - renderer.camera.zoom) * frame_time * 5
     )
@@ -90,7 +90,8 @@ def main():
 
     if pr.is_key_pressed(pr.KEY_R):
       world_coords = pr.vector2_scale(
-        pr.get_screen_to_world_2d(pr.get_mouse_position(), renderer.camera), 1 / 30
+        pr.get_screen_to_world_2d(pr.get_mouse_position(), renderer.camera),
+        1 / cons.PPM,
       )
       print(world_coords.x, world_coords.y)
 
@@ -136,12 +137,11 @@ def update_screen(
   renderer: Renderer,
   new_screen_width: int,
   new_screen_height: int,
-  scale,
+  scale: float,
 ):
-  cons.update_PPM(round(scale * cons.PPM))
-  world.track.create_track()
   renderer.update_textures(world.car, cons)
   renderer.camera.offset = pr.Vector2(new_screen_width / 2, new_screen_height * 0.7)
+  renderer.base_cam_zoom = renderer.base_cam_zoom * scale
   ctrls.update_draw_positions(new_screen_width, new_screen_height)
 
 

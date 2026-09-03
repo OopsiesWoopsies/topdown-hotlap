@@ -3,7 +3,76 @@ import math
 import pyray as pr
 
 from game.car.tire import Tire
-from game.constants import Constants
+
+# Comments are based off of starting position (0, 0) and a starting rotation of 180 deg
+# Make sure points are >= 10m apart to avoid boundary loops if turning and points don't create a jagged inner corner
+# Add more points in between if jagged to smoothen it out
+tracks = [
+  {
+    "finish": 8,
+    "track": (
+      # Bottom straight (going right)
+      (0, 90),
+      (0, 70),
+      (0, 55),
+      (0, 45),
+      (0, 30),
+      (0, 10),
+      # Main straight (going up)
+      (-10, 0),
+      (-30, 0),
+      (-45, 0),  # finish line
+      (-55, 0),
+      (-70, 0),
+      (-90, 0),
+      # Top straight (going Left)
+      (-100, 10),
+      (-100, 30),
+      (-100, 45),
+      (-100, 55),
+      (-100, 70),
+      (-100, 90),
+      # Left straight (going down)
+      (-90, 100),
+      (-70, 100),
+      (-55, 100),
+      (-45, 100),
+      (-30, 100),
+      (-10, 100),
+    ),
+  },
+  {
+    "finish": 3,
+    "track": (
+      # Main straight (up)
+      (750, 0),
+      (720, 0),
+      (680, 0),
+      (0, 0),  # Finish line
+      (-680, 0),
+      (-720, 0),
+      (-750, 0),
+      # Top hairpin (up -> left -> down)
+      (-775, 5),
+      (-790, 15),
+      (-790, 30),
+      (-775, 40),
+      # Straight 2 (down)
+      (-750, 30),
+      (-720, 30),
+      (-680, 30),
+      (0, 30),
+      (680, 30),
+      (720, 30),
+      (750, 30),
+      # Bottom hairpin (down -> right -> up)
+      (775, 25),
+      (790, 15),
+      (790, 0),
+      (775, -10),
+    ),
+  },
+]
 
 
 def catmull_rom(
@@ -106,9 +175,8 @@ def segments_intersect(
   return ccw(p1, p3, p4) != ccw(p2, p3, p4) and ccw(p1, p2, p3) != ccw(p1, p2, p4)
 
 
-class Track:
-  def __init__(self, cons: Constants):
-    self.cons = cons
+class PhysicsTrack:
+  def __init__(self):
     # Track size
     self.width = 17  # m
     self.half_width = self.width / 2.0  # m
@@ -118,60 +186,43 @@ class Track:
     self.start_lap = False
 
     # Render Track Vars
-    self.render_offset = (0, 0)
     self.render_position = (0, 0)
 
     # Track points
-    self.center_line_pts = [
-      # Right straight (going down)
-      (0, 90),
-      (0, 70),
-      (0, 55),
-      (0, 45),
-      (0, 30),
-      (0, 10),
-      # Bottom straight (going left)
-      (-10, 0),
-      (-30, 0),
-      (-45, 0),
-      (-55, 0),
-      (-70, 0),
-      (-90, 0),
-      # Left straight (going up)
-      (-100, 10),
-      (-100, 30),
-      (-100, 45),
-      (-100, 55),
-      (-100, 70),
-      (-100, 90),
-      # Top straight (going right)
-      (-90, 100),
-      (-70, 100),
-      (-55, 100),
-      (-45, 100),
-      (-30, 100),
-      (-10, 100),
+    self.track_selection = 1
+    self.center_line_pts = tracks[self.track_selection][
+      "track"
     ]  # Dictates the main path of the track
+
+    self.finish_index = tracks[self.track_selection]["finish"]
+    self.finish_line = self.get_timing_line(self.finish_index)
+    self.sector_indexes = []
+    self.sector_lines = []
+
+    self.mpp = 0.25  # meters per point (approx)
+    self.center_pts: list[tuple[float, float]] = []
+    self.left_bound_pts: list[pr.Vector2] = []
+    self.right_bound_pts: list[pr.Vector2] = []
+    self.normal_segments = []
 
     self.render_texture = None
     self.create_track()
 
   def create_track(self):
-    line_thickness = 0.1 * self.cons.PPM  # pixels
+    self.center_line_pts = tracks[self.track_selection]["track"]
     num_pts = len(self.center_line_pts)
-    sector_index = num_pts / 3
-    self.finish_index = 1
-    self.sector_indexes = []
+    sector_index = num_pts // 3
+
+    self.finish_index = tracks[self.track_selection]["finish"]
+    self.sector_indexes = [
+      int((sector_index * i + self.finish_index) % num_pts) for i in range(1, 3)
+    ]
     self.sector_lines = []
 
-    for i in range(1, 3):
-      self.sector_indexes.append(int((sector_index * i + self.finish_index) % num_pts))
-
     # Track precision points that help smoothen the track out (the following arrays includes precision points)
-    self.mpp = 0.25  # meters per point (approx)
     self.center_pts = []
-    self.left_bound_pts = []
-    self.right_bound_pts = []
+    self.left_bound_pts: list[pr.Vector2] = []
+    self.right_bound_pts: list[pr.Vector2] = []
     self.normal_segments = []
 
     for i in range(num_pts):  # Adds precision to center line
@@ -183,8 +234,11 @@ class Track:
       cen_p1_x, cen_p1_y = cen_p1
       cen_p2_x, cen_p2_y = cen_p2
 
-      precision = round(
-        ((cen_p2_x - cen_p1_x) ** 2 + (cen_p2_y - cen_p1_y) ** 2) ** 0.5 / self.mpp
+      precision = max(
+        1,
+        round(
+          ((cen_p2_x - cen_p1_x) ** 2 + (cen_p2_y - cen_p1_y) ** 2) ** 0.5 / self.mpp
+        ),
       )
 
       for n in range(precision):
@@ -193,8 +247,6 @@ class Track:
         )
 
     num_pts = len(self.center_pts)
-    min_x = min_y = float("inf")
-    max_x = max_y = float("-inf")
     for i in range(num_pts):  # Adds left and right boundary points
       j = (i + 1) % num_pts
       a = self.center_pts[i]
@@ -214,112 +266,19 @@ class Track:
       self.right_bound_pts.append(
         pr.vector2_subtract(cen_pt, pr.vector2_scale(normal, self.half_width))
       )
-      # Calculate points for texture coordinates
-      min_x = min(min_x, self.left_bound_pts[i].x, self.right_bound_pts[i].x)
-      max_x = max(max_x, self.left_bound_pts[i].x, self.right_bound_pts[i].x)
-      min_y = min(min_y, self.left_bound_pts[i].y, self.right_bound_pts[i].y)
-      max_y = max(max_y, self.left_bound_pts[i].y, self.right_bound_pts[i].y)
 
-    min_x *= self.cons.PPM
-    max_x *= self.cons.PPM
-    min_y *= self.cons.PPM
-    max_y *= self.cons.PPM
-
-    padding = 10  # pixels
-    self.render_offset = (
-      -min_x + padding,
-      -min_y + padding,
-    )
-    self.render_position = (
-      min_x - padding,
-      min_y - padding,
-    )
-    texture_width = int(max_x - min_x + padding * 2)
-    texture_height = int(max_y - min_y + padding * 2)
-
-    self.render_texture = pr.load_render_texture(texture_width, texture_height)
-
-    pr.begin_texture_mode(self.render_texture)
-    num_pts = len(self.center_pts)
-    for i in range(len(self.left_bound_pts)):
-      j = (i + 1) % len(self.left_bound_pts)
-
-      a = self.add_v2_render_offset(
-        pr.vector2_scale(self.left_bound_pts[i], self.cons.PPM)
-      )
-      b = self.add_v2_render_offset(
-        pr.vector2_scale(self.left_bound_pts[j], self.cons.PPM)
-      )
-      c = self.add_v2_render_offset(
-        pr.vector2_scale(self.right_bound_pts[j], self.cons.PPM)
-      )
-      d = self.add_v2_render_offset(
-        pr.vector2_scale(self.right_bound_pts[i], self.cons.PPM)
-      )
-
-      pr.draw_triangle(a, b, c, pr.DARKGRAY)
-      pr.draw_triangle(a, c, d, pr.DARKGRAY)
-
-    for i in range(num_pts):
-      left_pt_1 = self.add_v2_render_offset(
-        pr.vector2_scale(self.left_bound_pts[i], self.cons.PPM)
-      )
-      left_pt_2 = self.add_v2_render_offset(
-        pr.vector2_scale(self.left_bound_pts[(i + 1) % num_pts], self.cons.PPM)
-      )
-      right_pt_1 = self.add_v2_render_offset(
-        pr.vector2_scale(self.right_bound_pts[i], self.cons.PPM)
-      )
-      right_pt_2 = self.add_v2_render_offset(
-        pr.vector2_scale(self.right_bound_pts[(i + 1) % num_pts], self.cons.PPM)
-      )
-
-      pr.draw_line_ex(left_pt_1, left_pt_2, line_thickness, pr.WHITE)
-      pr.draw_line_ex(right_pt_1, right_pt_2, line_thickness, pr.WHITE)
-
-    # Sectors
-    for i in self.sector_indexes:
-      self.sector_lines.append(self.get_timing_line(i))
-      pr.draw_line_ex(
-        self.add_v2_render_offset(
-          pr.vector2_scale(self.sector_lines[-1][0], self.cons.PPM)
-        ),
-        self.add_v2_render_offset(
-          pr.vector2_scale(self.sector_lines[-1][1], self.cons.PPM)
-        ),
-        line_thickness,
-        pr.WHITE,
-      )
-
-    # Finish line
+    # Sector lines and Finish line
+    self.sector_lines = [self.get_timing_line(i) for i in self.sector_indexes]
     self.finish_line = self.get_timing_line(self.finish_index)
-    pr.draw_line_ex(
-      self.add_v2_render_offset(pr.vector2_scale(self.finish_line[0], self.cons.PPM)),
-      self.add_v2_render_offset(pr.vector2_scale(self.finish_line[1], self.cons.PPM)),
-      line_thickness,
-      pr.RED,
-    )
 
-    pr.end_texture_mode()
-    print(len(self.center_pts))
-
-    # Convert all Vector2s to tuples
-    self.left_bound_pts: list[tuple[float, float]] = [
-      (pt.x, pt.y) for pt in self.left_bound_pts
+    # Convert Vector2s to tuples
+    self.sector_lines = [
+      ((pt1.x, pt1.y), (pt2.x, pt2.y)) for pt1, pt2 in self.sector_lines
     ]
-    self.right_bound_pts: list[tuple[float, float]] = [
-      (pt.x, pt.y) for pt in self.right_bound_pts
-    ]
-    self.sector_lines: list[tuple[tuple[float, float], tuple[float, float]]] = [
-      ((pt[0].x, pt[0].y), (pt[1].x, pt[1].y)) for pt in self.sector_lines
-    ]
-    self.finish_line: tuple[tuple[float, float], tuple[float, float]] = (
+    self.finish_line = (
       (self.finish_line[0].x, self.finish_line[0].y),
       (self.finish_line[1].x, self.finish_line[1].y),
     )
-
-  def add_v2_render_offset(self, position: pr.Vector2) -> pr.Vector2:
-    return pr.vector2_add(position, self.render_offset)
 
   def get_timing_line(self, index: int) -> tuple[pr.Vector2, pr.Vector2]:
     num_pts = len(self.center_line_pts)
@@ -408,7 +367,7 @@ class Track:
       tire: A tire.
 
     Returns:
-      tuple: True if tire is on track and the track index respectively
+      bool: True if tire is on track and the track index respectively
     """
     margin = 2
     index_offset = math.ceil(car_speed / self.mpp * dt) + margin
@@ -428,17 +387,3 @@ class Track:
   def stop_lap(self):
     self.start_lap = False
     self.curr_sector = 1
-
-  def draw(self):
-    src_rec = pr.Rectangle(
-      0,
-      0,
-      float(self.render_texture.texture.width),
-      -float(self.render_texture.texture.height),
-    )
-    pr.draw_texture_rec(
-      self.render_texture.texture,
-      src_rec,
-      self.render_position,
-      pr.WHITE,
-    )

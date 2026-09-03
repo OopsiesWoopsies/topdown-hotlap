@@ -4,8 +4,8 @@ import sounddevice as sd
 from game.car.car_body import Car
 from game.car.engine.sounds import EngineAudSynthesizer
 from game.constants import Constants
+from game.track.physics_track import PhysicsTrack
 from game.track.timer import Timer
-from game.track.track import Track
 from input.control import Control
 
 
@@ -13,7 +13,7 @@ class World:
   def __init__(self, cons: Constants, ctrls: Control):
     self.controls = ctrls
     self.car = Car(cons, pos=(0.0, 0.0), angle_deg=180, size=(5.6, 2.0))
-    self.track = Track(cons)
+    self.track = PhysicsTrack()
     self.timer = Timer()
 
     self.throttle = 0.0

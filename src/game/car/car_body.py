@@ -5,7 +5,7 @@ import pyray as pr
 from game.car.axle import Axle
 from game.car.engine.engine import Engine
 from game.constants import Constants
-from game.track.track import Track
+from game.track.physics_track import PhysicsTrack
 
 _GRAVITY = -9.81  # m/s^2
 
@@ -211,7 +211,7 @@ class Car:
     self.off_track = False
 
   def update(
-    self, track: Track, dt: float, inputs: dict[str, float | bool], steer: float
+    self, track: PhysicsTrack, dt: float, inputs: dict[str, float | bool], steer: float
   ) -> int:
     self.off_track = False
     self.prev_angle_rad = self.angle_rad
@@ -219,7 +219,7 @@ class Car:
     return curr_sector
 
   def update_physics(
-    self, track: Track, dt: float, inputs: dict[str, float | bool], steer: float
+    self, track: PhysicsTrack, dt: float, inputs: dict[str, float | bool], steer: float
   ) -> int:
     throttle = inputs["throttle"]
     brake = inputs["brake"]
