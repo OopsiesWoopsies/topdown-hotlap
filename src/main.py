@@ -2,6 +2,7 @@ import math
 
 import pyray as pr
 
+from audio.engine import play_eng_sound
 from game.constants import Constants
 from game.world import World
 from input.control import Control
@@ -23,6 +24,8 @@ def main():
   ctrls = Control(screen_width, screen_height)
   world = World(cons, ctrls)
   renderer = Renderer(cons, world, screen_width, screen_height)
+  eng_audio = play_eng_sound.PlaySound(world.car.engine)
+  eng_audio.start_eng()
 
   fixed_dt = 1.0 / 360.0
   accumulator = 0.0
@@ -56,7 +59,9 @@ def main():
     accumulator += frame_time
 
     while accumulator >= fixed_dt:
+      eng_audio.pre_physics_update(world.car.engine.gear)
       world.update(fixed_dt)
+      eng_audio.post_physics_update(world.car.engine.gear, world.inputs["throttle"])
       accumulator -= fixed_dt
 
     alpha = accumulator / fixed_dt
@@ -78,7 +83,10 @@ def main():
     elif pr.is_key_down(pr.KEY_V):
       target_zoom = renderer.base_cam_zoom * 4
     else:
-      target_zoom = max(renderer.base_cam_zoom - (renderer.base_cam_zoom * world.car.speed * 0.0099), 0.2 * renderer.base_cam_zoom)
+      target_zoom = max(
+        renderer.base_cam_zoom - (renderer.base_cam_zoom * world.car.speed * 0.0099),
+        0.2 * renderer.base_cam_zoom,
+      )
     renderer.camera.zoom = (
       renderer.camera.zoom + (target_zoom - renderer.camera.zoom) * frame_time * 5
     )
@@ -125,7 +133,7 @@ def main():
     pr.draw_fps(screen_width - 100, 0)
     pr.end_drawing()
 
-  world.close()
+  eng_audio.close()
   renderer.close()
   pr.close_window()
 

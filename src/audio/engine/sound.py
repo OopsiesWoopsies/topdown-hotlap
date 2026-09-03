@@ -1,6 +1,10 @@
 import numpy as np
 import sounddevice as sd
+
+print("[SYSTEM] Loading SciPy signal: butter, sosfilt, sosfilt_zi")
 from scipy.signal import butter, sosfilt, sosfilt_zi
+
+print("[SYSTEM] SciPy signal loaded.")
 
 
 class EngineAudSynthesizer:
