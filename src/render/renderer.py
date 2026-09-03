@@ -5,6 +5,7 @@ import pyray as pr
 from game.constants import Constants
 from game.world import Car, PhysicsTrack, World
 from input.control import Control
+from render.render_controls import RenderControls
 from render.render_track import RenderTrack
 
 
@@ -36,16 +37,27 @@ class Renderer:
     self.render_track = RenderTrack()
     self.create_track_chunks(world.track)
 
-  def update_textures(self, car: Car, cons: Constants):
+    # Controls
+    self.render_ctrls = RenderControls(screen_width, screen_height)
+
+  def update_screen(
+    self, car: Car, screen_width: int, screen_height: int, scale: float
+  ):
+    self.update_textures(car)
+    self.camera.offset = (screen_width / 2, screen_height * 0.7)
+    self.base_cam_zoom = self.base_cam_zoom * scale
+    self.render_ctrls.update_draw_positions(screen_width, screen_height)
+
+  def update_textures(self, car: Car):
     car_image = pr.load_image(self.car_path)
     pr.image_rotate(car_image, 90)
     pr.image_resize_nn(
       car_image,
-      int(car.size[0] * cons.PPM),
-      int(car.size[1] * cons.PPM),
+      int(car.size[0] * self.cons.PPM),
+      int(car.size[1] * self.cons.PPM),
     )
 
-    self.car_texture: pr.Texture2D = pr.load_texture_from_image(car_image)
+    self.car_texture = pr.load_texture_from_image(car_image)
     pr.unload_image(car_image)
 
   def begin_world(self):
@@ -72,7 +84,7 @@ class Renderer:
     self, ctrls: Control, world: World, screen_width: int, screen_height: int
   ):
     world.car.draw_data(screen_width, screen_height)
-    ctrls.draw(world.car.steer_angle)
+    self.render_ctrls.draw(world.car.steer_angle, ctrls.get_static_inputs())
     world.timer.draw_timer(10, 10)
 
   def close(self):

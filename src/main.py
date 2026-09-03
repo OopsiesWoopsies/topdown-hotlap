@@ -21,7 +21,7 @@ def main():
   pr.set_target_fps(144)
 
   cons = Constants()
-  ctrls = Control(screen_width, screen_height)
+  ctrls = Control()
   world = World(cons, ctrls)
   renderer = Renderer(cons, world, screen_width, screen_height)
   eng_audio = play_eng_sound.PlaySound(world.car.engine)
@@ -43,7 +43,7 @@ def main():
         pr.set_window_size(screen_width, screen_height)
         pr.toggle_fullscreen()
         scale = screen_height / old_screen_height
-        update_screen(cons, ctrls, world, renderer, screen_width, screen_height, scale)
+        renderer.update_screen(world.car, screen_width, screen_height, scale)
       else:
         old_screen_height = screen_height
         screen_width = DEFAULT_SCREEN_WIDTH
@@ -52,7 +52,7 @@ def main():
         pr.toggle_fullscreen()
         pr.set_window_size(screen_width, screen_height)
         scale = screen_height / old_screen_height
-        update_screen(cons, ctrls, world, renderer, screen_width, screen_height, scale)
+        renderer.update_screen(world.car, screen_width, screen_height, scale)
 
     # Static delta time
     frame_time = min(pr.get_frame_time(), 0.25)
@@ -103,32 +103,15 @@ def main():
       )
       print(world_coords.x, world_coords.y)
 
+    # Drawing in world
     renderer.begin_world()
     renderer.draw_world(world)
-
-    # Grid (temp)
-    # for x in range(-100000, 100000, 100):
-    #   pr.draw_line(x, -100000, x, 100000, pr.BLACK)
-
-    # for y in range(-100000, 100000, 100):
-    #   pr.draw_line(-100000, y, 100000, y, pr.BLACK)
-
+    # draw_grid()
     renderer.end_world()
 
     # Drawing on screen
     renderer.draw_screen(ctrls, world, screen_width, screen_height)
-
-    # debug_vals = world.car.get_debug_vals()
-    # print(debug_vals)
-    # text1 = f"Accel: {debug_vals['Accel']}\nLocal Accel: {debug_vals['LAccel']}\nVelo: {debug_vals['Velo']}\nLocal Velo: {debug_vals['LVelo']}\n"
-    # text2 = f"Speed: {debug_vals['Speed']}\nDragF: {debug_vals['DragF']}\n"
-    # text3 = f"DriveT: {debug_vals['DriveT']}\nBrakeT: {debug_vals['BrakeT']}\n"
-    # text4 = f"FLTire: {debug_vals['FLTire']}\nFRTire: {debug_vals['FRTire']}\nRLTire: {debug_vals['RLTire']}\nRRTire: {debug_vals['RRTire']}\n"
-    # text5 = f"EngRPM: {debug_vals['EngRPM']}\nGear: {debug_vals['Gear']}\n"
-    # text6 = f"YawRate: {debug_vals['YawRate']}\n"
-    # text = text1 + text2 + text3 + text5 + text6
-    # pr.draw_text(text, 5, 90, 20, pr.BLACK)
-    # pr.draw_text(text4, 5, 380, 15, pr.BLACK)
+    # draw_debug(world)
 
     pr.draw_fps(screen_width - 100, 0)
     pr.end_drawing()
@@ -138,19 +121,26 @@ def main():
   pr.close_window()
 
 
-def update_screen(
-  cons: Constants,
-  ctrls: Control,
-  world: World,
-  renderer: Renderer,
-  new_screen_width: int,
-  new_screen_height: int,
-  scale: float,
-):
-  renderer.update_textures(world.car, cons)
-  renderer.camera.offset = pr.Vector2(new_screen_width / 2, new_screen_height * 0.7)
-  renderer.base_cam_zoom = renderer.base_cam_zoom * scale
-  ctrls.update_draw_positions(new_screen_width, new_screen_height)
+def draw_grid():
+  for x in range(-100000, 100000, 100):
+    pr.draw_line(x, -100000, x, 100000, pr.BLACK)
+
+  for y in range(-100000, 100000, 100):
+    pr.draw_line(-100000, y, 100000, y, pr.BLACK)
+
+
+def draw_debug(world: World):
+  debug_vals = world.car.get_debug_vals()
+  print(debug_vals)
+  text1 = f"Accel: {debug_vals['Accel']}\nLocal Accel: {debug_vals['LAccel']}\nVelo: {debug_vals['Velo']}\nLocal Velo: {debug_vals['LVelo']}\n"
+  text2 = f"Speed: {debug_vals['Speed']}\nDragF: {debug_vals['DragF']}\n"
+  text3 = f"DriveT: {debug_vals['DriveT']}\nBrakeT: {debug_vals['BrakeT']}\n"
+  text4 = f"FLTire: {debug_vals['FLTire']}\nFRTire: {debug_vals['FRTire']}\nRLTire: {debug_vals['RLTire']}\nRRTire: {debug_vals['RRTire']}\n"
+  text5 = f"EngRPM: {debug_vals['EngRPM']}\nGear: {debug_vals['Gear']}\n"
+  text6 = f"YawRate: {debug_vals['YawRate']}\n"
+  text = text1 + text2 + text3 + text5 + text6
+  pr.draw_text(text, 5, 90, 20, pr.BLACK)
+  pr.draw_text(text4, 5, 380, 15, pr.BLACK)
 
 
 main()

@@ -12,10 +12,8 @@ class World:
     self.track = PhysicsTrack()
     self.timer = Timer()
 
-    self.inputs = ctrls.get_inputs(0)
-
   def update(self, dt):
-    self.inputs = self.controls.get_inputs(dt)
+    self.inputs = self.controls.get_dynamic_inputs(dt)
     steer = self.controls.get_steering()
     sector = self.car.update(self.track, dt, self.inputs, steer)
 
