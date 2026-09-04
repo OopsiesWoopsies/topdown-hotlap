@@ -99,6 +99,9 @@ class RenderCarData:
       self.screen_height - 100 - y_offset,
     )  # Top-left
 
+    # Update all positions
+    self.update_data()
+
   def update_data(self):
     engine = self.car.engine
 
