@@ -29,13 +29,10 @@ class RenderCar:
       self.car.prev_angle_rad + (self.car.angle_rad - self.car.prev_angle_rad) * alpha
     )
     self.interp_car_pos = (interp_pos_x, interp_pos_y)
+    self.render_car_pos = (interp_pos_x * self.cons.PPM, interp_pos_y * self.cons.PPM)
 
   def draw_car(self):
-    interp_pos_x, interp_pos_y = self.interp_car_pos
-    render_pos_x = interp_pos_x * self.cons.PPM
-    render_pos_y = interp_pos_y * self.cons.PPM
-
-    self.render_car_pos = (render_pos_x, render_pos_y)
+    render_pos_x, render_pos_y = self.render_car_pos
 
     angle_deg = math.degrees(self.render_angle_rad)
     size_draw_x = self.car.size[0] * self.cons.PPM

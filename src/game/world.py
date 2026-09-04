@@ -5,6 +5,7 @@ from game.track.timer import Timer
 from input.control import Control
 
 
+
 class World:
   def __init__(self, cons: Constants, ctrls: Control):
     self.controls = ctrls
