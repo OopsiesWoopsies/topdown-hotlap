@@ -5,8 +5,9 @@ import pyray as pr
 from game.constants import Constants
 from game.world import PhysicsTrack, World
 from input.control import Control
-from render.render_car import RenderCar
-from render.render_controls import RenderControls
+from render.car.render_car import RenderCar
+from render.car.render_car_data import RenderCarData
+from render.car.render_controls import RenderControls
 from render.render_track import RenderTrack
 
 
@@ -35,6 +36,7 @@ class Renderer:
     pr.unload_image(car_image)
 
     self.render_car = RenderCar(cons, car_texture, car)
+    self.render_car_data = RenderCarData(car, screen_width, screen_height)
 
     # Track
     self.render_track = RenderTrack()
@@ -44,9 +46,10 @@ class Renderer:
     self.render_ctrls = RenderControls(screen_width, screen_height)
 
   def update_screen(self, screen_width: int, screen_height: int, scale: float):
+    self.render_ctrls.update_draw_positions(screen_width, screen_height)
+    self.render_car_data.update_scale(screen_width, screen_height)
     self.camera.offset = (screen_width / 2, screen_height * 0.7)
     self.base_cam_zoom = self.base_cam_zoom * scale
-    self.render_ctrls.update_draw_positions(screen_width, screen_height)
 
   def begin_world(self):
     pr.begin_mode_2d(self.camera)
@@ -68,11 +71,11 @@ class Renderer:
     self.render_track.draw(self.camera)
     self.render_car.draw_car()
 
-  def draw_screen(
-    self, ctrls: Control, world: World, screen_width: int, screen_height: int
-  ):
-    world.car.draw_data(screen_width, screen_height)
+  def draw_screen(self, ctrls: Control, world: World):
+    self.render_car_data.draw()
     self.render_ctrls.draw(world.car.steer_angle, ctrls.get_static_inputs())
+    self.render_car_data.update_data()
+    self.render_car_data.draw()
     world.timer.draw_timer(10, 10)
 
   def close(self):

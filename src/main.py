@@ -110,7 +110,7 @@ def main():
     renderer.end_world()
 
     # Drawing on screen
-    renderer.draw_screen(ctrls, world, screen_width, screen_height)
+    renderer.draw_screen(ctrls, world)
     # draw_debug(world)
 
     pr.draw_fps(screen_width - 100, 0)
