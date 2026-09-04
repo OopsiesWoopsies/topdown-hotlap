@@ -1,7 +1,5 @@
 import time
 
-import pyray as pr
-
 
 def ms_to_str(ms: int, lap_time: bool = False) -> str:
   """Convert seconds to a readable time, MM:SS.MS.
@@ -80,25 +78,3 @@ class Timer:
     self.start_sector_time = time.perf_counter()
     if self.best_sector_times[sector_i].ms > self.sector_times[sector_i].ms:
       self.best_sector_times[sector_i].update_time(self.sector_times[sector_i].ms)
-
-  def draw_timer(self, x: int, y: int):
-    if self.lap_timer_stopped:
-      total_time = self.curr_lap_time.str_format
-    else:
-      total_time = self.get_elapsed_time(self.start_lap_time)
-      total_time = ms_to_str(round(total_time), True)
-
-    pr.draw_rectangle_rounded(pr.Rectangle(-10, -10, 300, 240), 0.3, 10, (0, 0, 0, 120))
-    pr.draw_text(total_time, x, y, 30, pr.WHITE)
-    pr.draw_text(self.prev_lap_time.str_format, x, y + 70, 20, pr.WHITE)
-    pr.draw_text("Best Lap & Sectors", x, y + 135, 20, pr.RED)
-    pr.draw_text(self.best_lap_time.str_format, x, y + 160, 20, pr.WHITE)
-
-    for i in range(3):
-      pr.draw_text(self.sector_times[i].str_format, x + 100 * i, y + 30, 20, pr.WHITE)
-      pr.draw_text(
-        self.prev_sector_times[i].str_format, x + 100 * i, y + 90, 20, pr.WHITE
-      )
-      pr.draw_text(
-        self.best_sector_times[i].str_format, x + 100 * i, y + 180, 20, pr.WHITE
-      )

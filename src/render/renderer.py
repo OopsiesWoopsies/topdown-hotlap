@@ -9,6 +9,7 @@ from input.control import Control
 from render.car.render_car import RenderCar
 from render.car.render_car_data import RenderCarData
 from render.car.render_controls import RenderControls
+from render.render_timer import RenderTimer
 from render.render_track import RenderTrack
 
 DEFAULT_SCREEN_WIDTH = 1280
@@ -55,6 +56,9 @@ class Renderer:
     # Track
     self.render_track = RenderTrack()
     self.create_track_chunks(world.track)
+
+    # Timer
+    self.render_timer = RenderTimer(world.timer)
 
     # Controls
     self.render_ctrls = RenderControls(self.screen_width, self.screen_height)
@@ -166,7 +170,7 @@ class Renderer:
     self.render_ctrls.draw(self.world.car.steer_angle, ctrls.get_static_inputs())
     self.render_car_data.update_data()
     self.render_car_data.draw()
-    self.world.timer.draw_timer(10, 10)
+    self.render_timer.draw(10, 10)
 
   def close(self):
     self.render_track.close()
