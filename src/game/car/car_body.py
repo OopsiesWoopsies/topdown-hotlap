@@ -1,7 +1,5 @@
 import math
 
-import pyray as pr
-
 from game.car.axle import Axle
 from game.car.engine.engine import Engine
 from game.constants import Constants
@@ -44,11 +42,8 @@ class Car:
     self.size = size
     self.pos = pos
     self.prev_pos = pos
-    self.interp_pos = pos
-    self.render_pos = pr.vector2_scale(pos, cons.PPM)
     self.angle_rad = math.radians(angle_deg)
     self.prev_angle_rad = self.angle_rad
-    self.render_angle_rad = self.angle_rad
     self.mass = 882.0  # kg
     self.inertia = self.mass * (self.size[0] ** 2 + self.size[1] ** 2) / 12
 
@@ -475,27 +470,27 @@ class Car:
     )
     self.engine.update_shift(is_slipping, inputs, auto_shift=False)
 
-    DEBUG_VALS["Throt"] = f"{throttle:>4.3f}"
-    DEBUG_VALS["Brake"] = f"{brake:>4.3f}"
-    DEBUG_VALS["Accel"] = [f"{accel_x:>12.3f}", f"{accel_y:>12.3f}"]
-    DEBUG_VALS["LAccel"] = [
-      f"{self.local_accel[0]:>12.3f}",
-      f"{self.local_accel[1]:>12.3f}",
-    ]
-    DEBUG_VALS["Velo"] = [f"{velo_x:>12.3f}", f"{velo_y:>12.3f}"]
-    DEBUG_VALS["LVelo"] = [f"{local_velo_x:>12.3f}", f"{local_velo_y:>12.3f}"]
-    DEBUG_VALS["Speed"] = f"{self.speed:>12.3f}"
-    DEBUG_VALS["DragF"] = [f"{drag_f_x:>12.3f}", f"{drag_f_y:>12.3f}"]
-    DEBUG_VALS["DriveT"] = (
-      f"{self.rear_axle.left_tire.drive_t + self.rear_axle.right_tire.drive_t:>13.3f}"
-    )
-    DEBUG_VALS["BrakeT"] = f"{brake_t:>13.3f}"
-    DEBUG_VALS["EngRPM"] = f"{self.engine.rpm:>12.3f}"
-    DEBUG_VALS["Gear"] = f"{self.engine.gear - 1:>1}"
-    DEBUG_VALS["Steer"] = f"{steer:>12.3f}"
-    DEBUG_VALS["YawRate"] = f"{math.degrees(self.yaw_rate):>12.3f}"
-    DEBUG_VALS["YawAccel"] = f"{yaw_accel:>12.3f}"
-    DEBUG_VALS["Iner"] = f"{self.inertia:>12.3f}"
+    # DEBUG_VALS["Throt"] = f"{throttle:>4.3f}"
+    # DEBUG_VALS["Brake"] = f"{brake:>4.3f}"
+    # DEBUG_VALS["Accel"] = [f"{accel_x:>12.3f}", f"{accel_y:>12.3f}"]
+    # DEBUG_VALS["LAccel"] = [
+    #   f"{self.local_accel[0]:>12.3f}",
+    #   f"{self.local_accel[1]:>12.3f}",
+    # ]
+    # DEBUG_VALS["Velo"] = [f"{velo_x:>12.3f}", f"{velo_y:>12.3f}"]
+    # DEBUG_VALS["LVelo"] = [f"{local_velo_x:>12.3f}", f"{local_velo_y:>12.3f}"]
+    # DEBUG_VALS["Speed"] = f"{self.speed:>12.3f}"
+    # DEBUG_VALS["DragF"] = [f"{drag_f_x:>12.3f}", f"{drag_f_y:>12.3f}"]
+    # DEBUG_VALS["DriveT"] = (
+    #   f"{self.rear_axle.left_tire.drive_t + self.rear_axle.right_tire.drive_t:>13.3f}"
+    # )
+    # DEBUG_VALS["BrakeT"] = f"{brake_t:>13.3f}"
+    # DEBUG_VALS["EngRPM"] = f"{self.engine.rpm:>12.3f}"
+    # DEBUG_VALS["Gear"] = f"{self.engine.gear - 1:>1}"
+    # DEBUG_VALS["Steer"] = f"{steer:>12.3f}"
+    # DEBUG_VALS["YawRate"] = f"{math.degrees(self.yaw_rate):>12.3f}"
+    # DEBUG_VALS["YawAccel"] = f"{yaw_accel:>12.3f}"
+    # DEBUG_VALS["Iner"] = f"{self.inertia:>12.3f}"
 
     return curr_sector
 
@@ -518,146 +513,6 @@ class Car:
     # Update axle positions
     self.front_axle.update_position(self.pos, forward, right, self.angle_rad, steer_rad)
     self.rear_axle.update_position(self.pos, forward, right, self.angle_rad, 0)
-
-  def calculate_render_state(self, alpha: float):
-    interp_pos_x = self.prev_pos[0] + (self.pos[0] - self.prev_pos[0]) * alpha
-    interp_pos_y = self.prev_pos[1] + (self.pos[1] - self.prev_pos[1]) * alpha
-    self.render_angle_rad = (
-      self.prev_angle_rad + (self.angle_rad - self.prev_angle_rad) * alpha
-    )
-    self.interp_pos = (interp_pos_x, interp_pos_y)
-    self.render_pos = (
-      interp_pos_x * self.cons.PPM,
-      interp_pos_y * self.cons.PPM,
-    )
-
-  def draw_car(self, car_texture: pr.Texture2D):
-    angle_deg = math.degrees(self.render_angle_rad)
-    forward = (math.cos(self.render_angle_rad), math.sin(self.render_angle_rad))
-    right = (-math.sin(self.render_angle_rad), math.cos(self.render_angle_rad))
-    size_draw = (self.size[0] * self.cons.PPM, self.size[1] * self.cons.PPM)
-    cg_x, cg_y = self.cg
-    cg_draw = (
-      (size_draw[0] / 2) + (cg_x * self.cons.PPM),
-      (size_draw[1] / 2) + (cg_y * self.cons.PPM),
-    )
-
-    src_rec = pr.Rectangle(0.0, 0.0, car_texture.width, car_texture.height)
-    dest_rec = pr.Rectangle(
-      self.render_pos[0], self.render_pos[1], size_draw[0], size_draw[1]
-    )
-    pr.draw_texture_pro(car_texture, src_rec, dest_rec, cg_draw, angle_deg, pr.WHITE)
-
-    self.front_axle.draw(forward, right, self.interp_pos, angle_deg, self.steer_angle)
-    self.rear_axle.draw(forward, right, self.interp_pos, angle_deg, 0)
-
-  def draw_data(self, screen_width: int, screen_height: int):
-    """Show information such as the current gear, rpm, speed, and whether or not the tires are currently slipping.
-
-    Args:
-      screen_width: Width of the screen.
-      screen_height: Height of the screen.
-    """
-    screen_width_half = screen_width / 2
-
-    # Gear text
-    gear_draw_font_size = 30
-    if self.engine.gear == 1:
-      curr_gear_text = "N"
-    elif self.engine.gear == 0:
-      curr_gear_text = "R"
-    else:
-      curr_gear_text = str(self.engine.gear - 1)
-    text_width = pr.measure_text(curr_gear_text, gear_draw_font_size)
-    gear_draw_pos_x = int(screen_width_half - text_width / 2)
-    gear_draw_pos_y = screen_height - 80
-
-    # Anti stall text
-    anti_stall_draw_font_size = 20
-    if self.engine.anti_stall:
-      anti_stall_text = "AS: ON"
-    else:
-      anti_stall_text = "AS: OFF"
-
-    text_width = pr.measure_text(anti_stall_text, anti_stall_draw_font_size)
-    anti_stall_draw_pos_x = int(screen_width_half - text_width / 2)
-    anti_stall_draw_pos_y = screen_height - 40
-
-    # Speed text (kph and mph)
-    speed_kph_draw_font_size = 20
-    speed_kph = pr.vector2_length(self.velo) * 3.6
-    speed_kph_text = f"{round(speed_kph)} kph"
-    text_width = pr.measure_text(speed_kph_text, speed_kph_draw_font_size)
-    speed_kph_draw_pos_x = int(screen_width_half - text_width / 2 - 100)
-    speed_kph_draw_pos_y = screen_height - 70
-
-    speed_mph_draw_font_size = 18
-    speed_mph = speed_kph * 0.621371
-    speed_mph_text = f"{round(speed_mph)} mph"
-    text_width = pr.measure_text(speed_mph_text, speed_mph_draw_font_size)
-    speed_mph_draw_pos_x = int(screen_width_half - text_width / 2 - 100)
-    speed_mph_draw_pos_y = screen_height - 50
-
-    # RPM text
-    rpm_draw_font_size = 20
-    rpm_text = f"{round(self.engine.rpm)} RPM"
-    text_width = pr.measure_text(rpm_text, rpm_draw_font_size)
-    rpm_draw_pos_x = int(screen_width_half - text_width / 2 + 100)
-    rpm_draw_pos_y = screen_height - 70
-
-    # Dashboard
-    x_offset = screen_width_half * 0.07
-    y_offset = screen_height * 0.01
-    p1 = pr.Vector2(screen_width_half - 200 - x_offset, screen_height)  # Bottom-left
-    p2 = pr.Vector2(screen_width_half + 200 + x_offset, screen_height)  # Bottom-right
-    p3 = (
-      screen_width_half + 150 + x_offset,
-      screen_height - 100 - y_offset,
-    )  # Top-right
-    p4 = (
-      screen_width_half - 150 - x_offset,
-      screen_height - 100 - y_offset,
-    )  # Top-left
-
-    eng_rpm_ratio = self.engine.rpm / self.engine.peak_rpm
-    if eng_rpm_ratio > 1.05:
-      shift_light = (27, 119, 239, 200)
-    elif eng_rpm_ratio > 0.6:
-      shift_light = (255, 239, 1, 200)
-    else:
-      shift_light = (74, 250, 0, 200)
-    pr.draw_rectangle_rounded(
-      pr.Rectangle(p4[0], p4[1] - 10, p3[0] - p4[0], 8), 0.2, 10, shift_light
-    )
-
-    pr.draw_triangle(p1, p2, p3, (0, 0, 0, 120))  # Translucent black
-    pr.draw_triangle(p1, p3, p4, (0, 0, 0, 120))  # Translucent black
-
-    pr.draw_text(
-      curr_gear_text, gear_draw_pos_x, gear_draw_pos_y, gear_draw_font_size, pr.WHITE
-    )
-    pr.draw_text(
-      anti_stall_text,
-      anti_stall_draw_pos_x,
-      anti_stall_draw_pos_y,
-      anti_stall_draw_font_size,
-      pr.WHITE,
-    )
-    pr.draw_text(
-      speed_kph_text,
-      speed_kph_draw_pos_x,
-      speed_kph_draw_pos_y,
-      speed_kph_draw_font_size,
-      pr.WHITE,
-    )
-    pr.draw_text(
-      speed_mph_text,
-      speed_mph_draw_pos_x,
-      speed_mph_draw_pos_y,
-      speed_mph_draw_font_size,
-      pr.WHITE,
-    )
-    pr.draw_text(rpm_text, rpm_draw_pos_x, rpm_draw_pos_y, rpm_draw_font_size, pr.WHITE)
 
   def get_debug_vals(self) -> dict:
     def set_debug_tires():

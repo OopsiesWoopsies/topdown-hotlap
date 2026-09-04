@@ -1,7 +1,5 @@
 import math
 
-import pyray as pr
-
 from game.constants import Constants
 
 RIGHT_ANGLE = math.pi / 2
@@ -289,27 +287,3 @@ class Tire:
     self.velo = (0.0, 0.0)
     self.slip_angle = 0.0
     self.slip_ratio = 0.0
-
-  def draw(
-    self,
-    sign: int,
-    axle_render_pos: tuple[float, float],
-    right: tuple[float, float],
-    angle_deg: float,
-    steer_deg: float,
-    half_track_width: float,
-  ):
-    self.render_pos = (
-      (axle_render_pos[0] + right[0] * half_track_width * sign) * self.cons.PPM,
-      (axle_render_pos[1] + right[1] * half_track_width * sign) * self.cons.PPM,
-    )
-
-    diameter_draw = self.radius * 2 * self.cons.PPM
-    width_draw = self.width * self.cons.PPM
-
-    rec = pr.Rectangle(
-      self.render_pos[0], self.render_pos[1], diameter_draw, width_draw
-    )
-    origin = (diameter_draw / 2, width_draw / 2)
-
-    pr.draw_rectangle_pro(rec, origin, angle_deg + steer_deg, pr.BLACK)
