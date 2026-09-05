@@ -5,18 +5,18 @@ from game.track.timer import Timer
 from input.control import Control
 
 
-
 class World:
-  def __init__(self, cons: Constants, ctrls: Control):
+  def __init__(self, cons: Constants, ctrls: Control, is_human: bool):
     self.controls = ctrls
     self.car = Car(cons, pos=(0.0, 0.0), angle_deg=180, size=(5.6, 2.0))
     self.track = PhysicsTrack()
-    self.timer = Timer()
+    self.timer = Timer(is_human)
 
   def update(self, dt):
     self.inputs = self.controls.get_dynamic_inputs(dt)
     steer = self.controls.get_steering()
     sector = self.car.update(self.track, dt, self.inputs, steer)
+    self.timer.update_timer(dt)
 
     if self.car.off_track and not self.timer.lap_timer_stopped:
       self.timer.stop_lap_timer()

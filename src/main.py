@@ -14,15 +14,15 @@ def main():
     "--train", action="store_true", help="Run ML training in headless mode"
   )
   args = parser.parse_args()
-  is_training = args.train
+  is_human = not args.train
 
   cons = Constants()
   ctrls = Control()
-  world = World(cons, ctrls)
+  world = World(cons, ctrls, is_human)
 
   fixed_dt = 1.0 / 360.0
 
-  if not is_training:
+  if is_human:
     renderer = Renderer(cons, ctrls, world)
     eng_audio = play_eng_sound.PlaySound(world.car.engine)
     eng_audio.start_eng()
