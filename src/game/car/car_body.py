@@ -205,6 +205,26 @@ class Car:
     # State variables
     self.off_track = False
 
+  def reset(self, pos: tuple[float, float], angle_deg: float):
+    self.off_track = False
+    self.pos = pos
+    self.prev_pos = pos
+    self.angle_rad = math.radians(angle_deg)
+    self.prev_angle_rad = self.angle_rad
+
+    self.local_accel = (0.0, 0.0)
+    self.accel = (0.0, 0.0)
+    self.local_velo = (0.0, 0.0)
+    self.velo = (0.0, 0.0)
+
+    self.yaw_rate = 0.0
+    self.steer_angle = 0.0
+    self.speed = 0.0
+
+    self.engine.reset()
+    for tire in self.all_tires:
+      tire.reset()
+
   def update(
     self, track: PhysicsTrack, dt: float, inputs: dict[str, float | bool], steer: float
   ) -> int:

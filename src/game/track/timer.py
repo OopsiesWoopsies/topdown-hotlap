@@ -49,6 +49,24 @@ class Timer:
     self.valid_lap = True
     self.world_timer = 0.0
 
+  def reset(self):
+    self.sector_times = [RaceTime(0.0, "00.000") for _ in range(3)]
+    self.prev_sector_times = [RaceTime(0.0, "00.000") for _ in range(3)]
+    self.best_sector_times = [
+      RaceTime(float("inf"), "00.000") for _ in range(3)
+    ]  # Get this from storage
+
+    self.curr_lap_time = RaceTime()
+    self.curr_sector_time = 0.0
+
+    self.prev_lap_time = RaceTime()
+    self.best_lap_time = RaceTime(float("inf"), "00:00.000")  # Get this from storage
+
+    self.lap_timer_stopped = True
+
+    self.valid_lap = True
+    self.world_timer = 0.0
+
   def start_lap_timer(self):
     self.curr_lap_time = RaceTime()
     self.curr_sector_time = 0.0

@@ -85,6 +85,22 @@ class Tire:
     self.outer_corners = outer_corners
     self.track_indices = [0, 0]
 
+  def reset(self):
+    self.drive_t = 0.0  # Nm
+    self.brake_t = 0.0  # Nm
+
+    self.slip_ratio = 0.0
+    self.slip_angle = 0.0  # Rad
+    self.long_f = 0.0  # N
+    self.lateral_f = 0.0  # N
+    self.steer_rad = 0.0  # Rad
+    self.grip_usage = 0.0
+
+    self.omega = 0.0  # Rad/s
+    self.next_omega = 0.0  # Rad/s
+    self.velo = (0.0, 0.0)  # m/s
+    self.track_indices = [0, 0]
+
   def update_outer_corners(
     self,
     sign: int,

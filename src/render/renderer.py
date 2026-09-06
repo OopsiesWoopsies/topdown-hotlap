@@ -3,6 +3,7 @@ from os.path import join
 
 import pyray as pr
 
+from audio.engine import play_eng_sound
 from game.constants import Constants
 from game.world import PhysicsTrack, World
 from input.control import Control
@@ -22,25 +23,28 @@ class Renderer:
     cons: Constants,
     ctrls: Control,
     world: World,
+    eng_audio: play_eng_sound.PlaySound,
   ):
     self.screen_width = DEFAULT_SCREEN_WIDTH
     self.screen_height = DEFAULT_SCREEN_HEIGHT
     pr.init_window(self.screen_width, self.screen_height, "Top Down Hotlap")
     pr.set_target_fps(144)
 
+    self.cons = cons
     self.world = world
     self.ctrls = ctrls
+    self.eng_audio = eng_audio
     car = world.car
+
     # Camera
-    self.cons = cons
     self.base_cam_zoom = 1 / cons.PPM * 20
     self.camera = pr.Camera2D(
       (self.screen_width / 2, self.screen_height * 0.7), (0, 0), 0, self.base_cam_zoom
     )
 
     # Car
-    self.car_path = join("assets", "imgs", "car.png")
-    car_image = pr.load_image(self.car_path)
+    car_path = join("assets", "imgs", "car.png")
+    car_image = pr.load_image(car_path)
     pr.image_rotate(car_image, 90)
     pr.image_resize_nn(
       car_image,
@@ -64,6 +68,7 @@ class Renderer:
     self.render_ctrls = RenderControls(self.screen_width, self.screen_height)
 
   def render_screen(self, alpha, frame_time) -> bool:
+    # Toggle fullscreen
     if pr.is_key_pressed(pr.KEY_F11):
       if not pr.is_window_fullscreen():
         monitor = pr.get_current_monitor()
@@ -86,6 +91,31 @@ class Renderer:
         pr.set_window_size(self.screen_width, self.screen_height)
         scale = self.screen_height / old_screen_height
         self.update_screen(scale)
+
+    # Track selection (Temp)
+    if pr.is_key_pressed(pr.KEY_LEFT):
+      self.world.track.track_selection = (
+        self.world.track.track_selection - 1
+      ) % self.world.track.track_amount
+
+      self.eng_audio.eng_aud_stream.stop()
+      self.world.car.reset(pos=(0.0, 0.0), angle_deg=180)
+      self.world.timer.reset()
+      self.world.track.create_track()
+      self.create_track_chunks(self.world.track)
+      self.eng_audio.eng_aud_stream.start()
+
+    elif pr.is_key_pressed(pr.KEY_RIGHT):
+      self.world.track.track_selection = (
+        self.world.track.track_selection + 1
+      ) % self.world.track.track_amount
+
+      self.eng_audio.eng_aud_stream.stop()
+      self.world.car.reset(pos=(0.0, 0.0), angle_deg=180)
+      self.world.timer.reset()
+      self.world.track.create_track()
+      self.create_track_chunks(self.world.track)
+      self.eng_audio.eng_aud_stream.start()
 
     # Determine camera stats
     self.render_car.calculate_render_state(alpha)

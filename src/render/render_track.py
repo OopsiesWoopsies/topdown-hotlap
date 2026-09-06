@@ -12,6 +12,10 @@ class RenderTrack:
   def __init__(self):
     self.chunks: dict[tuple[int, int], pr.RenderTexture] = {}
 
+  def unload_chunks(self):
+    for chunk_tex in self.chunks.values():
+      pr.unload_render_texture(chunk_tex)
+
   def render_chunks(
     self,
     cons: Constants,
@@ -21,6 +25,7 @@ class RenderTrack:
     sector_lines: list[tuple[float, float]],
     finish_line: tuple[float, float],
   ):
+    self.unload_chunks()
     self.chunks = {}
     line_thickness = 0.1 * cons.PPM  # pixels
     num_pts = len(center_pts)
@@ -182,5 +187,4 @@ class RenderTrack:
         )
 
   def close(self):
-    for chunk_tex in self.chunks.values():
-      pr.unload_render_texture(chunk_tex)
+    self.unload_chunks()

@@ -181,6 +181,10 @@ class PhysicsTrack:
     self.width = 17  # m
     self.half_width = self.width / 2.0  # m
 
+    # Track selection
+    self.track_selection = 1
+    self.track_amount = len(tracks)
+
     # In-game Track vars
     self.curr_sector = 1
     self.start_lap = False
@@ -189,7 +193,6 @@ class PhysicsTrack:
     self.render_position = (0, 0)
 
     # Track points
-    self.track_selection = 1
     self.center_line_pts = tracks[self.track_selection][
       "track"
     ]  # Dictates the main path of the track
