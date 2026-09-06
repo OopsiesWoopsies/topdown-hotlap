@@ -99,7 +99,7 @@ class Renderer:
       ) % self.world.track.track_amount
 
       self.eng_audio.eng_aud_stream.stop()
-      self.world.car.reset(pos=(0.0, 0.0), angle_deg=180)
+      self.world.car.reset(pos=(0.0, 0.0), angle_deg=0)
       self.world.timer.reset()
       self.world.track.create_track()
       self.create_track_chunks(self.world.track)
@@ -111,7 +111,7 @@ class Renderer:
       ) % self.world.track.track_amount
 
       self.eng_audio.eng_aud_stream.stop()
-      self.world.car.reset(pos=(0.0, 0.0), angle_deg=180)
+      self.world.car.reset(pos=(0.0, 0.0), angle_deg=0)
       self.world.timer.reset()
       self.world.track.create_track()
       self.create_track_chunks(self.world.track)
