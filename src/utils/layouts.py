@@ -3,6 +3,7 @@
 # Add more points in between if jagged to smoothen it out
 tracks = [
   {  # Small square
+    "name": "Small Square",
     "finish": 8,
     "track": (
       # Bottom straight (going right)
@@ -36,6 +37,7 @@ tracks = [
     ),
   },
   {  # Long straights + 2 turns
+    "name": "Speed Lanes",
     "finish": 3,
     "track": (
       # Main straight (up)
@@ -67,6 +69,7 @@ tracks = [
     ),
   },
   {  # Half pipe
+    "name":  "Half Pipe",
     "finish": 2,
     "track": (
       (
