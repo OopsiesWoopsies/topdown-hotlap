@@ -1,6 +1,6 @@
 import math
 
-from game.constants import Constants
+from utils.constants import Constants
 
 RIGHT_ANGLE = math.pi / 2
 

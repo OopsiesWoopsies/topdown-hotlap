@@ -46,10 +46,10 @@ tracks = [
       (680, 0),
       (720, 0),
       (750, 0),
-      # Top hairpin (up -> right -> down)
+      # T1, Top hairpin (up -> right -> down)
       (775, 5),
-      (790, 15),
-      (790, 30),
+      (790, 15),  # Apex 1/2
+      (790, 30),  # Apex 2/2
       (775, 40),
       # Straight 2 (down)
       (750, 30),
@@ -59,12 +59,35 @@ tracks = [
       (-680, 30),
       (-720, 30),
       (-750, 30),
-      # Bottom hairpin (down -> left -> up)
+      # T2, Bottom hairpin (down -> left -> up)
       (-775, 25),
-      (-790, 15),
-      (-790, 0),
+      (-790, 15),  # Apex 1/2
+      (-790, 0),  # Apex 2/2
       (-775, -10),
     ),
   },
-  {"finish": 0, "track": (())},
+  {  # Half pipe
+    "finish": 2,
+    "track": (
+      (
+        # Main straight (up)
+        (-550, 0),
+        (-500, 0),
+        (0, 0),  # Finish line
+        (500, 0),
+        (550, 0),
+        # T1, 90 deg (right)
+        (570, 0),
+        # (586, 10),
+        (580, 25),
+        # (610, 40),
+        (590, 70),
+        # Straight (right)
+        (630, 100),
+        (630, 200),
+        (630, 220),
+        (630, 210),
+      )
+    ),
+  },
 ]

@@ -3,7 +3,7 @@ from collections import defaultdict
 
 import pyray as pr
 
-from game.constants import Constants
+from utils.constants import Constants
 
 CHUNK_SIZE = 1024
 

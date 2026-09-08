@@ -2,10 +2,10 @@ import argparse
 import time
 
 from audio.engine import play_eng_sound
-from game.constants import Constants
 from game.world import World
 from input.control import Control
 from render.renderer import Renderer
+from utils.constants import Constants
 
 
 def main():

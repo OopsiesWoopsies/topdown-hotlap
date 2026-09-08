@@ -1,10 +1,9 @@
 import math
-from os.path import join
+from pathlib import Path
 
 import pyray as pr
 
 from audio.engine import play_eng_sound
-from game.constants import Constants
 from game.world import PhysicsTrack, World
 from input.control import Control
 from render.car.render_car import RenderCar
@@ -12,9 +11,7 @@ from render.car.render_car_data import RenderCarData
 from render.car.render_controls import RenderControls
 from render.render_timer import RenderTimer
 from render.render_track import RenderTrack
-
-DEFAULT_SCREEN_WIDTH = 1280
-DEFAULT_SCREEN_HEIGHT = 720
+from utils.constants import Constants
 
 
 class Renderer:
@@ -25,8 +22,8 @@ class Renderer:
     world: World,
     eng_audio: play_eng_sound.PlaySound,
   ):
-    self.screen_width = DEFAULT_SCREEN_WIDTH
-    self.screen_height = DEFAULT_SCREEN_HEIGHT
+    self.screen_width = cons.SCREEN_WIDTH
+    self.screen_height = cons.SCREEN_HEIGHT
     pr.init_window(self.screen_width, self.screen_height, "Top Down Hotlap")
     pr.set_target_fps(144)
 
@@ -39,11 +36,12 @@ class Renderer:
     # Camera
     self.base_cam_zoom = 1 / cons.PPM * 20
     self.camera = pr.Camera2D(
-      (self.screen_width / 2, self.screen_height * 0.7), (0, 0), 0, self.base_cam_zoom
+      (self.screen_width / 2, self.screen_height * 0.7), (0, 0), 0.0, self.base_cam_zoom
     )
 
     # Car
-    car_path = join("assets", "imgs", "car.png")
+    script_dir = Path(__file__).parent
+    car_path = script_dir.parent / "assets" / "imgs" / "car.png"
     car_image = pr.load_image(car_path)
     pr.image_rotate(car_image, 90)
     pr.image_resize_nn(
@@ -84,8 +82,8 @@ class Renderer:
         self.update_screen(scale)
       else:
         old_screen_height = self.screen_height
-        self.screen_width = DEFAULT_SCREEN_WIDTH
-        self.screen_height = DEFAULT_SCREEN_HEIGHT
+        self.screen_width = self.cons.SCREEN_WIDTH
+        self.screen_height = self.cons.SCREEN_HEIGHT
 
         pr.toggle_fullscreen()
         pr.set_window_size(self.screen_width, self.screen_height)
@@ -155,10 +153,10 @@ class Renderer:
       print(world_coords.x, world_coords.y)
 
     # Drawing in world
-    self.begin_world()
+    pr.begin_mode_2d(self.camera)
     self.draw_world()
     # draw_grid()  # --DEBUG-- #
-    self.end_world()
+    pr.end_mode_2d()
 
     # Drawing on screen
     self.draw_screen(self.ctrls)
@@ -174,12 +172,6 @@ class Renderer:
     self.render_car_data.update_scale(self.screen_width, self.screen_height)
     self.camera.offset = (self.screen_width / 2, self.screen_height * 0.7)
     self.base_cam_zoom = self.base_cam_zoom * scale
-
-  def begin_world(self):
-    pr.begin_mode_2d(self.camera)
-
-  def end_world(self):
-    pr.end_mode_2d()
 
   def create_track_chunks(self, track: PhysicsTrack):
     self.render_track.render_chunks(

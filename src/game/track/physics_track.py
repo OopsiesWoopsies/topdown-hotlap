@@ -3,7 +3,7 @@ import math
 import pyray as pr
 
 from game.car.tire import Tire
-from game.track.layouts import tracks
+from utils.layouts import tracks
 
 
 def catmull_rom(
@@ -107,21 +107,23 @@ def segments_intersect(
 
 
 class PhysicsTrack:
-  def __init__(self):
+  def __init__(
+    self,
+    width: float = 17.0,
+    track_selection: int = 2,
+    mpp: int = 0.25,
+  ):
     # Track size
-    self.width = 17  # m
+    self.width = width  # m
     self.half_width = self.width / 2.0  # m
 
     # Track selection
-    self.track_selection = 1
+    self.track_selection = track_selection
     self.track_amount = len(tracks)
 
     # In-game Track vars
     self.curr_sector = 1
     self.start_lap = False
-
-    # Render Track Vars
-    self.render_position = (0, 0)
 
     # Track points
     self.center_line_pts = tracks[self.track_selection][
@@ -133,7 +135,7 @@ class PhysicsTrack:
     self.sector_indexes = []
     self.sector_lines = []
 
-    self.mpp = 0.25  # meters per point (approx)
+    self.mpp = mpp  # meters per point (approx)
     self.center_pts: list[tuple[float, float]] = []
     self.left_bound_pts: list[pr.Vector2] = []
     self.right_bound_pts: list[pr.Vector2] = []

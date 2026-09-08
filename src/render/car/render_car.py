@@ -5,7 +5,7 @@ import pyray as pr
 from game.car.axle import Axle
 from game.car.car_body import Car
 from game.car.tire import Tire
-from game.constants import Constants
+from utils.constants import Constants
 
 
 class RenderCar:

@@ -2,8 +2,8 @@ import math
 
 from game.car.axle import Axle
 from game.car.engine.engine import Engine
-from game.constants import Constants
 from game.track.physics_track import PhysicsTrack
+from utils.constants import Constants
 
 _GRAVITY = -9.81  # m/s^2
 
