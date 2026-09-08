@@ -23,7 +23,13 @@ def main():
   pos_x = 0.0
   pos_y = 0.0
 
+  page = 0  # 0-2 (inclusive, respectively featuring track selection / make new track, editing track, naming track)
+  screen_mouse_point = pr.Vector2(0, 0)
+  left_click = False
+  check_mouse_point = False
+
   track_index = 2
+  sidebar = pr.Rectangle(0, 0, 350, screen_height)
 
   last_time = time.perf_counter()
   accumulator = 0.0
@@ -45,7 +51,10 @@ def main():
 
   render_car = RenderCar(cons, car_texture, car)
 
+  draw_dict = create_buts(cons, sidebar, screen_width, screen_height)
+
   while not pr.window_should_close():
+    # Toggle fullscreen
     if pr.is_key_pressed(pr.KEY_F11):
       if not pr.is_window_fullscreen():
         monitor = pr.get_current_monitor()
@@ -60,7 +69,7 @@ def main():
         scale = screen_height / old_screen_height
         camera.zoom *= scale
         camera.offset = (screen_width / 2, screen_height / 2)
-
+        sidebar = pr.Rectangle(0, 0, 350, screen_height)
       else:
         old_screen_height = screen_height
         screen_width = cons.SCREEN_WIDTH
@@ -71,7 +80,9 @@ def main():
         scale = screen_height / old_screen_height
         camera.zoom *= scale
         camera.offset = (screen_width / 2, screen_height / 2)
+        sidebar = pr.Rectangle(0, 0, 350, screen_height)
 
+    # Static dt
     current_time = time.perf_counter()
     frame_time = min(current_time - last_time, 0.25)
     last_time = current_time
@@ -81,18 +92,117 @@ def main():
       pos_x, pos_y = control_screen(fixed_dt, camera, (pos_x, pos_y))
       accumulator -= fixed_dt
 
+    # Clicking
+    if left_click and pr.is_mouse_button_up(pr.MOUSE_LEFT_BUTTON):
+      screen_mouse_point = pr.get_mouse_position()
+      left_click = False
+      check_mouse_point = True
+    elif pr.is_mouse_button_down(pr.MOUSE_LEFT_BUTTON):
+      left_click = True
+
+    # Drawing
     pr.begin_drawing()
     pr.clear_background(pr.WHITE)
 
     pr.begin_mode_2d(camera)
-    draw_world(render_car)
+    draw_world(camera, render_car, screen_mouse_point, check_mouse_point, sidebar)
     draw_grid(cons, camera, screen_width, screen_height)
     pr.end_mode_2d()
 
-    draw_screen(cons, screen_height, track_index)
+    page, track_index = draw_screen(
+      cons,
+      screen_mouse_point,
+      check_mouse_point,
+      draw_dict,
+      sidebar,
+      screen_height,
+      page,
+      track_index,
+    )
     pr.draw_fps(screen_width - 100, 5)
     pr.end_drawing()
+
+    check_mouse_point = False
   pr.close_window()
+
+
+def draw_world(
+  camera: pr.Camera2D,
+  render_car: RenderCar,
+  screen_mouse_point: pr.Vector2,
+  check_mouse_point: bool,
+  sidebar: pr.Rectangle,
+):
+  render_car.draw_car()
+
+  if pr.check_collision_point_rec(screen_mouse_point, sidebar):
+    return
+  elif check_mouse_point:
+    world_point = pr.get_world_to_screen_2d(screen_mouse_point, camera)
+    print(world_point.x, world_point.y)
+
+
+def draw_screen(
+  cons: Constants,
+  screen_mouse_point: pr.Vector2,
+  check_mouse_point: bool,
+  draw_dict: dict[int, dict[str, any]],
+  sidebar: pr.Rectangle,
+  screen_height: int,
+  page: int,
+  track_index: int,
+) -> int:
+  font = pr.get_font_default()
+  rec_width = sidebar.width
+  pr.draw_rectangle_pro(sidebar, (0, 0), 0.0, (0, 0, 0, 180))
+
+  track_amount = len(tracks)
+  but_arr = draw_dict[page]["buts"]
+  texts = draw_dict[page]["texts"]
+  text_arr = texts["strings"]
+  text_size_arr = texts["size"]
+  actions = draw_dict[page]["actions"]
+  len_but = len(but_arr)
+
+  match page:
+    case 0:
+      for i in range(len_but):
+        rec: pr.Rectangle = but_arr[i]
+        text: str = text_arr[i]
+
+        if pr.check_collision_point_rec(pr.get_mouse_position(), rec):
+          pr.set_mouse_cursor(pr.MOUSE_CURSOR_POINTING_HAND)
+        else:
+          pr.set_mouse_cursor(pr.MOUSE_CURSOR_DEFAULT)
+
+        if check_mouse_point and pr.check_collision_point_rec(screen_mouse_point, rec):
+          match actions[i]:
+            case "page2":
+              page = 1
+
+        x, y = text_size_arr[i]
+        pr.draw_rectangle_pro(rec, (0, 0), 0.0, pr.LIGHTGRAY)
+        pr.draw_text_ex(font, text, pr.Vector2(int(x), int(y)), cons.FONT_SIZE, 1, pr.BLACK)
+
+      text = tracks[track_index]["name"]
+      half_text_width = pr.measure_text(text, cons.FONT_SIZE) / 2
+      pr.draw_text(
+        text,
+        int(rec_width / 2 - half_text_width),
+        int(screen_height / 3),
+        cons.FONT_SIZE,
+        pr.WHITE,
+      )
+
+      # check for left and right arrow collisions for track selection
+      # check for create new track collision
+
+    case 1:
+      pass
+    case 2:
+      pass
+
+  return page, track_index
 
 
 def control_screen(dt, camera: pr.Camera2D, pos: tuple[float, float]):
@@ -128,21 +238,6 @@ def control_screen(dt, camera: pr.Camera2D, pos: tuple[float, float]):
   return pos_x, pos_y
 
 
-def draw_world(render_car: RenderCar):
-  render_car.draw_car()
-
-
-def draw_screen(cons: Constants, screen_height: int, track_index: int):
-  rec_width = 350
-  pr.draw_rectangle(0, 0, rec_width, screen_height, (0, 0, 0, 180))
-  track_amount = len(tracks)
-
-  text = tracks[track_index]["name"]
-  half_text_width = pr.measure_text(text, cons.FONT_SIZE) / 2
-
-  pr.draw_text(text, int(rec_width / 2 - half_text_width), 10, cons.FONT_SIZE, pr.WHITE)
-
-
 def draw_grid(
   cons: Constants, camera: pr.Camera2D, screen_width: int, screen_height: int
 ):  # 2m x 2m gridbox
@@ -170,6 +265,54 @@ def draw_grid(
 
   for y in range(start_y, end_y, spacing):
     pr.draw_line(bound_left, y, bound_right, y, pr.BLACK)
+
+
+def create_buts(
+  cons: Constants, sidebar: pr.Rectangle, screen_width: int, screen_height: int
+) -> dict[int, dict[str, any]]:
+  draw_info = {}
+  margin = 14
+  font = pr.get_font_default()
+
+  for i in range(3):
+    draw_info[i] = {
+      "texts": {"strings": [], "size": []},
+      "buts": [],
+      "actions": [],
+    }
+
+  # Pg 1
+  page = 0
+  buts = []
+  texts = {"strings": [], "size": []}
+  actions = []
+
+  edit_text = "EDIT TRACK"
+  text_size = pr.measure_text_ex(font, edit_text, cons.FONT_SIZE, 1)
+
+  rec_x = sidebar.width / 2 - text_size.x / 2
+  rec_y = screen_height / 3 * 2
+
+  edit_text_x = int(rec_x)
+  edit_text_y = int(rec_y)
+
+  edit_but = pr.Rectangle(rec_x - margin / 2, rec_y - margin / 2, text_size.x + margin, text_size.y + margin)
+
+  actions.append("page2")
+  buts.append(edit_but)
+  texts["strings"].append(edit_text)
+  texts["size"].append((edit_text_x, edit_text_y))
+
+  draw_info[page]["texts"] = texts
+  draw_info[page]["buts"] = buts
+  draw_info[page]["actions"] = actions
+
+  # Pg 2
+  # but = []
+  # texts = []
+
+  print(draw_info)
+  return draw_info
 
 
 if __name__ == "__main__":
