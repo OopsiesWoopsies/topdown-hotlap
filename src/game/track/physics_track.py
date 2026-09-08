@@ -111,7 +111,7 @@ class PhysicsTrack:
     self,
     width: float = 17.0,
     track_selection: int = 2,
-    mpp: int = 0.25,
+    MPP: int = 0.25,
   ):
     # Track size
     self.width = width  # m
@@ -135,7 +135,7 @@ class PhysicsTrack:
     self.sector_indexes = []
     self.sector_lines = []
 
-    self.mpp = mpp  # meters per point (approx)
+    self.MPP = MPP  # meters per point (approx)
     self.center_pts: list[tuple[float, float]] = []
     self.left_bound_pts: list[pr.Vector2] = []
     self.right_bound_pts: list[pr.Vector2] = []
@@ -173,7 +173,7 @@ class PhysicsTrack:
       precision = max(
         1,
         round(
-          ((cen_p2_x - cen_p1_x) ** 2 + (cen_p2_y - cen_p1_y) ** 2) ** 0.5 / self.mpp
+          ((cen_p2_x - cen_p1_x) ** 2 + (cen_p2_y - cen_p1_y) ** 2) ** 0.5 / self.MPP
         ),
       )
 
@@ -306,7 +306,7 @@ class PhysicsTrack:
       bool: True if tire is on track and the track index respectively
     """
     margin = 2
-    index_offset = math.ceil(car_speed / self.mpp * dt) + margin
+    index_offset = math.ceil(car_speed / self.MPP * dt) + margin
     tire_on_track = False
     new_track_indices = []
 
