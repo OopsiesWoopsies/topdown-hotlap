@@ -70,6 +70,7 @@ def main():
         camera.zoom *= scale
         camera.offset = (screen_width / 2, screen_height / 2)
         sidebar = pr.Rectangle(0, 0, 350, screen_height)
+        draw_dict = create_buts(cons, sidebar, screen_width, screen_height)
       else:
         old_screen_height = screen_height
         screen_width = cons.SCREEN_WIDTH
@@ -81,6 +82,7 @@ def main():
         camera.zoom *= scale
         camera.offset = (screen_width / 2, screen_height / 2)
         sidebar = pr.Rectangle(0, 0, 350, screen_height)
+        draw_dict = create_buts(cons, sidebar, screen_width, screen_height)
 
     # Static dt
     current_time = time.perf_counter()
@@ -160,9 +162,11 @@ def draw_screen(
   but_arr = draw_dict[page]["buts"]
   texts = draw_dict[page]["texts"]
   text_arr = texts["strings"]
-  text_size_arr = texts["size"]
+  text_pos_arr = texts["pos"]
   actions = draw_dict[page]["actions"]
   len_but = len(but_arr)
+
+  hovering = False
 
   match page:
     case 0:
@@ -171,18 +175,22 @@ def draw_screen(
         text: str = text_arr[i]
 
         if pr.check_collision_point_rec(pr.get_mouse_position(), rec):
-          pr.set_mouse_cursor(pr.MOUSE_CURSOR_POINTING_HAND)
-        else:
-          pr.set_mouse_cursor(pr.MOUSE_CURSOR_DEFAULT)
+          hovering = True
 
         if check_mouse_point and pr.check_collision_point_rec(screen_mouse_point, rec):
           match actions[i]:
             case "page2":
               page = 1
+            case "prev_track":
+              track_index = (track_index - 1) % track_amount
+            case "next_track":
+              track_index = (track_index + 1) % track_amount
 
-        x, y = text_size_arr[i]
+        x, y = text_pos_arr[i]
         pr.draw_rectangle_pro(rec, (0, 0), 0.0, pr.LIGHTGRAY)
-        pr.draw_text_ex(font, text, pr.Vector2(int(x), int(y)), cons.FONT_SIZE, 1, pr.BLACK)
+        pr.draw_text_ex(
+          font, text, pr.Vector2(int(x), int(y)), cons.FONT_SIZE, 1, pr.BLACK
+        )
 
       text = tracks[track_index]["name"]
       half_text_width = pr.measure_text(text, cons.FONT_SIZE) / 2
@@ -201,6 +209,11 @@ def draw_screen(
       pass
     case 2:
       pass
+
+  if hovering:
+    pr.set_mouse_cursor(pr.MOUSE_CURSOR_POINTING_HAND)
+  else:
+    pr.set_mouse_cursor(pr.MOUSE_CURSOR_DEFAULT)
 
   return page, track_index
 
@@ -276,7 +289,7 @@ def create_buts(
 
   for i in range(3):
     draw_info[i] = {
-      "texts": {"strings": [], "size": []},
+      "texts": {"strings": [], "pos": []},
       "buts": [],
       "actions": [],
     }
@@ -284,25 +297,79 @@ def create_buts(
   # Pg 1
   page = 0
   buts = []
-  texts = {"strings": [], "size": []}
+  texts = {"strings": [], "pos": []}
   actions = []
 
+  # Edit button
   edit_text = "EDIT TRACK"
   text_size = pr.measure_text_ex(font, edit_text, cons.FONT_SIZE, 1)
 
   rec_x = sidebar.width / 2 - text_size.x / 2
   rec_y = screen_height / 3 * 2
+  rec_height = text_size.y + margin
 
   edit_text_x = int(rec_x)
   edit_text_y = int(rec_y)
 
-  edit_but = pr.Rectangle(rec_x - margin / 2, rec_y - margin / 2, text_size.x + margin, text_size.y + margin)
+  edit_but = pr.Rectangle(
+    rec_x - margin / 2, rec_y - margin / 2, text_size.x + margin, rec_height
+  )
 
   actions.append("page2")
   buts.append(edit_but)
   texts["strings"].append(edit_text)
-  texts["size"].append((edit_text_x, edit_text_y))
+  texts["pos"].append((edit_text_x, edit_text_y))
 
+  # Track index arrows
+  left_arrow_text = "<"
+  left_arrow_x = rec_x - rec_height - margin
+  left_arrow_y = rec_y - margin / 2
+
+  left_arrow = pr.Rectangle(left_arrow_x, left_arrow_y, rec_height, rec_height)
+
+  text_size = pr.measure_text_ex(font, left_arrow_text, cons.FONT_SIZE, 1)
+  left_text_arrow_x = left_arrow_x + rec_height / 2 - text_size.x / 2
+  left_text_arrow_y = left_arrow_y + rec_height / 2 - text_size.y / 2
+
+  actions.append("prev_track")
+  buts.append(left_arrow)
+  texts["strings"].append(left_arrow_text)
+  texts["pos"].append((left_text_arrow_x, left_text_arrow_y))
+
+  right_arrow_text = ">"
+  right_arrow_x = rec_x + edit_but.width
+  right_arrow_y = left_arrow_y
+
+  right_arrow = pr.Rectangle(right_arrow_x, right_arrow_y, rec_height, rec_height)
+  text_size = pr.measure_text_ex(font, left_arrow_text, cons.FONT_SIZE, 1)
+  right_text_arrow_x = right_arrow_x + rec_height / 2 - text_size.x / 2
+  right_text_arrow_y = right_arrow_y + rec_height / 2 - text_size.y / 2
+
+  actions.append("next_track")
+  buts.append(right_arrow)
+  texts["strings"].append(right_arrow_text)
+  texts["pos"].append((right_text_arrow_x, right_text_arrow_y))
+
+  # Create Track
+  create_text = "Create Track"
+
+  text_size = pr.measure_text_ex(font, create_text, cons.FONT_SIZE, 1)
+
+  create_x = sidebar.width - text_size.x
+  create_y = screen_height - text_size.y
+
+  create_track = pr.Rectangle(
+    create_x - margin, create_y - margin, text_size.x + margin, text_size.y + margin
+  )
+  create_text_x = create_track.x + margin / 2
+  create_text_y = create_track.y + margin / 2
+
+  actions.append("create_track")
+  buts.append(create_track)
+  texts["strings"].append(create_text)
+  texts["pos"].append((create_text_x, create_text_y))
+
+  # Append arrays
   draw_info[page]["texts"] = texts
   draw_info[page]["buts"] = buts
   draw_info[page]["actions"] = actions
