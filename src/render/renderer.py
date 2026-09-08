@@ -40,9 +40,9 @@ class Renderer:
     )
 
     # Car
-    script_dir = Path(__file__).parent
-    car_path = script_dir.parent / "assets" / "imgs" / "car.png"
-    car_image = pr.load_image(car_path)
+    script_dir = Path(__file__).resolve().parent.parent.parent
+    car_path = script_dir / "assets" / "imgs" / "car.png"
+    car_image = pr.load_image(str(car_path))
     pr.image_rotate(car_image, 90)
     pr.image_resize_nn(
       car_image,

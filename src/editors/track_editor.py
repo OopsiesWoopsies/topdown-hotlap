@@ -15,7 +15,7 @@ def main():
 
   base_cam_zoom = 1 / cons.PPM * 20
   camera = pr.Camera2D(
-    (cons.SCREEN_WIDTH, cons.SCREEN_HEIGHT), (0, 0), -90.0, base_cam_zoom
+    (cons.SCREEN_WIDTH / 2, cons.SCREEN_HEIGHT / 2), (0, 0), -90.0, base_cam_zoom
   )
   pos_x = 0.0
   pos_y = 0.0
@@ -26,8 +26,8 @@ def main():
 
   # Car for reference
   car = Car(cons, (0.0, 0.0), 0, (5.6, 2.0))
-  script_dir = Path(__file__).parent
-  car_path = script_dir.parent / "assets" / "imgs" / "car.png"
+  script_dir = Path(__file__).resolve().parent.parent.parent
+  car_path = script_dir / "assets" / "imgs" / "car.png"
   car_image = pr.load_image(str(car_path))
   pr.image_rotate(car_image, 90)
   pr.image_resize_nn(
