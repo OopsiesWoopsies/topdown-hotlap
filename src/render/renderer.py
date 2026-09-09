@@ -176,11 +176,7 @@ class Renderer:
   def create_track_chunks(self, track: PhysicsTrack):
     self.render_track.render_chunks(
       self.cons,
-      track.center_pts,
-      track.left_bound_pts,
-      track.right_bound_pts,
-      track.sector_lines,
-      track.finish_line,
+      track.get_track_components()
     )
 
   def draw_world(self):

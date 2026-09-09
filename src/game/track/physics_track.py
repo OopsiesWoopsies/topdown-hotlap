@@ -330,6 +330,18 @@ class PhysicsTrack:
 
     return tire_on_track, new_track_indices
 
+  def get_track_components(
+    self,
+  ) -> dict[list | tuple]:
+    track_components = {
+      "center": self.center_pts,
+      "left": self.left_bound_pts,
+      "right": self.right_bound_pts,
+      "sectors": self.sector_lines,
+      "finish": self.finish_line,
+    }
+    return track_components
+
   def stop_lap(self):
     self.start_lap = False
     self.curr_sector = 1

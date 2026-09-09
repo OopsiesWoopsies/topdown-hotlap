@@ -199,6 +199,7 @@ def check_screen_click(
         case "gen_track":
           # <- Create track (also make a get function that returns all the necessary things to generate chunks)
           render_track.unload_chunks()
+          track_components = physics_track.get_track_components()
           # <- Render chunks
           draw_chunks = True
           edit_pts = False

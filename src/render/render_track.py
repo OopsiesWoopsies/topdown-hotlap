@@ -16,15 +16,13 @@ class RenderTrack:
     for chunk_tex in self.chunks.values():
       pr.unload_render_texture(chunk_tex)
 
-  def render_chunks(
-    self,
-    cons: Constants,
-    center_pts: list[tuple[float, float]],
-    left_bound_pts: list[pr.Vector2],
-    right_bound_pts: list[pr.Vector2],
-    sector_lines: list[tuple[float, float]],
-    finish_line: tuple[float, float],
-  ):
+  def render_chunks(self, cons: Constants, track_components: dict[list | tuple]):
+    center_pts = track_components["center"]
+    left_bound_pts = track_components["left"]
+    right_bound_pts = track_components["right"]
+    sector_lines = track_components["sectors"]
+    finish_line = track_components["finish"]
+
     self.unload_chunks()
     self.chunks = {}
     line_thickness = 0.1 * cons.PPM  # pixels
