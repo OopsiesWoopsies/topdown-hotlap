@@ -218,7 +218,7 @@ def draw_world(
     if pr.check_collision_point_rec(screen_mouse_point, sidebar):
       return
     else:
-      world_point = pr.get_world_to_screen_2d(screen_mouse_point, camera)
+      world_point = pr.get_screen_to_world_2d(screen_mouse_point, camera)
       print(world_point.x, world_point.y)
 
 
