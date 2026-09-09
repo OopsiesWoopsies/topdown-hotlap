@@ -11,6 +11,33 @@ from utils.constants import Constants
 from utils.layouts import tracks
 
 
+class Point:
+  def __init__(
+    self,
+    cons: Constants,
+    index: int,
+    world_pos: tuple[float, float],
+    hitbox_size: int = 5,
+  ):
+    self.cons = cons
+    self.index = index
+    self.world_pos = world_pos
+    hitbox_size *= cons.PPM
+
+    pos_x, pos_y = world_pos
+    self.hitbox = pr.Rectangle(
+      pos_x - hitbox_size / 2, pos_y - hitbox_size / 2, hitbox_size, hitbox_size
+    )
+
+  def draw_point(self, finish_index: int):
+    if finish_index == self.index:
+      colour = pr.BLUE
+    else:
+      colour = pr.RED
+    pr.draw_rectangle_pro(self.hitbox, (0, 0), 0.0, colour)
+    pr.draw_rectangle_lines_ex(self.hitbox, 0.2 * self.cons.PPM, pr.WHITE)
+
+
 def main():
   cons = Constants()
   physics_track = PhysicsTrack()
@@ -25,6 +52,7 @@ def main():
     "finish": 0,
     "track": [],
   }
+  points: list[Point] = []
 
   base_cam_zoom = 1 / cons.PPM * 20
   camera = pr.Camera2D(
@@ -104,7 +132,7 @@ def main():
     accumulator += frame_time
 
     while accumulator >= fixed_dt:
-      pos_x, pos_y = control_screen(fixed_dt, camera, (pos_x, pos_y))
+      pos_x, pos_y = control_screen(cons, fixed_dt, camera, (pos_x, pos_y))
       accumulator -= fixed_dt
 
     # Clicking
@@ -127,7 +155,10 @@ def main():
       screen_mouse_point,
       check_mouse_point,
       sidebar,
+      edit_pts,
       draw_chunks,
+      track_info,
+      points,
     )
     draw_grid(cons, camera, screen_width, screen_height)
     pr.end_mode_2d()
@@ -143,6 +174,7 @@ def main():
       edit_pts,
       draw_chunks,
       track_info,
+      points,
     )
 
     draw_screen(
@@ -169,9 +201,16 @@ def draw_world(
   screen_mouse_point: pr.Vector2,
   check_mouse_point: bool,
   sidebar: pr.Rectangle,
+  edit_pts: bool,
   draw_chunks: bool,
+  track_info: dict[str, str | int | list[tuple[float, float]]],
+  points: list[Point],
 ):
-  if draw_chunks:
+  if edit_pts:
+    finish_i = track_info["finish"]
+    for pt in points:
+      pt.draw_point(finish_i)
+  elif draw_chunks:
     render_track.draw(camera)
   render_car.draw_car()
 
@@ -195,6 +234,7 @@ def check_screen_click(
   edit_pts: bool,
   draw_chunks: bool,
   track_info: dict[str, str | int | list[tuple[float, float]]],
+  points: list[Point],
 ) -> tuple[int, int, bool, bool]:
 
   track_amount = len(tracks)
@@ -217,8 +257,8 @@ def check_screen_click(
         case "gen_track":
           draw_chunks = True
           edit_pts = False
+
           physics_track.create_track(track_info["track"], track_info["finish"])
-          render_track.unload_chunks()
           render_track.render_chunks(cons, physics_track.get_track_components())
         case "page1":
           page = 0
@@ -228,11 +268,18 @@ def check_screen_click(
           page = 1
           edit_pts = True
           draw_chunks = False
+
           track = tracks[track_index]
           track_info["name"] = track["name"]
           track_info["track"] = track["track"]
           track_info["finish"] = track["finish"]
 
+          points.clear()
+
+          for i, unscaled_pt in enumerate(track["track"]):
+            pt_x, pt_y = unscaled_pt
+            scaled_pt = (pt_x * cons.PPM, pt_y * cons.PPM)
+            points.append(Point(cons, i, scaled_pt, 3))
         case "page3":
           page = 2
           edit_pts = False
@@ -291,12 +338,13 @@ def draw_screen(
       )
 
     case 1:
+      # Draw length of track
       pass
     case 2:
       pass
 
 
-def control_screen(dt, camera: pr.Camera2D, pos: tuple[float, float]):
+def control_screen(cons: Constants, dt: float, camera: pr.Camera2D, pos: tuple[float, float]):
   pos_x, pos_y = pos
   speed = 500
 
@@ -326,8 +374,8 @@ def control_screen(dt, camera: pr.Camera2D, pos: tuple[float, float]):
   camera.zoom = camera.zoom + zoom * dt
   if camera.zoom < 0.05:
     camera.zoom = 0.05
-  elif camera.zoom > 2.0:
-    camera.zoom = 2.0
+  # elif camera.zoom > 2.0:
+  #   camera.zoom = 2.0
 
   return pos_x, pos_y
 
