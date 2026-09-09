@@ -13,7 +13,12 @@ class RenderTrack:
     self.chunks: dict[tuple[int, int], pr.RenderTexture] = {}
 
   def unload_chunks(self):
-    for chunk_tex in self.chunks.values():
+    num_chunks = len(self.chunks)
+    for i, chunk_tex in enumerate(self.chunks.values()):
+      pr.begin_drawing()
+      pr.clear_background(pr.BLACK)
+      pr.draw_text(f"Unloading chunks... {i} / {num_chunks}", 10, 10, 20, pr.RED)
+      pr.end_drawing()
       pr.unload_render_texture(chunk_tex)
 
   def render_chunks(self, cons: Constants, track_components: dict[list | tuple]):
@@ -90,11 +95,11 @@ class RenderTrack:
     )
     num_chunks = len(active_chunk_keys)
 
-    for idx, (cx, cy) in enumerate(active_chunk_keys):
+    for i, (cx, cy) in enumerate(active_chunk_keys):
       pr.begin_drawing()
       pr.clear_background(pr.BLACK)
       pr.draw_text(
-        f"Generating chunks... {idx} / {num_chunks} chunks", 10, 10, 20, pr.WHITE
+        f"Generating chunks... {i} / {num_chunks} chunks", 10, 10, 20, pr.WHITE
       )
       pr.end_drawing()
       chunk_tex = pr.load_render_texture(CHUNK_SIZE, CHUNK_SIZE)

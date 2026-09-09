@@ -20,6 +20,12 @@ def main():
   pr.init_window(screen_width, screen_height, "Track Editor")
   # pr.set_target_fps(144)
 
+  track_info: dict[str, str | int | list[tuple[float, float]]] = {
+    "name": "",
+    "finish": 0,
+    "track": [],
+  }
+
   base_cam_zoom = 1 / cons.PPM * 20
   camera = pr.Camera2D(
     (screen_width / 2, screen_height / 2), (0, 0), -90.0, base_cam_zoom
@@ -111,7 +117,7 @@ def main():
 
     # Drawing
     pr.begin_drawing()
-    pr.clear_background(pr.WHITE)
+    pr.clear_background(pr.DARKGREEN)
 
     pr.begin_mode_2d(camera)
     draw_world(
@@ -136,6 +142,7 @@ def main():
       track_index,
       edit_pts,
       draw_chunks,
+      track_info,
     )
 
     draw_screen(
@@ -187,6 +194,7 @@ def check_screen_click(
   track_index: int,
   edit_pts: bool,
   draw_chunks: bool,
+  track_info: dict[str, str | int | list[tuple[float, float]]],
 ) -> tuple[int, int, bool, bool]:
 
   track_amount = len(tracks)
@@ -207,12 +215,13 @@ def check_screen_click(
           edit_pts = True
           draw_chunks = False
         case "gen_track":
-          # <- Create track (also make a get function that returns all the necessary things to generate chunks)
-          render_track.unload_chunks()
-          track_components = physics_track.get_track_components()
-          # <- Render chunks
           draw_chunks = True
           edit_pts = False
+          physics_track.create_track(
+            track_info["track"], track_info["finish"]
+          )
+          render_track.unload_chunks()
+          render_track.render_chunks(cons, physics_track.get_track_components())
         case "page1":
           page = 0
           edit_pts = False
@@ -221,7 +230,11 @@ def check_screen_click(
           page = 1
           edit_pts = True
           draw_chunks = False
-          # load points as dots, but don't generate track
+          track = tracks[track_index]
+          track_info["name"] = track["name"]
+          track_info["track"] = track["track"]
+          track_info["finish"] = track["finish"]
+
         case "page3":
           page = 2
           edit_pts = False
@@ -232,7 +245,6 @@ def check_screen_click(
           track_index = (track_index + 1) % track_amount
         case "new_track":
           page = 1
-          # don't load points as dots (there's nothing to load...)
 
   if hovering:
     pr.set_mouse_cursor(pr.MOUSE_CURSOR_POINTING_HAND)
@@ -314,7 +326,10 @@ def control_screen(dt, camera: pr.Camera2D, pos: tuple[float, float]):
 
   camera.target = (pos_x, pos_y)
   camera.zoom = camera.zoom + zoom * dt
-  camera.zoom = max(0.05, camera.zoom)
+  if camera.zoom < 0.05:
+    camera.zoom = 0.05
+  elif camera.zoom > 2.0:
+    camera.zoom = 2.0
 
   return pos_x, pos_y
 
