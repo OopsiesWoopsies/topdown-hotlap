@@ -283,6 +283,57 @@ def draw_grid(
 def create_buts(
   cons: Constants, sidebar: pr.Rectangle, screen_width: int, screen_height: int
 ) -> dict[int, dict[str, any]]:
+  def align_but_info(
+    text: str,
+    action: str,
+    unaligned_pos_x: int,
+    unaligned_pos_y: int,
+    margin: int,
+    alignment: int,
+  ) -> pr.Rectangle:
+    """Aligns the button relative to the point, so if it is centered aligned at the given position,
+    it will size itself that will symmetrical down the middle. If it is left aligned, then it will push everything to the right of the position.
+    It is the same logic for right alignment. The text is centered aligned in the rectangle. The alignment refers to the x-axis.
+
+    Args:
+      text: The text inside the button.
+      action: What pressing the button will do.
+      unaligned_pos_x: The desired x position for alignment.
+      unaligned_pos_y: The desired y position for alignment.
+      margin: The margin between the text and edge of the button.
+      alignment: 0-2, indicating left, center, right alignment respectively.
+
+    Returns:
+      The aligned rectangle. It can be used to format other buttons relative to it.
+    """
+
+    text_size = pr.measure_text_ex(font, text, cons.FONT_SIZE, 1)
+
+    match alignment:
+      case 0:  # left aligned
+        aligned_text_x = unaligned_pos_x
+        aligned_text_y = unaligned_pos_y - text_size.y / 2
+      case 1:  # centered
+        aligned_text_x = unaligned_pos_x - text_size.x / 2
+        aligned_text_y = unaligned_pos_y - text_size.y / 2
+      case 2:  # right aligned
+        aligned_text_x = unaligned_pos_x - text_size.x
+        aligned_text_y = unaligned_pos_y - text_size.y / 2
+
+    rec = pr.Rectangle(
+      aligned_text_x - margin / 2,
+      aligned_text_y - margin / 2,
+      text_size.x + margin,
+      text_size.y + margin,
+    )
+
+    actions.append(action)
+    buts.append(rec)
+    texts["strings"].append(text)
+    texts["pos"].append((aligned_text_x, aligned_text_y))
+
+    return rec
+
   draw_info = {}
   margin = 14
   font = pr.get_font_default()
@@ -301,73 +352,28 @@ def create_buts(
   actions = []
 
   # Edit button
-  edit_text = "EDIT TRACK"
-  text_size = pr.measure_text_ex(font, edit_text, cons.FONT_SIZE, 1)
-
-  rec_x = sidebar.width / 2 - text_size.x / 2
+  rec_x = sidebar.width / 2
   rec_y = screen_height / 3 * 2
-  rec_height = text_size.y + margin
 
-  edit_text_x = int(rec_x)
-  edit_text_y = int(rec_y)
-
-  edit_but = pr.Rectangle(
-    rec_x - margin / 2, rec_y - margin / 2, text_size.x + margin, rec_height
+  edit_but: pr.Rectangle = align_but_info(
+    "EDIT TRACK", "page2", rec_x, rec_y, margin, 1
   )
-
-  actions.append("page2")
-  buts.append(edit_but)
-  texts["strings"].append(edit_text)
-  texts["pos"].append((edit_text_x, edit_text_y))
 
   # Track index arrows
-  left_arrow_text = "<"
-  left_arrow_x = rec_x - rec_height - margin
-  left_arrow_y = rec_y - margin / 2
+  left_arrow_x = rec_x - edit_but.width / 2 - margin
+  left_arrow_y = rec_y
+  align_but_info("<-", "prev_track", left_arrow_x, left_arrow_y, margin, 2)
 
-  left_arrow = pr.Rectangle(left_arrow_x, left_arrow_y, rec_height, rec_height)
+  right_arrow_x = rec_x + edit_but.width / 2 + margin
+  right_arrow_y = rec_y
 
-  text_size = pr.measure_text_ex(font, left_arrow_text, cons.FONT_SIZE, 1)
-  left_text_arrow_x = left_arrow_x + rec_height / 2 - text_size.x / 2
-  left_text_arrow_y = left_arrow_y + rec_height / 2 - text_size.y / 2
-
-  actions.append("prev_track")
-  buts.append(left_arrow)
-  texts["strings"].append(left_arrow_text)
-  texts["pos"].append((left_text_arrow_x, left_text_arrow_y))
-
-  right_arrow_text = ">"
-  right_arrow_x = rec_x + edit_but.width
-  right_arrow_y = left_arrow_y
-
-  right_arrow = pr.Rectangle(right_arrow_x, right_arrow_y, rec_height, rec_height)
-  text_size = pr.measure_text_ex(font, left_arrow_text, cons.FONT_SIZE, 1)
-  right_text_arrow_x = right_arrow_x + rec_height / 2 - text_size.x / 2
-  right_text_arrow_y = right_arrow_y + rec_height / 2 - text_size.y / 2
-
-  actions.append("next_track")
-  buts.append(right_arrow)
-  texts["strings"].append(right_arrow_text)
-  texts["pos"].append((right_text_arrow_x, right_text_arrow_y))
+  align_but_info("->", "next_track", right_arrow_x, right_arrow_y, margin, 0)
 
   # Create Track
-  create_text = "Create Track"
+  create_x = sidebar.width - margin
+  create_y = screen_height - margin * 2
 
-  text_size = pr.measure_text_ex(font, create_text, cons.FONT_SIZE, 1)
-
-  create_x = sidebar.width - text_size.x
-  create_y = screen_height - text_size.y
-
-  create_track = pr.Rectangle(
-    create_x - margin, create_y - margin, text_size.x + margin, text_size.y + margin
-  )
-  create_text_x = create_track.x + margin / 2
-  create_text_y = create_track.y + margin / 2
-
-  actions.append("create_track")
-  buts.append(create_track)
-  texts["strings"].append(create_text)
-  texts["pos"].append((create_text_x, create_text_y))
+  align_but_info("Create Track", "new_track", create_x, create_y, margin, 2)
 
   # Append arrays
   draw_info[page]["texts"] = texts
