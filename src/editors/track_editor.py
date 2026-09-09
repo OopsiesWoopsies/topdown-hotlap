@@ -114,7 +114,15 @@ def main():
     pr.clear_background(pr.WHITE)
 
     pr.begin_mode_2d(camera)
-    draw_world(camera, render_car, screen_mouse_point, check_mouse_point, sidebar, draw_chunks)
+    draw_world(
+      camera,
+      render_car,
+      render_track,
+      screen_mouse_point,
+      check_mouse_point,
+      sidebar,
+      draw_chunks,
+    )
     draw_grid(cons, camera, screen_width, screen_height)
     pr.end_mode_2d()
     page, track_index, edit_pts, draw_chunks = check_screen_click(
@@ -127,6 +135,7 @@ def main():
       page,
       track_index,
       edit_pts,
+      draw_chunks,
     )
 
     draw_screen(
@@ -156,14 +165,15 @@ def draw_world(
   draw_chunks: bool,
 ):
   if draw_chunks:
-    render_track.draw()
+    render_track.draw(camera)
   render_car.draw_car()
 
-  if pr.check_collision_point_rec(screen_mouse_point, sidebar):
-    return
-  elif check_mouse_point:
-    world_point = pr.get_world_to_screen_2d(screen_mouse_point, camera)
-    print(world_point.x, world_point.y)
+  if check_mouse_point:
+    if pr.check_collision_point_rec(screen_mouse_point, sidebar):
+      return
+    else:
+      world_point = pr.get_world_to_screen_2d(screen_mouse_point, camera)
+      print(world_point.x, world_point.y)
 
 
 def check_screen_click(
@@ -176,7 +186,7 @@ def check_screen_click(
   page: int,
   track_index: int,
   edit_pts: bool,
-  draw_chunks: bool
+  draw_chunks: bool,
 ) -> tuple[int, int, bool, bool]:
 
   track_amount = len(tracks)
@@ -257,22 +267,23 @@ def draw_screen(
     x, y = text_pos_arr[i]
     pr.draw_rectangle_pro(rec, (0, 0), 0.0, pr.LIGHTGRAY)
     pr.draw_text_ex(font, text, pr.Vector2(int(x), int(y)), cons.FONT_SIZE, 1, pr.BLACK)
-    match page:
-      case 0:
-        text = tracks[track_index]["name"]
-        half_text_width = pr.measure_text(text, cons.FONT_SIZE) / 2
-        pr.draw_text(
-          text,
-          int(rec_width / 2 - half_text_width),
-          int(screen_height / 3),
-          cons.FONT_SIZE,
-          pr.WHITE,
-        )
 
-      case 1:
-        pass
-      case 2:
-        pass
+  match page:
+    case 0:
+      text = tracks[track_index]["name"]
+      half_text_width = pr.measure_text(text, cons.FONT_SIZE) / 2
+      pr.draw_text(
+        text,
+        int(rec_width / 2 - half_text_width),
+        int(screen_height / 3),
+        cons.FONT_SIZE,
+        pr.WHITE,
+      )
+
+    case 1:
+      pass
+    case 2:
+      pass
 
 
 def control_screen(dt, camera: pr.Camera2D, pos: tuple[float, float]):
@@ -428,7 +439,7 @@ def create_buts(
   create_x = sidebar.width - margin
   create_y = screen_height - margin * 2
 
-  align_but_info("Create Track", "new_track", create_x, create_y, margin, 2)
+  align_but_info("CREATE TRACK", "new_track", create_x, create_y, margin, 2)
 
   # Append arrays
   draw_info[page]["texts"] = texts
@@ -446,15 +457,40 @@ def create_buts(
   back_y = 5 + margin
   align_but_info("<-", "page1", back_x, back_y, margin, 0)
 
+  # Next button
+  next_x = sidebar.width - margin
+  next_y = 5 + margin
+  align_but_info("->", "page3", next_x, next_y, margin, 2)
+
   # Edit Points
   edit_pt_x = sidebar.width / 2
   edit_pt_y = screen_height * 3 / 4
-  align_but_info("Edit Points", "edit_points", edit_pt_x, edit_pt_y, margin, 1)
+  align_but_info("EDIT POINTS", "edit_points", edit_pt_x, edit_pt_y, margin, 1)
 
   # Generate Track
   gen_track_x = sidebar.width / 2
   gen_track_y = screen_height * 3 / 4 + 50
-  align_but_info("Generate Track", "gen_track", gen_track_x, gen_track_y, margin, 1)
+  align_but_info("GENERATE TRACK", "gen_track", gen_track_x, gen_track_y, margin, 1)
+
+  draw_info[page]["texts"] = texts
+  draw_info[page]["buts"] = buts
+  draw_info[page]["actions"] = actions
+
+  # --Pg 3--  (Name track and print it)
+  page = 2
+  buts = []
+  texts = {"strings": [], "pos": []}
+  actions = []
+
+  # Back button
+  back_x = margin
+  back_y = 5 + margin
+  align_but_info("<-", "page2", back_x, back_y, margin, 0)
+
+  # Print main track points to terminal
+  print_x = sidebar.width / 2
+  print_y = screen_height * 3 / 4
+  align_but_info("PRINT TRACK", "print", print_x, print_y, margin, 1)
 
   draw_info[page]["texts"] = texts
   draw_info[page]["buts"] = buts
