@@ -126,7 +126,7 @@ class PhysicsTrack:
     self.start_lap = False
 
     # Track points
-    self.center_line_pts = tracks[self.track_selection][
+    self.center_line_pts: tuple[int, int] = tracks[self.track_selection][
       "track"
     ]  # Dictates the main path of the track
 
@@ -144,12 +144,22 @@ class PhysicsTrack:
     self.render_texture = None
     self.create_track()
 
-  def create_track(self):
-    self.center_line_pts = tracks[self.track_selection]["track"]
+  def create_track(
+    self,
+    custom_track: list[tuple[int, int]] | None = None,
+    custom_finish_index: int | None = None,
+  ):
+    if custom_track == None:
+      self.center_line_pts = tracks[self.track_selection]["track"]
+    else:
+      self.center_line_pts = custom_track
     num_pts = len(self.center_line_pts)
     sector_index = num_pts // 3
 
-    self.finish_index = tracks[self.track_selection]["finish"]
+    if custom_finish_index == None:
+      self.finish_index = tracks[self.track_selection]["finish"]
+    else:
+      self.finish_index = custom_finish_index
     self.sector_indexes = [
       int((sector_index * i + self.finish_index) % num_pts) for i in range(1, 3)
     ]

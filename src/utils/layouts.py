@@ -1,7 +1,7 @@
 # Comments are based off of starting position (0, 0) and a starting rotation of 0 deg
 # Make sure points are >= 10m apart to avoid boundary loops if turning and points don't create a jagged inner corner
 # Add more points in between if jagged to smoothen it out
-tracks = [
+tracks: dict[str, str | int | tuple[int, int]] = [
   {  # Small square
     "name": "Small Square",
     "finish": 8,
@@ -69,7 +69,7 @@ tracks = [
     ),
   },
   {  # Half pipe
-    "name":  "Half Pipe",
+    "name": "Half Pipe",
     "finish": 2,
     "track": (
       (

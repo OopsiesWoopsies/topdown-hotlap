@@ -4,13 +4,17 @@ from pathlib import Path
 import pyray as pr
 
 from game.car.car_body import Car
+from game.track.physics_track import PhysicsTrack
 from render.car.render_car import RenderCar
+from render.render_track import RenderTrack
 from utils.constants import Constants
 from utils.layouts import tracks
 
 
 def main():
   cons = Constants()
+  physics_track = PhysicsTrack()
+  render_track = RenderTrack()
   screen_width = cons.SCREEN_WIDTH
   screen_height = cons.SCREEN_HEIGHT
   pr.init_window(screen_width, screen_height, "Track Editor")
@@ -27,6 +31,9 @@ def main():
   screen_mouse_point = pr.Vector2(0, 0)
   left_click = False
   check_mouse_point = False
+
+  edit_pts = False
+  draw_chunks = False
 
   track_index = 2
   sidebar = pr.Rectangle(0, 0, 350, screen_height)
@@ -107,14 +114,23 @@ def main():
     pr.clear_background(pr.WHITE)
 
     pr.begin_mode_2d(camera)
-    draw_world(camera, render_car, screen_mouse_point, check_mouse_point, sidebar)
+    draw_world(camera, render_car, screen_mouse_point, check_mouse_point, sidebar, draw_chunks)
     draw_grid(cons, camera, screen_width, screen_height)
     pr.end_mode_2d()
-
-    page, track_index = draw_screen(
+    page, track_index, edit_pts, draw_chunks = check_screen_click(
       cons,
+      physics_track,
+      render_track,
+      draw_dict,
       screen_mouse_point,
       check_mouse_point,
+      page,
+      track_index,
+      edit_pts,
+    )
+
+    draw_screen(
+      cons,
       draw_dict,
       sidebar,
       screen_height,
@@ -125,16 +141,22 @@ def main():
     pr.end_drawing()
 
     check_mouse_point = False
+
+  render_track.close()
   pr.close_window()
 
 
 def draw_world(
   camera: pr.Camera2D,
   render_car: RenderCar,
+  render_track: RenderTrack,
   screen_mouse_point: pr.Vector2,
   check_mouse_point: bool,
   sidebar: pr.Rectangle,
+  draw_chunks: bool,
 ):
+  if draw_chunks:
+    render_track.draw()
   render_car.draw_car()
 
   if pr.check_collision_point_rec(screen_mouse_point, sidebar):
@@ -144,78 +166,112 @@ def draw_world(
     print(world_point.x, world_point.y)
 
 
-def draw_screen(
+def check_screen_click(
   cons: Constants,
+  physics_track: PhysicsTrack,
+  render_track: RenderTrack,
+  draw_dict: dict[int, dict[str, any]],
   screen_mouse_point: pr.Vector2,
   check_mouse_point: bool,
-  draw_dict: dict[int, dict[str, any]],
-  sidebar: pr.Rectangle,
-  screen_height: int,
   page: int,
   track_index: int,
-) -> int:
-  font = pr.get_font_default()
-  rec_width = sidebar.width
-  pr.draw_rectangle_pro(sidebar, (0, 0), 0.0, (0, 0, 0, 180))
+  edit_pts: bool,
+  draw_chunks: bool
+) -> tuple[int, int, bool, bool]:
 
   track_amount = len(tracks)
   but_arr = draw_dict[page]["buts"]
-  texts = draw_dict[page]["texts"]
-  text_arr = texts["strings"]
-  text_pos_arr = texts["pos"]
-  actions = draw_dict[page]["actions"]
   len_but = len(but_arr)
-
+  actions = draw_dict[page]["actions"]
   hovering = False
 
-  match page:
-    case 0:
-      for i in range(len_but):
-        rec: pr.Rectangle = but_arr[i]
-        text: str = text_arr[i]
+  for i in range(len_but):
+    rec: pr.Rectangle = but_arr[i]
 
-        if pr.check_collision_point_rec(pr.get_mouse_position(), rec):
-          hovering = True
+    if pr.check_collision_point_rec(pr.get_mouse_position(), rec):
+      hovering = True
 
-        if check_mouse_point and pr.check_collision_point_rec(screen_mouse_point, rec):
-          match actions[i]:
-            case "page2":
-              page = 1
-            case "prev_track":
-              track_index = (track_index - 1) % track_amount
-            case "next_track":
-              track_index = (track_index + 1) % track_amount
-
-        x, y = text_pos_arr[i]
-        pr.draw_rectangle_pro(rec, (0, 0), 0.0, pr.LIGHTGRAY)
-        pr.draw_text_ex(
-          font, text, pr.Vector2(int(x), int(y)), cons.FONT_SIZE, 1, pr.BLACK
-        )
-
-      text = tracks[track_index]["name"]
-      half_text_width = pr.measure_text(text, cons.FONT_SIZE) / 2
-      pr.draw_text(
-        text,
-        int(rec_width / 2 - half_text_width),
-        int(screen_height / 3),
-        cons.FONT_SIZE,
-        pr.WHITE,
-      )
-
-      # check for left and right arrow collisions for track selection
-      # check for create new track collision
-
-    case 1:
-      pass
-    case 2:
-      pass
+    if check_mouse_point and pr.check_collision_point_rec(screen_mouse_point, rec):
+      match actions[i]:
+        case "edit_points":
+          edit_pts = True
+          draw_chunks = False
+        case "gen_track":
+          # <- Create track (also make a get function that returns all the necessary things to generate chunks)
+          render_track.unload_chunks()
+          # <- Render chunks
+          draw_chunks = True
+          edit_pts = False
+        case "page1":
+          page = 0
+          edit_pts = False
+          draw_chunks = False
+        case "page2":
+          page = 1
+          edit_pts = True
+          draw_chunks = False
+          # load points as dots, but don't generate track
+        case "page3":
+          page = 2
+          edit_pts = False
+          draw_chunks = False
+        case "prev_track":
+          track_index = (track_index - 1) % track_amount
+        case "next_track":
+          track_index = (track_index + 1) % track_amount
+        case "new_track":
+          page = 1
+          # don't load points as dots (there's nothing to load...)
 
   if hovering:
     pr.set_mouse_cursor(pr.MOUSE_CURSOR_POINTING_HAND)
   else:
     pr.set_mouse_cursor(pr.MOUSE_CURSOR_DEFAULT)
 
-  return page, track_index
+  return page, track_index, edit_pts, draw_chunks
+
+
+def draw_screen(
+  cons: Constants,
+  draw_dict: dict[int, dict[str, any]],
+  sidebar: pr.Rectangle,
+  screen_height: int,
+  page: int,
+  track_index: int,
+) -> tuple[int, int, bool]:
+  font = pr.get_font_default()
+  rec_width = sidebar.width
+  pr.draw_rectangle_pro(sidebar, (0, 0), 0.0, (0, 0, 0, 180))
+
+  but_arr = draw_dict[page]["buts"]
+  texts = draw_dict[page]["texts"]
+  text_arr = texts["strings"]
+  text_pos_arr = texts["pos"]
+  len_but = len(but_arr)
+
+  for i in range(len_but):
+    rec: pr.Rectangle = but_arr[i]
+    text: str = text_arr[i]
+
+    x, y = text_pos_arr[i]
+    pr.draw_rectangle_pro(rec, (0, 0), 0.0, pr.LIGHTGRAY)
+    pr.draw_text_ex(font, text, pr.Vector2(int(x), int(y)), cons.FONT_SIZE, 1, pr.BLACK)
+    match page:
+      case 0:
+        text = tracks[track_index]["name"]
+        half_text_width = pr.measure_text(text, cons.FONT_SIZE) / 2
+        pr.draw_text(
+          text,
+          int(rec_width / 2 - half_text_width),
+          int(screen_height / 3),
+          cons.FONT_SIZE,
+          pr.WHITE,
+        )
+
+      case 1:
+        pass
+      case 2:
+        pass
 
 
 def control_screen(dt, camera: pr.Camera2D, pos: tuple[float, float]):
@@ -312,13 +368,11 @@ def create_buts(
     match alignment:
       case 0:  # left aligned
         aligned_text_x = unaligned_pos_x
-        aligned_text_y = unaligned_pos_y - text_size.y / 2
       case 1:  # centered
         aligned_text_x = unaligned_pos_x - text_size.x / 2
-        aligned_text_y = unaligned_pos_y - text_size.y / 2
       case 2:  # right aligned
         aligned_text_x = unaligned_pos_x - text_size.x
-        aligned_text_y = unaligned_pos_y - text_size.y / 2
+    aligned_text_y = unaligned_pos_y - text_size.y / 2
 
     rec = pr.Rectangle(
       aligned_text_x - margin / 2,
@@ -345,27 +399,27 @@ def create_buts(
       "actions": [],
     }
 
-  # Pg 1
+  # --Pg 1--  (Edit / Create track)
   page = 0
   buts = []
   texts = {"strings": [], "pos": []}
   actions = []
 
   # Edit button
-  rec_x = sidebar.width / 2
-  rec_y = screen_height / 3 * 2
+  edit_track_x = sidebar.width / 2
+  edit_track_y = screen_height / 3 * 2
 
-  edit_but: pr.Rectangle = align_but_info(
-    "EDIT TRACK", "page2", rec_x, rec_y, margin, 1
+  edit_track_but: pr.Rectangle = align_but_info(
+    "EDIT TRACK", "page2", edit_track_x, edit_track_y, margin, 1
   )
 
   # Track index arrows
-  left_arrow_x = rec_x - edit_but.width / 2 - margin
-  left_arrow_y = rec_y
+  left_arrow_x = edit_track_x - edit_track_but.width / 2 - margin
+  left_arrow_y = edit_track_y
   align_but_info("<-", "prev_track", left_arrow_x, left_arrow_y, margin, 2)
 
-  right_arrow_x = rec_x + edit_but.width / 2 + margin
-  right_arrow_y = rec_y
+  right_arrow_x = edit_track_x + edit_track_but.width / 2 + margin
+  right_arrow_y = edit_track_y
 
   align_but_info("->", "next_track", right_arrow_x, right_arrow_y, margin, 0)
 
@@ -380,11 +434,31 @@ def create_buts(
   draw_info[page]["buts"] = buts
   draw_info[page]["actions"] = actions
 
-  # Pg 2
-  # but = []
-  # texts = []
+  # --Pg 2--  (Edit / Create points)
+  page = 1
+  buts = []
+  texts = {"strings": [], "pos": []}
+  actions = []
 
-  print(draw_info)
+  # Back button
+  back_x = margin
+  back_y = 5 + margin
+  align_but_info("<-", "page1", back_x, back_y, margin, 0)
+
+  # Edit Points
+  edit_pt_x = sidebar.width / 2
+  edit_pt_y = screen_height * 3 / 4
+  align_but_info("Edit Points", "edit_points", edit_pt_x, edit_pt_y, margin, 1)
+
+  # Generate Track
+  gen_track_x = sidebar.width / 2
+  gen_track_y = screen_height * 3 / 4 + 50
+  align_but_info("Generate Track", "gen_track", gen_track_x, gen_track_y, margin, 1)
+
+  draw_info[page]["texts"] = texts
+  draw_info[page]["buts"] = buts
+  draw_info[page]["actions"] = actions
+
   return draw_info
 
 
