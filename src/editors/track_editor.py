@@ -217,9 +217,7 @@ def check_screen_click(
         case "gen_track":
           draw_chunks = True
           edit_pts = False
-          physics_track.create_track(
-            track_info["track"], track_info["finish"]
-          )
+          physics_track.create_track(track_info["track"], track_info["finish"])
           render_track.unload_chunks()
           render_track.render_chunks(cons, physics_track.get_track_components())
         case "page1":
@@ -306,7 +304,7 @@ def control_screen(dt, camera: pr.Camera2D, pos: tuple[float, float]):
   zoom_speed = 0
 
   if pr.is_key_down(pr.KEY_LEFT_SHIFT):
-    speed = 1000
+    speed = 1250
     zoom_speed = 0.5
 
   dt_speed = speed * dt / camera.zoom
@@ -332,35 +330,6 @@ def control_screen(dt, camera: pr.Camera2D, pos: tuple[float, float]):
     camera.zoom = 2.0
 
   return pos_x, pos_y
-
-
-def draw_grid(
-  cons: Constants, camera: pr.Camera2D, screen_width: int, screen_height: int
-):  # 2m x 2m gridbox
-  if camera.zoom < 0.05:
-    return
-
-  spacing = cons.PPM * 2
-
-  tl = pr.get_screen_to_world_2d((0, 0), camera)
-  br = pr.get_screen_to_world_2d((screen_width, screen_height), camera)
-
-  start_x = int(round(tl.x) // spacing) * spacing
-  end_x = int(round(br.x) // spacing) * spacing + spacing
-
-  start_y = int(round(tl.y) // spacing) * spacing
-  end_y = int(round(br.y) // spacing) * spacing + spacing
-
-  bound_top = int(tl.y)
-  bound_bottom = int(br.y)
-  bound_left = int(tl.x)
-  bound_right = int(br.x)
-
-  for x in range(end_x, start_x, spacing):
-    pr.draw_line(x, bound_top, x, bound_bottom, pr.BLACK)
-
-  for y in range(start_y, end_y, spacing):
-    pr.draw_line(bound_left, y, bound_right, y, pr.BLACK)
 
 
 def create_buts(
@@ -512,6 +481,35 @@ def create_buts(
   draw_info[page]["actions"] = actions
 
   return draw_info
+
+
+def draw_grid(
+  cons: Constants, camera: pr.Camera2D, screen_width: int, screen_height: int
+):  # 2m x 2m gridbox
+  if camera.zoom < 0.05:
+    return
+
+  spacing = cons.PPM * 2
+
+  tl = pr.get_screen_to_world_2d((0, 0), camera)
+  br = pr.get_screen_to_world_2d((screen_width, screen_height), camera)
+
+  start_x = int(round(tl.x) // spacing) * spacing + spacing
+  end_x = int(round(br.x) // spacing) * spacing
+
+  start_y = int(round(tl.y) // spacing) * spacing
+  end_y = int(round(br.y) // spacing) * spacing + spacing
+
+  bound_top = int(tl.y)
+  bound_bottom = int(br.y)
+  bound_left = int(tl.x)
+  bound_right = int(br.x)
+
+  for x in range(end_x, start_x, spacing):
+    pr.draw_line(x, bound_top, x, bound_bottom, pr.BLACK)
+
+  for y in range(start_y, end_y, spacing):
+    pr.draw_line(bound_left, y, bound_right, y, pr.BLACK)
 
 
 if __name__ == "__main__":
