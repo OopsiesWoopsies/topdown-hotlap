@@ -17,27 +17,44 @@ class Point:
     self,
     cons: Constants,
     index: int,
-    world_pos: tuple[int, int],
-    hitbox_size: int = 5,
+    physics_pos: tuple[int, int],
+    hitbox_size: int = 3,
   ):
     self.cons = cons
     self.index = index
-    self.world_pos = world_pos
-    hitbox_size *= cons.PPM
+    self.physics_pos = physics_pos
+    self.world_pos = (physics_pos[0] * cons.PPM, physics_pos[1] * cons.PPM)
     self.hitbox_size = hitbox_size
 
-    pos_x, pos_y = world_pos
+    pos_x, pos_y = self.physics_pos
     self.hitbox = pr.Rectangle(
       pos_x - hitbox_size / 2, pos_y - hitbox_size / 2, hitbox_size, hitbox_size
     )
+    pos_x, pos_y = self.world_pos
+    hitbox_size *= self.cons.PPM
+    self.draw_hitbox = pr.Rectangle(
+      pos_x - hitbox_size / 2, pos_y - hitbox_size / 2, hitbox_size, hitbox_size
+    )
 
-  def update_hitbox(self, world_pos: tuple[int, int]):
-    pos_x, pos_y = world_pos
+  def update_pos(self, physics_pos: tuple[int, int]):
+    self.physics_pt = physics_pos
+    pos_x, pos_y = physics_pos
+    self.world_pos = (pos_x * self.cons.PPM, pos_y * self.cons.PPM)
+
+  def update_hitbox(self, physics_pos: tuple[int, int]):
+    pos_x, pos_y = physics_pos
     self.hitbox = pr.Rectangle(
       pos_x - self.hitbox_size / 2,
       pos_y - self.hitbox_size / 2,
       self.hitbox_size,
       self.hitbox_size,
+    )
+    hitbox_size = self.hitbox_size * self.cons.PPM
+    self.draw_hitbox = self.hitbox = pr.Rectangle(
+      pos_x - hitbox_size / 2,
+      pos_y - hitbox_size / 2,
+      hitbox_size,
+      hitbox_size,
     )
 
   def draw_point(self, finish_index: int):
@@ -45,8 +62,8 @@ class Point:
       colour = pr.BLUE
     else:
       colour = pr.RED
-    pr.draw_rectangle_pro(self.hitbox, (0, 0), 0.0, colour)
-    pr.draw_rectangle_lines_ex(self.hitbox, 0.2 * self.cons.PPM, pr.WHITE)
+    pr.draw_rectangle_pro(self.draw_hitbox, (0, 0), 0.0, colour)
+    pr.draw_rectangle_lines_ex(self.draw_hitbox, 0.2 * self.cons.PPM, pr.WHITE)
 
     font = pr.get_font_default()
     text = str(self.index)
@@ -68,7 +85,7 @@ def main():
   pr.init_window(screen_width, screen_height, "Track Editor")
   # pr.set_target_fps(144)
 
-  track_info: dict[str, str | int | list[tuple[float, float]]] = {
+  track_info: dict[str, str | int | list[tuple[int, int]]] = {
     "name": "",
     "finish": 0,
     "track": [],
@@ -85,7 +102,9 @@ def main():
   page = 0  # 0-2 (inclusive, respectively featuring track selection / make new track, editing track, naming track)
   screen_mouse_point = pr.Vector2(0, 0)
   left_click = False
-  check_mouse_point = False
+  right_click = False
+  check_left_mouse_point = False
+  check_right_mouse_point = False
 
   edit_pts = False
   draw_chunks = False
@@ -160,20 +179,35 @@ def main():
     if left_click and pr.is_mouse_button_up(pr.MOUSE_LEFT_BUTTON):
       screen_mouse_point = pr.get_mouse_position()
       left_click = False
-      check_mouse_point = True
+      check_left_mouse_point = True
     elif pr.is_mouse_button_down(pr.MOUSE_LEFT_BUTTON):
       left_click = True
 
+    if right_click and pr.is_mouse_button_up(pr.MOUSE_RIGHT_BUTTON):
+      right_click = False
+      check_right_mouse_point = True
+    elif pr.is_mouse_button_down(pr.MOUSE_RIGHT_BUTTON):
+      right_click = True
+
     # Check for clicks
-    check_world_click(camera, screen_mouse_point, check_mouse_point, sidebar)
+    check_world_click(
+      cons,
+      camera,
+      screen_mouse_point,
+      check_left_mouse_point,
+      check_right_mouse_point,
+      sidebar,
+      edit_pts,
+      track_info["track"],
+      points,
+    )
     page, track_index, edit_pts, draw_chunks = check_screen_click(
       cons,
-      sidebar,
       physics_track,
       render_track,
       draw_dict,
       screen_mouse_point,
-      check_mouse_point,
+      check_left_mouse_point,
       page,
       track_index,
       edit_pts,
@@ -191,7 +225,7 @@ def main():
       camera,
       render_car,
       render_track,
-      edit_pts,
+      page,
       draw_chunks,
       track_info,
       points,
@@ -209,30 +243,52 @@ def main():
     pr.draw_fps(screen_width - 100, 5)
     pr.end_drawing()
 
-    check_mouse_point = False
+    check_left_mouse_point = False
+    check_right_mouse_point = False
 
   render_track.close()
   pr.close_window()
 
 
 def check_world_click(
+  cons: Constants,
   camera: pr.Camera2D,
   screen_mouse_point: pr.Vector2,
-  check_mouse_point: bool,
+  check_left_mouse_point: bool,
+  check_right_mouse_point: bool,
   sidebar: pr.Rectangle,
+  edit_pts: bool,
+  track_points: list[tuple[int, int]],
+  points: list[Point],
 ):
-  if not check_mouse_point or pr.check_collision_point_rec(screen_mouse_point, sidebar):
+  if not edit_pts or not (
+    check_left_mouse_point or check_right_mouse_point
+  ) or pr.check_collision_point_rec(screen_mouse_point, sidebar):
     return
 
-  world_point = pr.get_screen_to_world_2d(screen_mouse_point, camera)
-  print(world_point.x, world_point.y)
+  world_pos = pr.get_screen_to_world_2d(screen_mouse_point, camera)
+  physics_pos = (round(world_pos.x / cons.PPM), round(world_pos.y / cons.PPM))
+  print(physics_pos)
+  if check_left_mouse_point:
+    point_clicked = False
+    for pt in points:
+      if pr.check_collision_point_rec(physics_pos, pt.hitbox):
+        point_clicked = True
+        break
+
+    if point_clicked:
+      pass
+    else:
+      new_pt = Point(cons, len(points), physics_pos)
+      points.append(new_pt)
+      track_points.append(physics_pos)
 
 
 def draw_world(
   camera: pr.Camera2D,
   render_car: RenderCar,
   render_track: RenderTrack,
-  edit_pts: bool,
+  page: int,
   draw_chunks: bool,
   track_info: dict[str, str | int | list[tuple[float, float]]],
   points: list[Point],
@@ -241,7 +297,7 @@ def draw_world(
     render_track.draw(camera)
   render_car.draw_car()
 
-  if edit_pts:
+  if page == 1:
     finish_i = track_info["finish"]
     for pt in points:
       pt.draw_point(finish_i)
@@ -249,12 +305,11 @@ def draw_world(
 
 def check_screen_click(
   cons: Constants,
-  sidebar: pr.Rectangle,
   physics_track: PhysicsTrack,
   render_track: RenderTrack,
   draw_dict: dict[int, dict[str, any]],
   screen_mouse_point: pr.Vector2,
-  check_mouse_point: bool,
+  check_left_mouse_point: bool,
   page: int,
   track_index: int,
   edit_pts: bool,
@@ -272,7 +327,7 @@ def check_screen_click(
     rec: pr.Rectangle = but_arr[i]
     if pr.check_collision_point_rec(pr.get_mouse_position(), rec):
       hovering = True
-    if not check_mouse_point or not pr.check_collision_point_rec(
+    if not check_left_mouse_point or not pr.check_collision_point_rec(
       screen_mouse_point, rec
     ):
       continue
@@ -313,10 +368,8 @@ def check_screen_click(
 
         points.clear()
 
-        for i, unscaled_pt in enumerate(track["track"]):
-          pt_x, pt_y = unscaled_pt
-          scaled_pt = (pt_x * cons.PPM, pt_y * cons.PPM)
-          points.append(Point(cons, i, scaled_pt, 3))
+        for i, physics_pos in enumerate(track["track"]):
+          points.append(Point(cons, i, physics_pos))
       case "page3":
         page = 2
         edit_pts = False
