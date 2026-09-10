@@ -17,17 +17,27 @@ class Point:
     self,
     cons: Constants,
     index: int,
-    world_pos: tuple[float, float],
+    world_pos: tuple[int, int],
     hitbox_size: int = 5,
   ):
     self.cons = cons
     self.index = index
     self.world_pos = world_pos
     hitbox_size *= cons.PPM
+    self.hitbox_size = hitbox_size
 
     pos_x, pos_y = world_pos
     self.hitbox = pr.Rectangle(
       pos_x - hitbox_size / 2, pos_y - hitbox_size / 2, hitbox_size, hitbox_size
+    )
+
+  def update_hitbox(self, world_pos: tuple[int, int]):
+    pos_x, pos_y = world_pos
+    self.hitbox = pr.Rectangle(
+      pos_x - self.hitbox_size / 2,
+      pos_y - self.hitbox_size / 2,
+      self.hitbox_size,
+      self.hitbox_size,
     )
 
   def draw_point(self, finish_index: int):
@@ -37,6 +47,16 @@ class Point:
       colour = pr.RED
     pr.draw_rectangle_pro(self.hitbox, (0, 0), 0.0, colour)
     pr.draw_rectangle_lines_ex(self.hitbox, 0.2 * self.cons.PPM, pr.WHITE)
+
+    font = pr.get_font_default()
+    text = str(self.index)
+    text_size = pr.measure_text_ex(font, text, self.cons.FONT_SIZE, 1)
+    pos_x, pos_y = self.world_pos
+    px = pos_x + text_size.x
+    py = pos_y - text_size.y / 2
+    pr.draw_text_pro(
+      font, text, (px, py), (text_size.x / 2, text_size.y / 2), 90, 50, 1, pr.BLACK
+    )
 
 
 def main():
@@ -207,13 +227,14 @@ def draw_world(
   track_info: dict[str, str | int | list[tuple[float, float]]],
   points: list[Point],
 ):
+  if draw_chunks:
+    render_track.draw(camera)
+  render_car.draw_car()
+
   if edit_pts:
     finish_i = track_info["finish"]
     for pt in points:
       pt.draw_point(finish_i)
-  elif draw_chunks:
-    render_track.draw(camera)
-  render_car.draw_car()
 
   if check_mouse_point:
     if pr.check_collision_point_rec(screen_mouse_point, sidebar):
