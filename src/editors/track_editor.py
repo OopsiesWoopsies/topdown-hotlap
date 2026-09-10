@@ -64,7 +64,7 @@ class Point:
       colour = pr.BLUE
     else:
       colour = pr.RED
-    pr.draw_rectangle_pro(self.draw_hitbox, (0, 0), 0.0, colour)
+    pr.draw_rectangle_rec(self.draw_hitbox, colour)
     pr.draw_rectangle_lines_ex(self.draw_hitbox, 0.2 * self.cons.PPM, pr.WHITE)
 
     font = pr.get_font_default()
@@ -110,6 +110,7 @@ def main():
 
   edit_points = False
   draw_chunks = False
+  is_draw_grid = True
   possess_point = False
   possessed_point = None
 
@@ -136,7 +137,7 @@ def main():
 
   render_car = RenderCar(cons, car_texture, car)
 
-  draw_dict = create_buts(cons, sidebar, screen_width, screen_height)
+  draw_info = create_screen_elements(cons, sidebar, screen_width, screen_height)
 
   while not pr.window_should_close():
     # Toggle fullscreen
@@ -155,7 +156,7 @@ def main():
         camera.zoom *= scale
         camera.offset = (screen_width / 2, screen_height / 2)
         sidebar = pr.Rectangle(0, 0, 350, screen_height)
-        draw_dict = create_buts(cons, sidebar, screen_width, screen_height)
+        draw_info = create_screen_elements(cons, sidebar, screen_width, screen_height)
       else:
         old_screen_height = screen_height
         screen_width = cons.SCREEN_WIDTH
@@ -167,7 +168,7 @@ def main():
         camera.zoom *= scale
         camera.offset = (screen_width / 2, screen_height / 2)
         sidebar = pr.Rectangle(0, 0, 350, screen_height)
-        draw_dict = create_buts(cons, sidebar, screen_width, screen_height)
+        draw_info = create_screen_elements(cons, sidebar, screen_width, screen_height)
 
     # Static dt
     current_time = time.perf_counter()
@@ -208,17 +209,18 @@ def main():
       track_info["track"],
       points,
     )
-    page, track_index, edit_points, draw_chunks = check_screen_click(
+    page, track_index, edit_points, draw_chunks, is_draw_grid = check_screen_click(
       cons,
       physics_track,
       render_track,
-      draw_dict,
+      draw_info,
       screen_mouse_point,
       check_left_mouse_point,
       page,
       track_index,
       edit_points,
       draw_chunks,
+      is_draw_grid,
       track_info,
       points,
     )
@@ -237,12 +239,13 @@ def main():
       track_info,
       points,
     )
-    draw_grid(cons, camera, screen_width, screen_height)
+    if is_draw_grid:
+      draw_grid(cons, camera, screen_width, screen_height)
     pr.end_mode_2d()
     draw_screen(
       cons,
       sidebar,
-      draw_dict,
+      draw_info,
       screen_height,
       page,
       track_index,
@@ -303,7 +306,7 @@ def check_world_click(
       possessed_point = point
       break
 
-  if check_left_mouse_point: # Point addition
+  if check_left_mouse_point:  # Point addition
     if point_clicked:  # Unless point clicked, leading to existing point movement
       possess_point = True
     else:
@@ -312,7 +315,9 @@ def check_world_click(
       track_points.append(physics_pos)
   elif check_right_mouse_point and point_clicked:  # Point deletion
     index = possessed_point.index
-    for i in range(index + 1, len(points)):  # Update indexes after the impending deletion
+    for i in range(
+      index + 1, len(points)
+    ):  # Update indexes after the impending deletion
       points[i].index -= 1
 
     point = track_points.pop(index)
@@ -346,21 +351,44 @@ def check_screen_click(
   cons: Constants,
   physics_track: PhysicsTrack,
   render_track: RenderTrack,
-  draw_dict: dict[int, dict[str, any]],
+  draw_info: tuple[dict[int, dict[str, any]], dict[int, dict[str, any]]],
   screen_mouse_point: pr.Vector2,
   check_left_mouse_point: bool,
   page: int,
   track_index: int,
   edit_points: bool,
   draw_chunks: bool,
+  is_draw_grid: bool,
   track_info: dict[str, str | int | list[tuple[float, float]]],
   points: list[Point],
-) -> tuple[int, int, bool, bool]:
+) -> tuple[int, int, bool, bool, bool]:
   track_amount = len(tracks)
-  but_arr = draw_dict[page]["buts"]
-  len_but = len(but_arr)
-  actions = draw_dict[page]["actions"]
   hovering = False
+  input_hovering = False
+  but_info, input_info = draw_info
+
+  but_arr = but_info[page]["buts"]
+  but_actions = but_info[page]["actions"]
+  len_but = len(but_arr)
+
+  input_arr = input_info[page]["inputs"]
+  input_actions = input_info[page]["actions"]
+  len_input = len(input_arr)
+
+  for i in range(len_input):
+    rec: pr.Rectangle = input_arr[i]
+    if pr.check_collision_point_rec(pr.get_mouse_position(), rec):
+      input_hovering = True
+    if not check_left_mouse_point or not pr.check_collision_point_rec(
+      screen_mouse_point, rec
+    ):
+      continue
+
+    match input_actions[i]:
+      case "gen_x":
+        pass
+      case "gen_y":
+        pass
 
   for i in range(len_but):
     rec: pr.Rectangle = but_arr[i]
@@ -371,7 +399,7 @@ def check_screen_click(
     ):
       continue
 
-    match actions[i]:
+    match but_actions[i]:
       case "edit_points":
         edit_points = True
         draw_chunks = False
@@ -381,6 +409,8 @@ def check_screen_click(
 
         physics_track.create_track(track_info["track"], track_info["finish"])
         render_track.render_chunks(cons, physics_track.get_track_components())
+      case "toggle_grid":
+        is_draw_grid = not is_draw_grid
       case "prev_track":
         track_index = (track_index - 1) % track_amount
       case "next_track":
@@ -416,36 +446,55 @@ def check_screen_click(
 
   if hovering:
     pr.set_mouse_cursor(pr.MOUSE_CURSOR_POINTING_HAND)
+  elif input_hovering:
+    pr.set_mouse_cursor(pr.MOUSE_CURSOR_IBEAM)
   else:
     pr.set_mouse_cursor(pr.MOUSE_CURSOR_DEFAULT)
 
-  return page, track_index, edit_points, draw_chunks
+  return page, track_index, edit_points, draw_chunks, is_draw_grid
 
 
 def draw_screen(
   cons: Constants,
   sidebar: pr.Rectangle,
-  draw_dict: dict[int, dict[str, any]],
+  draw_info: tuple[dict[int, dict[str, any]], dict[int, dict[str, any]]],
   screen_height: int,
   page: int,
   track_index: int,
 ) -> tuple[int, int, bool]:
   font = pr.get_font_default()
   rec_width = sidebar.width
-  pr.draw_rectangle_pro(sidebar, (0, 0), 0.0, (0, 0, 0, 180))
+  pr.draw_rectangle_rec(sidebar, (0, 0, 0, 180))
 
-  but_arr = draw_dict[page]["buts"]
-  texts = draw_dict[page]["texts"]
-  text_arr = texts["strings"]
-  text_pos_arr = texts["pos"]
+  but_info, input_info = draw_info
+
+  but_arr = but_info[page]["buts"]
+  but_texts = but_info[page]["texts"]
+  but_text_arr = but_texts["strings"]
+  but_text_pos_arr = but_texts["pos"]
   len_but = len(but_arr)
+
+  input_arr = input_info[page]["inputs"]
+  input_texts = input_info[page]["texts"]
+  input_text_arr = input_texts["strings"]
+  input_text_pos_arr = input_texts["pos"]
+  len_input = len(input_arr)
+
+  for i in range(len_input):
+    rec: pr.Rectangle = input_arr[i]
+    text: str = input_text_arr[i]
+
+    x, y = input_text_pos_arr[i]
+    pr.draw_rectangle_rec(rec, pr.DARKGRAY)
+    pr.draw_rectangle_lines(int(rec.x), int(rec.y), int(rec.width), int(rec.height), pr.BLUE)
+    pr.draw_text_ex(font, text, pr.Vector2(int(x), int(y)), cons.FONT_SIZE, 1, pr.WHITE)
 
   for i in range(len_but):
     rec: pr.Rectangle = but_arr[i]
-    text: str = text_arr[i]
+    text: str = but_text_arr[i]
 
-    x, y = text_pos_arr[i]
-    pr.draw_rectangle_pro(rec, (0, 0), 0.0, pr.LIGHTGRAY)
+    x, y = but_text_pos_arr[i]
+    pr.draw_rectangle_rec(rec, pr.LIGHTGRAY)
     pr.draw_text_ex(font, text, pr.Vector2(int(x), int(y)), cons.FONT_SIZE, 1, pr.BLACK)
 
   match page:
@@ -506,16 +555,17 @@ def control_screen(
   return pos_x, pos_y
 
 
-def create_buts(
+def create_screen_elements(
   cons: Constants, sidebar: pr.Rectangle, screen_width: int, screen_height: int
-) -> dict[int, dict[str, any]]:
-  def align_but_info(
+) -> tuple[dict[int, dict[str, any]], dict[int, dict[str, any]]]:
+  def align_info(
     text: str,
     action: str,
     unaligned_pos_x: int,
     unaligned_pos_y: int,
     margin: int,
     alignment: int,
+    is_input: bool = False,
   ) -> pr.Rectangle:
     """Aligns the button relative to the point, so if it is centered aligned at the given position,
     it will size itself that will symmetrical down the middle. If it is left aligned, then it will push everything to the right of the position.
@@ -544,34 +594,46 @@ def create_buts(
         aligned_text_x = unaligned_pos_x - text_size.x
     aligned_text_y = unaligned_pos_y - text_size.y / 2
 
+    rec_x = aligned_text_x - margin / 2
+    rec_y = aligned_text_y - margin / 2
+
+    if is_input:
+      rec_x += text_size.x + margin
+
     rec = pr.Rectangle(
-      aligned_text_x - margin / 2,
-      aligned_text_y - margin / 2,
+      rec_x,
+      rec_y,
       text_size.x + margin,
       text_size.y + margin,
     )
 
     actions.append(action)
-    buts.append(rec)
+    recs.append(rec)
     texts["strings"].append(text)
     texts["pos"].append((aligned_text_x, aligned_text_y))
 
     return rec
 
-  draw_info = {}
+  draw_but_info = {}
+  draw_input_info = {}
   margin = 14
   font = pr.get_font_default()
 
   for i in range(3):
-    draw_info[i] = {
+    draw_but_info[i] = {
       "texts": {"strings": [], "pos": []},
       "buts": [],
+      "actions": [],
+    }
+    draw_input_info[i] = {
+      "texts": {"strings": [], "pos": []},
+      "inputs": [],
       "actions": [],
     }
 
   # --Pg 1--  (Edit / Create track)
   page = 0
-  buts = []
+  recs = []
   texts = {"strings": [], "pos": []}
   actions = []
 
@@ -579,82 +641,110 @@ def create_buts(
   edit_track_x = sidebar.width / 2
   edit_track_y = screen_height / 3 * 2
 
-  edit_track_but: pr.Rectangle = align_but_info(
+  edit_track_but: pr.Rectangle = align_info(
     "EDIT TRACK", "page2", edit_track_x, edit_track_y, margin, 1
   )
 
   # Track index arrows
   left_arrow_x = edit_track_x - edit_track_but.width / 2 - margin
   left_arrow_y = edit_track_y
-  align_but_info("<-", "prev_track", left_arrow_x, left_arrow_y, margin, 2)
+  align_info("<-", "prev_track", left_arrow_x, left_arrow_y, margin, 2)
 
   right_arrow_x = edit_track_x + edit_track_but.width / 2 + margin
   right_arrow_y = edit_track_y
 
-  align_but_info("->", "next_track", right_arrow_x, right_arrow_y, margin, 0)
+  align_info("->", "next_track", right_arrow_x, right_arrow_y, margin, 0)
 
   # Create Track
   create_x = sidebar.width - margin
   create_y = screen_height - margin * 2
 
-  align_but_info("CREATE TRACK", "new_track", create_x, create_y, margin, 2)
+  align_info("CREATE TRACK", "new_track", create_x, create_y, margin, 2)
 
   # Append arrays
-  draw_info[page]["texts"] = texts
-  draw_info[page]["buts"] = buts
-  draw_info[page]["actions"] = actions
+  draw_but_info[page]["texts"] = texts
+  draw_but_info[page]["buts"] = recs
+  draw_but_info[page]["actions"] = actions
 
   # --Pg 2--  (Edit / Create points)
   page = 1
-  buts = []
+  # --INPUTS--
+  recs = []
   texts = {"strings": [], "pos": []}
   actions = []
 
-  # Back button
+  # x & y inputs for point input
+  gen_pointy_x = 10
+  gen_pointy_y = sidebar.height / 6
+  rec = align_info("X:", "gen_y", gen_pointy_x, gen_pointy_y, margin, 1, True)
+  rec.width = 100
+
+  gen_pointx_x = 10
+  gen_pointx_y = rec.y + rec.height * 2
+  gen_y_rec = align_info("Y:", "gen_x", gen_pointx_x, gen_pointx_y, margin, 1, True)
+  gen_y_rec.width = 100
+
+  draw_input_info[page]["texts"] = texts
+  draw_input_info[page]["inputs"] = recs
+  draw_input_info[page]["actions"] = actions
+
+  # --BUTTONS--
+  recs = []
+  texts = {"strings": [], "pos": []}
+  actions = []
+
+  # Back Button
   back_x = margin
   back_y = 5 + margin
-  align_but_info("<-", "page1", back_x, back_y, margin, 0)
+  align_info("<-", "page1", back_x, back_y, margin, 0)
 
-  # Next button
+  # Next Button
   next_x = sidebar.width - margin
   next_y = 5 + margin
-  align_but_info("->", "page3", next_x, next_y, margin, 2)
+  align_info("->", "page3", next_x, next_y, margin, 2)
 
   # Edit Points
   edit_point_x = sidebar.width / 2
   edit_point_y = screen_height * 3 / 4
-  align_but_info("EDIT POINTS", "edit_points", edit_point_x, edit_point_y, margin, 1)
+  align_info("EDIT POINTS", "edit_points", edit_point_x, edit_point_y, margin, 1)
 
   # Generate Track
   gen_track_x = sidebar.width / 2
   gen_track_y = screen_height * 3 / 4 + 50
-  align_but_info("GENERATE TRACK", "gen_track", gen_track_x, gen_track_y, margin, 1)
+  align_info("GENERATE TRACK", "gen_track", gen_track_x, gen_track_y, margin, 1)
 
-  draw_info[page]["texts"] = texts
-  draw_info[page]["buts"] = buts
-  draw_info[page]["actions"] = actions
+  # Generate Point
+
+  # Toggle Grid
+  toggle_grid_x = sidebar.width - margin
+  toggle_grid_y = sidebar.height - margin * 2
+  align_info("TOGGLE GRID", "toggle_grid", toggle_grid_x, toggle_grid_y, margin, 2)
+
+  draw_but_info[page]["texts"] = texts
+  draw_but_info[page]["buts"] = recs
+  draw_but_info[page]["actions"] = actions
 
   # --Pg 3--  (Name track and print it)
   page = 2
-  buts = []
+  recs = []
   texts = {"strings": [], "pos": []}
   actions = []
 
   # Back button
   back_x = margin
   back_y = 5 + margin
-  align_but_info("<-", "page2", back_x, back_y, margin, 0)
+  align_info("<-", "page2", back_x, back_y, margin, 0)
 
   # Print main track points to terminal
   print_x = sidebar.width / 2
   print_y = screen_height * 3 / 4
-  align_but_info("PRINT TRACK", "print", print_x, print_y, margin, 1)
+  align_info("PRINT TRACK", "print", print_x, print_y, margin, 1)
 
-  draw_info[page]["texts"] = texts
-  draw_info[page]["buts"] = buts
-  draw_info[page]["actions"] = actions
+  draw_but_info[page]["texts"] = texts
+  draw_but_info[page]["buts"] = recs
+  draw_but_info[page]["actions"] = actions
 
-  return draw_info
+  return draw_but_info, draw_input_info
 
 
 def draw_grid(
