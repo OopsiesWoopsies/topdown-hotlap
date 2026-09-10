@@ -37,7 +37,7 @@ class Point:
     )
 
   def update_pos(self, physics_pos: tuple[int, int]):
-    self.physics_pt = physics_pos
+    self.physics_pos = physics_pos
     pos_x, pos_y = physics_pos
     self.world_pos = (pos_x * self.cons.PPM, pos_y * self.cons.PPM)
 
@@ -50,7 +50,9 @@ class Point:
       self.hitbox_size,
     )
     hitbox_size = self.hitbox_size * self.cons.PPM
-    self.draw_hitbox = self.hitbox = pr.Rectangle(
+    pos_x *= self.cons.PPM
+    pos_y *= self.cons.PPM
+    self.draw_hitbox = pr.Rectangle(
       pos_x - hitbox_size / 2,
       pos_y - hitbox_size / 2,
       hitbox_size,
@@ -106,9 +108,10 @@ def main():
   check_left_mouse_point = False
   check_right_mouse_point = False
 
-  edit_pts = False
+  edit_points = False
   draw_chunks = False
-  clicked_point = False
+  possess_point = False
+  possessed_point = None
 
   track_index = 2
   sidebar = pr.Rectangle(0, 0, 350, screen_height)
@@ -119,8 +122,8 @@ def main():
 
   # Car for reference
   car = Car(cons, (0.0, 0.0), 0, (5.6, 2.0))
-  script_dir = Path(__file__).resolve().parent.parent.parent
-  car_path = script_dir / "assets" / "imgs" / "car.png"
+  scripoint_dir = Path(__file__).resolve().parent.parent.parent
+  car_path = scripoint_dir / "assets" / "imgs" / "car.png"
   car_image = pr.load_image(str(car_path))
   pr.image_rotate(car_image, 90)
   pr.image_resize_nn(
@@ -192,19 +195,21 @@ def main():
       right_click = True
 
     # Check for clicks
-    clicked_point = check_world_click(
+    possess_point, possessed_point = check_world_click(
       cons,
       camera,
       screen_mouse_point,
       check_left_mouse_point,
       check_right_mouse_point,
       sidebar,
-      edit_pts,
-      clicked_point,
+      edit_points,
+      possess_point,
+      possessed_point,
       track_info["track"],
       points,
     )
-    page, track_index, edit_pts, draw_chunks = check_screen_click(
+    print(track_info["finish"])
+    page, track_index, edit_points, draw_chunks = check_screen_click(
       cons,
       physics_track,
       render_track,
@@ -213,7 +218,7 @@ def main():
       check_left_mouse_point,
       page,
       track_index,
-      edit_pts,
+      edit_points,
       draw_chunks,
       track_info,
       points,
@@ -260,48 +265,63 @@ def check_world_click(
   check_left_mouse_point: bool,
   check_right_mouse_point: bool,
   sidebar: pr.Rectangle,
-  edit_pts: bool,
-  clicked_point: bool,
+  edit_points: bool,
+  possess_point: bool,
+  possessed_point: Point,
   track_points: list[tuple[int, int]],
   points: list[Point],
-) -> bool:
+) -> tuple[bool, Point]:
+  # Check for possessed point moving
+  if possess_point:  # Follow mouse
+    world_pos = pr.get_screen_to_world_2d(pr.get_mouse_position(), camera)
+    physics_pos = (round(world_pos.x / cons.PPM), round(world_pos.y / cons.PPM))
+    possessed_point.update_pos(physics_pos)
+    possessed_point.update_hitbox(physics_pos)
+
+    if check_left_mouse_point:  # Save position
+      index = possessed_point.index
+      track_points[index] = physics_pos
+      return False, None
+    else:
+      return possess_point, possessed_point
+
+  # Check for any mouse updates
   if (
-    not edit_pts
+    not edit_points
     or not (check_left_mouse_point or check_right_mouse_point)
     or pr.check_collision_point_rec(screen_mouse_point, sidebar)
   ):
-    return
+    return False, None
 
   world_pos = pr.get_screen_to_world_2d(screen_mouse_point, camera)
   physics_pos = (round(world_pos.x / cons.PPM), round(world_pos.y / cons.PPM))
   print(physics_pos)
 
   point_clicked = False
-  for pt in points:
-    if pr.check_collision_point_rec(physics_pos, pt.hitbox):
+  for point in points:
+    if pr.check_collision_point_rec(physics_pos, point.hitbox):
       point_clicked = True
-      selected_pt = pt
+      possessed_point = point
       break
 
   if check_left_mouse_point:
     if point_clicked:
-      clicked_point = True
-
+      possess_point = True
     else:
-      new_pt = Point(cons, len(points), physics_pos)
-      points.append(new_pt)
+      new_point = Point(cons, len(points), physics_pos)
+      points.append(new_point)
       track_points.append(physics_pos)
   elif check_right_mouse_point and point_clicked:
-    index = selected_pt.index
-    for pt in points:  # Update indexes after the impending deletion
-      pt.index -= 1
+    index = possessed_point.index
+    for point in points:  # Update indexes after the impending deletion
+      point.index -= 1
 
-    pt = track_points.pop(index)
+    point = track_points.pop(index)
     points.pop(index)
-    clicked_point = False
-    print(f"Deleted point: {pt}")
+    possess_point = False
+    print(f"Deleted point: {point}")
 
-  return clicked_point
+  return possess_point, possessed_point
 
 
 def draw_world(
@@ -319,8 +339,8 @@ def draw_world(
 
   if page == 1:
     finish_i = track_info["finish"]
-    for pt in points:
-      pt.draw_point(finish_i)
+    for point in points:
+      point.draw_point(finish_i)
 
 
 def check_screen_click(
@@ -332,7 +352,7 @@ def check_screen_click(
   check_left_mouse_point: bool,
   page: int,
   track_index: int,
-  edit_pts: bool,
+  edit_points: bool,
   draw_chunks: bool,
   track_info: dict[str, str | int | list[tuple[float, float]]],
   points: list[Point],
@@ -354,11 +374,11 @@ def check_screen_click(
 
     match actions[i]:
       case "edit_points":
-        edit_pts = True
+        edit_points = True
         draw_chunks = False
       case "gen_track":
         draw_chunks = True
-        edit_pts = False
+        edit_points = False
 
         physics_track.create_track(track_info["track"], track_info["finish"])
         render_track.render_chunks(cons, physics_track.get_track_components())
@@ -374,11 +394,11 @@ def check_screen_click(
         track_info["track"] = list(track_info["track"])
       case "page1":
         page = 0
-        edit_pts = False
+        edit_points = False
         draw_chunks = False
       case "page2":
         page = 1
-        edit_pts = True
+        edit_points = True
         draw_chunks = False
 
         track = tracks[track_index]
@@ -392,7 +412,7 @@ def check_screen_click(
           points.append(Point(cons, i, physics_pos))
       case "page3":
         page = 2
-        edit_pts = False
+        edit_points = False
         draw_chunks = False
 
   if hovering:
@@ -400,7 +420,7 @@ def check_screen_click(
   else:
     pr.set_mouse_cursor(pr.MOUSE_CURSOR_DEFAULT)
 
-  return page, track_index, edit_pts, draw_chunks
+  return page, track_index, edit_points, draw_chunks
 
 
 def draw_screen(
@@ -602,9 +622,9 @@ def create_buts(
   align_but_info("->", "page3", next_x, next_y, margin, 2)
 
   # Edit Points
-  edit_pt_x = sidebar.width / 2
-  edit_pt_y = screen_height * 3 / 4
-  align_but_info("EDIT POINTS", "edit_points", edit_pt_x, edit_pt_y, margin, 1)
+  edit_point_x = sidebar.width / 2
+  edit_point_y = screen_height * 3 / 4
+  align_but_info("EDIT POINTS", "edit_points", edit_point_x, edit_point_y, margin, 1)
 
   # Generate Track
   gen_track_x = sidebar.width / 2
