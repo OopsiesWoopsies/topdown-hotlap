@@ -297,20 +297,20 @@ def check_world_click(
   print(physics_pos)
 
   point_clicked = False
-  for point in points:
+  for point in reversed(points):
     if pr.check_collision_point_rec(physics_pos, point.hitbox):
       point_clicked = True
       possessed_point = point
       break
 
-  if check_left_mouse_point:
-    if point_clicked:
+  if check_left_mouse_point: # Point addition
+    if point_clicked:  # Unless point clicked, leading to existing point movement
       possess_point = True
     else:
       new_point = Point(cons, len(points), physics_pos)
       points.append(new_point)
       track_points.append(physics_pos)
-  elif check_right_mouse_point and point_clicked:
+  elif check_right_mouse_point and point_clicked:  # Point deletion
     index = possessed_point.index
     for i in range(index + 1, len(points)):  # Update indexes after the impending deletion
       points[i].index -= 1
