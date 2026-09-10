@@ -485,8 +485,10 @@ def draw_screen(
     text: str = input_text_arr[i]
 
     x, y = input_text_pos_arr[i]
-    pr.draw_rectangle_rec(rec, pr.DARKGRAY)
-    pr.draw_rectangle_lines(int(rec.x), int(rec.y), int(rec.width), int(rec.height), pr.BLUE)
+    pr.draw_rectangle_rec(rec, pr.LIGHTGRAY)
+    pr.draw_rectangle_lines(
+      int(rec.x), int(rec.y), int(rec.width), int(rec.height), pr.BLUE
+    )
     pr.draw_text_ex(font, text, pr.Vector2(int(x), int(y)), cons.FONT_SIZE, 1, pr.WHITE)
 
   for i in range(len_but):
@@ -566,6 +568,7 @@ def create_screen_elements(
     margin: int,
     alignment: int,
     is_input: bool = False,
+    width: int = 10,
   ) -> pr.Rectangle:
     """Aligns the button relative to the point, so if it is centered aligned at the given position,
     it will size itself that will symmetrical down the middle. If it is left aligned, then it will push everything to the right of the position.
@@ -578,6 +581,8 @@ def create_screen_elements(
       unaligned_pos_y: The desired y position for alignment.
       margin: The margin between the text and edge of the button.
       alignment: 0-2, indicating left, center, right alignment respectively.
+      is_input: Change how alignment is calculated since inputs are drawn differently.
+      width: Only applies to inputs (width of the input box).
 
     Returns:
       The aligned rectangle. It can be used to format other buttons relative to it.
@@ -585,13 +590,25 @@ def create_screen_elements(
 
     text_size = pr.measure_text_ex(font, text, cons.FONT_SIZE, 1)
 
+    if is_input:
+      rec_width = width
+    else:
+      rec_width = text_size.x + margin
+
+    rec_height = text_size.y + margin
+
     match alignment:
       case 0:  # left aligned
         aligned_text_x = unaligned_pos_x
       case 1:  # centered
         aligned_text_x = unaligned_pos_x - text_size.x / 2
+        if is_input:
+          aligned_text_x -= rec_width / 2
       case 2:  # right aligned
         aligned_text_x = unaligned_pos_x - text_size.x
+        if is_input:
+          aligned_text_x -= rec_width
+
     aligned_text_y = unaligned_pos_y - text_size.y / 2
 
     rec_x = aligned_text_x - margin / 2
@@ -603,8 +620,8 @@ def create_screen_elements(
     rec = pr.Rectangle(
       rec_x,
       rec_y,
-      text_size.x + margin,
-      text_size.y + margin,
+      rec_width,
+      rec_height
     )
 
     actions.append(action)
@@ -676,13 +693,11 @@ def create_screen_elements(
   # x & y inputs for point input
   gen_pointy_x = 10
   gen_pointy_y = sidebar.height / 6
-  rec = align_info("X:", "gen_y", gen_pointy_x, gen_pointy_y, margin, 1, True)
-  rec.width = 100
+  rec = align_info("X:", "gen_y", gen_pointy_x, gen_pointy_y, margin, 0, True, 100)
 
   gen_pointx_x = 10
   gen_pointx_y = rec.y + rec.height * 2
-  gen_y_rec = align_info("Y:", "gen_x", gen_pointx_x, gen_pointx_y, margin, 1, True)
-  gen_y_rec.width = 100
+  gen_y_rec = align_info("Y:", "gen_x", gen_pointx_x, gen_pointx_y, margin, 0, True, 100)
 
   draw_input_info[page]["texts"] = texts
   draw_input_info[page]["inputs"] = recs
