@@ -1,3 +1,4 @@
+import math
 import time
 from pathlib import Path
 
@@ -344,16 +345,18 @@ def draw_screen(
       pass
 
 
-def control_screen(cons: Constants, dt: float, camera: pr.Camera2D, pos: tuple[float, float]):
+def control_screen(
+  cons: Constants, dt: float, camera: pr.Camera2D, pos: tuple[float, float]
+):
   pos_x, pos_y = pos
   speed = 500
 
-  zoom = 0
+  zoom_rate = 0
   zoom_speed = 0
 
   if pr.is_key_down(pr.KEY_LEFT_SHIFT):
     speed = 1250
-    zoom_speed = 0.5
+    zoom_speed = 1.0
 
   dt_speed = speed * dt / camera.zoom
   if pr.is_key_down(pr.KEY_W):
@@ -366,16 +369,17 @@ def control_screen(cons: Constants, dt: float, camera: pr.Camera2D, pos: tuple[f
     pos_y += dt_speed
 
   if pr.is_key_down(pr.KEY_MINUS):
-    zoom = -0.1 - zoom_speed
+    zoom_rate = -1.5 - zoom_speed
   if pr.is_key_down(pr.KEY_EQUAL):
-    zoom = 0.1 + zoom_speed
+    zoom_rate = 1.5 + zoom_speed
 
   camera.target = (pos_x, pos_y)
-  camera.zoom = camera.zoom + zoom * dt
-  if camera.zoom < 0.05:
-    camera.zoom = 0.05
-  # elif camera.zoom > 2.0:
-  #   camera.zoom = 2.0
+  if zoom_rate != 0:
+    camera.zoom *= math.exp(zoom_rate * dt)
+  if camera.zoom < 1.6 / cons.PPM:
+    camera.zoom = 1.6 / cons.PPM
+  elif camera.zoom > 50 / cons.PPM:
+    camera.zoom = 50 / cons.PPM
 
   return pos_x, pos_y
 
@@ -534,7 +538,7 @@ def create_buts(
 def draw_grid(
   cons: Constants, camera: pr.Camera2D, screen_width: int, screen_height: int
 ):  # 2m x 2m gridbox
-  if camera.zoom < 0.05:
+  if camera.zoom < 2.5 / cons.PPM:
     return
 
   spacing = cons.PPM * 2
