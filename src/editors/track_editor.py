@@ -261,6 +261,16 @@ def check_screen_click(
 
           physics_track.create_track(track_info["track"], track_info["finish"])
           render_track.render_chunks(cons, physics_track.get_track_components())
+        case "prev_track":
+          track_index = (track_index - 1) % track_amount
+        case "next_track":
+          track_index = (track_index + 1) % track_amount
+        case "new_track":
+          page = 1
+        case "print":
+          track_info["track"] = tuple(track_info["track"])
+          print(track_info)
+          track_info["track"] = list(track_info["track"])
         case "page1":
           page = 0
           edit_pts = False
@@ -272,7 +282,7 @@ def check_screen_click(
 
           track = tracks[track_index]
           track_info["name"] = track["name"]
-          track_info["track"] = track["track"]
+          track_info["track"] = list(track["track"])
           track_info["finish"] = track["finish"]
 
           points.clear()
@@ -285,12 +295,6 @@ def check_screen_click(
           page = 2
           edit_pts = False
           draw_chunks = False
-        case "prev_track":
-          track_index = (track_index - 1) % track_amount
-        case "next_track":
-          track_index = (track_index + 1) % track_amount
-        case "new_track":
-          page = 1
 
   if hovering:
     pr.set_mouse_cursor(pr.MOUSE_CURSOR_POINTING_HAND)
