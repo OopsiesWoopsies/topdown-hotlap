@@ -164,27 +164,11 @@ def main():
     elif pr.is_mouse_button_down(pr.MOUSE_LEFT_BUTTON):
       left_click = True
 
-    # Drawing
-    pr.begin_drawing()
-    pr.clear_background(pr.DARKGREEN)
-
-    pr.begin_mode_2d(camera)
-    draw_world(
-      camera,
-      render_car,
-      render_track,
-      screen_mouse_point,
-      check_mouse_point,
-      sidebar,
-      edit_pts,
-      draw_chunks,
-      track_info,
-      points,
-    )
-    draw_grid(cons, camera, screen_width, screen_height)
-    pr.end_mode_2d()
+    # Check for clicks
+    check_world_click(camera, screen_mouse_point, check_mouse_point, sidebar)
     page, track_index, edit_pts, draw_chunks = check_screen_click(
       cons,
+      sidebar,
       physics_track,
       render_track,
       draw_dict,
@@ -198,10 +182,26 @@ def main():
       points,
     )
 
+    # Drawing
+    pr.begin_drawing()
+    pr.clear_background(pr.DARKGREEN)
+
+    pr.begin_mode_2d(camera)
+    draw_world(
+      camera,
+      render_car,
+      render_track,
+      edit_pts,
+      draw_chunks,
+      track_info,
+      points,
+    )
+    draw_grid(cons, camera, screen_width, screen_height)
+    pr.end_mode_2d()
     draw_screen(
       cons,
-      draw_dict,
       sidebar,
+      draw_dict,
       screen_height,
       page,
       track_index,
@@ -215,13 +215,23 @@ def main():
   pr.close_window()
 
 
+def check_world_click(
+  camera: pr.Camera2D,
+  screen_mouse_point: pr.Vector2,
+  check_mouse_point: bool,
+  sidebar: pr.Rectangle,
+):
+  if not check_mouse_point or pr.check_collision_point_rec(screen_mouse_point, sidebar):
+    return
+
+  world_point = pr.get_screen_to_world_2d(screen_mouse_point, camera)
+  print(world_point.x, world_point.y)
+
+
 def draw_world(
   camera: pr.Camera2D,
   render_car: RenderCar,
   render_track: RenderTrack,
-  screen_mouse_point: pr.Vector2,
-  check_mouse_point: bool,
-  sidebar: pr.Rectangle,
   edit_pts: bool,
   draw_chunks: bool,
   track_info: dict[str, str | int | list[tuple[float, float]]],
@@ -236,16 +246,10 @@ def draw_world(
     for pt in points:
       pt.draw_point(finish_i)
 
-  if check_mouse_point:
-    if pr.check_collision_point_rec(screen_mouse_point, sidebar):
-      return
-    else:
-      world_point = pr.get_screen_to_world_2d(screen_mouse_point, camera)
-      print(world_point.x, world_point.y)
-
 
 def check_screen_click(
   cons: Constants,
+  sidebar: pr.Rectangle,
   physics_track: PhysicsTrack,
   render_track: RenderTrack,
   draw_dict: dict[int, dict[str, any]],
@@ -258,7 +262,6 @@ def check_screen_click(
   track_info: dict[str, str | int | list[tuple[float, float]]],
   points: list[Point],
 ) -> tuple[int, int, bool, bool]:
-
   track_amount = len(tracks)
   but_arr = draw_dict[page]["buts"]
   len_but = len(but_arr)
@@ -267,55 +270,57 @@ def check_screen_click(
 
   for i in range(len_but):
     rec: pr.Rectangle = but_arr[i]
-
     if pr.check_collision_point_rec(pr.get_mouse_position(), rec):
       hovering = True
+    if not check_mouse_point or not pr.check_collision_point_rec(
+      screen_mouse_point, rec
+    ):
+      continue
 
-    if check_mouse_point and pr.check_collision_point_rec(screen_mouse_point, rec):
-      match actions[i]:
-        case "edit_points":
-          edit_pts = True
-          draw_chunks = False
-        case "gen_track":
-          draw_chunks = True
-          edit_pts = False
+    match actions[i]:
+      case "edit_points":
+        edit_pts = True
+        draw_chunks = False
+      case "gen_track":
+        draw_chunks = True
+        edit_pts = False
 
-          physics_track.create_track(track_info["track"], track_info["finish"])
-          render_track.render_chunks(cons, physics_track.get_track_components())
-        case "prev_track":
-          track_index = (track_index - 1) % track_amount
-        case "next_track":
-          track_index = (track_index + 1) % track_amount
-        case "new_track":
-          page = 1
-        case "print":
-          track_info["track"] = tuple(track_info["track"])
-          print(track_info)
-          track_info["track"] = list(track_info["track"])
-        case "page1":
-          page = 0
-          edit_pts = False
-          draw_chunks = False
-        case "page2":
-          page = 1
-          edit_pts = True
-          draw_chunks = False
+        physics_track.create_track(track_info["track"], track_info["finish"])
+        render_track.render_chunks(cons, physics_track.get_track_components())
+      case "prev_track":
+        track_index = (track_index - 1) % track_amount
+      case "next_track":
+        track_index = (track_index + 1) % track_amount
+      case "new_track":
+        page = 1
+      case "print":
+        track_info["track"] = tuple(track_info["track"])
+        print(track_info)
+        track_info["track"] = list(track_info["track"])
+      case "page1":
+        page = 0
+        edit_pts = False
+        draw_chunks = False
+      case "page2":
+        page = 1
+        edit_pts = True
+        draw_chunks = False
 
-          track = tracks[track_index]
-          track_info["name"] = track["name"]
-          track_info["track"] = list(track["track"])
-          track_info["finish"] = track["finish"]
+        track = tracks[track_index]
+        track_info["name"] = track["name"]
+        track_info["track"] = list(track["track"])
+        track_info["finish"] = track["finish"]
 
-          points.clear()
+        points.clear()
 
-          for i, unscaled_pt in enumerate(track["track"]):
-            pt_x, pt_y = unscaled_pt
-            scaled_pt = (pt_x * cons.PPM, pt_y * cons.PPM)
-            points.append(Point(cons, i, scaled_pt, 3))
-        case "page3":
-          page = 2
-          edit_pts = False
-          draw_chunks = False
+        for i, unscaled_pt in enumerate(track["track"]):
+          pt_x, pt_y = unscaled_pt
+          scaled_pt = (pt_x * cons.PPM, pt_y * cons.PPM)
+          points.append(Point(cons, i, scaled_pt, 3))
+      case "page3":
+        page = 2
+        edit_pts = False
+        draw_chunks = False
 
   if hovering:
     pr.set_mouse_cursor(pr.MOUSE_CURSOR_POINTING_HAND)
@@ -327,8 +332,8 @@ def check_screen_click(
 
 def draw_screen(
   cons: Constants,
-  draw_dict: dict[int, dict[str, any]],
   sidebar: pr.Rectangle,
+  draw_dict: dict[int, dict[str, any]],
   screen_height: int,
   page: int,
   track_index: int,
