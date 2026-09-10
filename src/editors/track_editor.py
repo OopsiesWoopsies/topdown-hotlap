@@ -108,6 +108,7 @@ def main():
 
   edit_pts = False
   draw_chunks = False
+  clicked_point = False
 
   track_index = 2
   sidebar = pr.Rectangle(0, 0, 350, screen_height)
@@ -184,13 +185,14 @@ def main():
       left_click = True
 
     if right_click and pr.is_mouse_button_up(pr.MOUSE_RIGHT_BUTTON):
+      screen_mouse_point = pr.get_mouse_position()
       right_click = False
       check_right_mouse_point = True
     elif pr.is_mouse_button_down(pr.MOUSE_RIGHT_BUTTON):
       right_click = True
 
     # Check for clicks
-    check_world_click(
+    clicked_point = check_world_click(
       cons,
       camera,
       screen_mouse_point,
@@ -198,6 +200,7 @@ def main():
       check_right_mouse_point,
       sidebar,
       edit_pts,
+      clicked_point,
       track_info["track"],
       points,
     )
@@ -258,30 +261,47 @@ def check_world_click(
   check_right_mouse_point: bool,
   sidebar: pr.Rectangle,
   edit_pts: bool,
+  clicked_point: bool,
   track_points: list[tuple[int, int]],
   points: list[Point],
-):
-  if not edit_pts or not (
-    check_left_mouse_point or check_right_mouse_point
-  ) or pr.check_collision_point_rec(screen_mouse_point, sidebar):
+) -> bool:
+  if (
+    not edit_pts
+    or not (check_left_mouse_point or check_right_mouse_point)
+    or pr.check_collision_point_rec(screen_mouse_point, sidebar)
+  ):
     return
 
   world_pos = pr.get_screen_to_world_2d(screen_mouse_point, camera)
   physics_pos = (round(world_pos.x / cons.PPM), round(world_pos.y / cons.PPM))
   print(physics_pos)
-  if check_left_mouse_point:
-    point_clicked = False
-    for pt in points:
-      if pr.check_collision_point_rec(physics_pos, pt.hitbox):
-        point_clicked = True
-        break
 
+  point_clicked = False
+  for pt in points:
+    if pr.check_collision_point_rec(physics_pos, pt.hitbox):
+      point_clicked = True
+      selected_pt = pt
+      break
+
+  if check_left_mouse_point:
     if point_clicked:
-      pass
+      clicked_point = True
+
     else:
       new_pt = Point(cons, len(points), physics_pos)
       points.append(new_pt)
       track_points.append(physics_pos)
+  elif check_right_mouse_point and point_clicked:
+    index = selected_pt.index
+    for pt in points:  # Update indexes after the impending deletion
+      pt.index -= 1
+
+    pt = track_points.pop(index)
+    points.pop(index)
+    clicked_point = False
+    print(f"Deleted point: {pt}")
+
+  return clicked_point
 
 
 def draw_world(
