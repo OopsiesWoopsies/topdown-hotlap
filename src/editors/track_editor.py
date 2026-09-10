@@ -208,7 +208,6 @@ def main():
       track_info["track"],
       points,
     )
-    print(track_info["finish"])
     page, track_index, edit_points, draw_chunks = check_screen_click(
       cons,
       physics_track,
@@ -313,13 +312,13 @@ def check_world_click(
       track_points.append(physics_pos)
   elif check_right_mouse_point and point_clicked:
     index = possessed_point.index
-    for point in points:  # Update indexes after the impending deletion
-      point.index -= 1
+    for i in range(index + 1, len(points)):  # Update indexes after the impending deletion
+      points[i].index -= 1
 
     point = track_points.pop(index)
     points.pop(index)
     possess_point = False
-    print(f"Deleted point: {point}")
+    possessed_point = None
 
   return possess_point, possessed_point
 
