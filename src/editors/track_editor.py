@@ -211,14 +211,6 @@ def main():
     # Check for clicks
     but_info, input_info = draw_info
 
-    input_hovering, enable_numpad, input_index = check_input_screen_click(
-      input_info,
-      screen_mouse_point,
-      check_left_mouse_point,
-      page,
-      input_index,
-      enable_numpad,
-    )
     if not enable_numpad:
       possess_point, possessed_point = check_world_click(
         cons,
@@ -258,6 +250,15 @@ def main():
         pr.set_mouse_cursor(pr.MOUSE_CURSOR_IBEAM)
       else:
         pr.set_mouse_cursor(pr.MOUSE_CURSOR_DEFAULT)
+
+    input_hovering, enable_numpad, input_index = check_input_screen_click(
+      input_info,
+      screen_mouse_point,
+      check_left_mouse_point,
+      page,
+      input_index,
+      enable_numpad,
+    )
 
     # Drawing
     pr.begin_drawing()
@@ -404,7 +405,15 @@ def check_input_screen_click(
       enable_numpad = False
       return input_hovering, enable_numpad, input_index
 
-    if pr.is_key_pressed(pr.KEY_ENTER):
+    if pr.is_key_pressed(pr.KEY_ENTER) or check_left_mouse_point:
+      if len(input_content_strings[input_index]) != 0:
+        num = int(input_content_strings[input_index])
+        if num < -10000:
+          num = -10000
+        elif num > 10000:
+          num = 10000
+        input_content_strings[input_index] = str(num)
+
       enable_numpad = False
       input_index = None
       return input_hovering, enable_numpad, input_index
@@ -796,7 +805,7 @@ def create_screen_elements(
   new_point_submit_x = gen_pointx_x
   new_point_submit_y = gen_y_rec.y + gen_y_rec.height + margin * 2
   align_info(
-    "GENERATE POINT", "gen_point", new_point_submit_x, new_point_submit_y, margin, 0
+    "GEN POINT", "gen_point", new_point_submit_x, new_point_submit_y, margin, 0
   )
 
   # Back Button
