@@ -101,22 +101,34 @@ def main():
   pos_x = 0.0
   pos_y = 0.0
 
+  # General states
   page = 0  # 0-2 (inclusive, respectively featuring track selection / make new track, editing track, naming track)
   screen_mouse_point = pr.Vector2(0, 0)
   left_click = False
   right_click = False
   check_left_mouse_point = False
   check_right_mouse_point = False
+  but_hovering = False
+  input_hovering = False
 
+  # Screen button states
   edit_points = False
   draw_chunks = False
   is_draw_grid = True
+
+  # Screen input states
+  enable_numpad = False
+  input_index = None
+  track_index = 2
+
+  # World states
   possess_point = False
   possessed_point = None
 
-  track_index = 2
+  # Screen elements
   sidebar = pr.Rectangle(0, 0, 350, screen_height)
 
+  # Hot loop init
   last_time = time.perf_counter()
   accumulator = 0.0
   fixed_dt = 1 / 144.0
@@ -177,7 +189,8 @@ def main():
     accumulator += frame_time
 
     while accumulator >= fixed_dt:
-      pos_x, pos_y = control_screen(cons, fixed_dt, camera, (pos_x, pos_y))
+      if not enable_numpad:
+        pos_x, pos_y = control_screen(cons, fixed_dt, camera, (pos_x, pos_y))
       accumulator -= fixed_dt
 
     # Clicking
@@ -196,34 +209,55 @@ def main():
       right_click = True
 
     # Check for clicks
-    possess_point, possessed_point = check_world_click(
-      cons,
-      camera,
-      screen_mouse_point,
-      check_left_mouse_point,
-      check_right_mouse_point,
-      sidebar,
-      edit_points,
-      possess_point,
-      possessed_point,
-      track_info["track"],
-      points,
-    )
-    page, track_index, edit_points, draw_chunks, is_draw_grid = check_screen_click(
-      cons,
-      physics_track,
-      render_track,
-      draw_info,
+    but_info, input_info = draw_info
+
+    input_hovering, enable_numpad, input_index = check_input_screen_click(
+      input_info,
       screen_mouse_point,
       check_left_mouse_point,
       page,
-      track_index,
-      edit_points,
-      draw_chunks,
-      is_draw_grid,
-      track_info,
-      points,
+      input_index,
+      enable_numpad,
     )
+    if not enable_numpad:
+      possess_point, possessed_point = check_world_click(
+        cons,
+        camera,
+        screen_mouse_point,
+        check_left_mouse_point,
+        check_right_mouse_point,
+        sidebar,
+        edit_points,
+        possess_point,
+        possessed_point,
+        track_info["track"],
+        points,
+      )
+
+      page, track_index, edit_points, draw_chunks, is_draw_grid, but_hovering = (
+        check_button_screen_click(
+          cons,
+          physics_track,
+          render_track,
+          but_info,
+          screen_mouse_point,
+          check_left_mouse_point,
+          page,
+          track_index,
+          edit_points,
+          draw_chunks,
+          is_draw_grid,
+          track_info,
+          points,
+        )
+      )
+
+      if but_hovering:
+        pr.set_mouse_cursor(pr.MOUSE_CURSOR_POINTING_HAND)
+      elif input_hovering:
+        pr.set_mouse_cursor(pr.MOUSE_CURSOR_IBEAM)
+      else:
+        pr.set_mouse_cursor(pr.MOUSE_CURSOR_DEFAULT)
 
     # Drawing
     pr.begin_drawing()
@@ -249,6 +283,8 @@ def main():
       screen_height,
       page,
       track_index,
+      enable_numpad,
+      input_index,
     )
     pr.draw_fps(screen_width - 100, 5)
     pr.end_drawing()
@@ -347,33 +383,49 @@ def draw_world(
       point.draw_point(finish_i)
 
 
-def check_screen_click(
-  cons: Constants,
-  physics_track: PhysicsTrack,
-  render_track: RenderTrack,
-  draw_info: tuple[dict[int, dict[str, any]], dict[int, dict[str, any]]],
+def check_input_screen_click(
+  input_info: dict[int, dict[str, any]],
   screen_mouse_point: pr.Vector2,
   check_left_mouse_point: bool,
   page: int,
-  track_index: int,
-  edit_points: bool,
-  draw_chunks: bool,
-  is_draw_grid: bool,
-  track_info: dict[str, str | int | list[tuple[float, float]]],
-  points: list[Point],
-) -> tuple[int, int, bool, bool, bool]:
-  track_amount = len(tracks)
-  hovering = False
+  input_index: int,
+  enable_numpad: bool,
+) -> tuple[bool, bool, int]:
   input_hovering = False
-  but_info, input_info = draw_info
-
-  but_arr = but_info[page]["buts"]
-  but_actions = but_info[page]["actions"]
-  len_but = len(but_arr)
 
   input_arr = input_info[page]["inputs"]
   input_actions = input_info[page]["actions"]
+  input_content_strings = input_info[page]["content"]["strings"]
   len_input = len(input_arr)
+
+  if enable_numpad:
+    if input_index == -1:
+      print("No input rec..?")
+      enable_numpad = False
+      return input_hovering, enable_numpad, input_index
+
+    if pr.is_key_pressed(pr.KEY_ENTER):
+      enable_numpad = False
+      input_index = None
+      return input_hovering, enable_numpad, input_index
+
+    if (
+      pr.is_key_pressed(pr.KEY_BACKSPACE)
+      or pr.is_key_pressed_repeat(pr.KEY_BACKSPACE)
+      and len(input_content_strings[input_index]) > 0
+    ):
+      input_content_strings[input_index] = input_content_strings[input_index][:-1]
+
+    key = pr.get_char_pressed()
+    while key > 0:
+      if key == 45 and len(input_content_strings[input_index]) == 0:
+        input_content_strings[input_index] = "-"
+      elif key >= 48 and key <= 57:
+        input_content_strings[input_index] += str(key - 48)
+
+      key = pr.get_char_pressed()
+
+    return input_hovering, enable_numpad, input_index
 
   for i in range(len_input):
     rec: pr.Rectangle = input_arr[i]
@@ -386,10 +438,36 @@ def check_screen_click(
 
     match input_actions[i]:
       case "gen_x":
-        pass
+        enable_numpad = True
+        input_index = i
       case "gen_y":
-        pass
+        enable_numpad = True
+        input_index = i
 
+  return input_hovering, enable_numpad, input_index
+
+
+def check_button_screen_click(
+  cons: Constants,
+  physics_track: PhysicsTrack,
+  render_track: RenderTrack,
+  but_info: dict[int, dict[str, any]],
+  screen_mouse_point: pr.Vector2,
+  check_left_mouse_point: bool,
+  page: int,
+  track_index: int,
+  edit_points: bool,
+  draw_chunks: bool,
+  is_draw_grid: bool,
+  track_info: dict[str, str | int | list[tuple[float, float]]],
+  points: list[Point],
+) -> tuple[int, int, bool, bool, bool, bool]:
+  track_amount = len(tracks)
+  hovering = False
+
+  but_arr = but_info[page]["buts"]
+  but_actions = but_info[page]["actions"]
+  len_but = len(but_arr)
   for i in range(len_but):
     rec: pr.Rectangle = but_arr[i]
     if pr.check_collision_point_rec(pr.get_mouse_position(), rec):
@@ -444,14 +522,7 @@ def check_screen_click(
         edit_points = False
         draw_chunks = False
 
-  if hovering:
-    pr.set_mouse_cursor(pr.MOUSE_CURSOR_POINTING_HAND)
-  elif input_hovering:
-    pr.set_mouse_cursor(pr.MOUSE_CURSOR_IBEAM)
-  else:
-    pr.set_mouse_cursor(pr.MOUSE_CURSOR_DEFAULT)
-
-  return page, track_index, edit_points, draw_chunks, is_draw_grid
+  return page, track_index, edit_points, draw_chunks, is_draw_grid, hovering
 
 
 def draw_screen(
@@ -461,6 +532,8 @@ def draw_screen(
   screen_height: int,
   page: int,
   track_index: int,
+  enable_numpad: bool,
+  input_index: int,
 ) -> tuple[int, int, bool]:
   font = pr.get_font_default()
   rec_width = sidebar.width
@@ -475,21 +548,28 @@ def draw_screen(
   len_but = len(but_arr)
 
   input_arr = input_info[page]["inputs"]
-  input_texts = input_info[page]["texts"]
-  input_text_arr = input_texts["strings"]
-  input_text_pos_arr = input_texts["pos"]
+  input_labels = input_info[page]["labels"]
+  input_label_arr = input_labels["strings"]
+  input_label_pos_arr = input_labels["pos"]
+  input_contents = input_info[page]["content"]
+  input_content_arr = input_contents["strings"]
+  input_content_pos_arr = input_contents["pos"]
   len_input = len(input_arr)
 
   for i in range(len_input):
     rec: pr.Rectangle = input_arr[i]
-    text: str = input_text_arr[i]
+    label: str = input_label_arr[i]
+    content: str = input_content_arr[i]
 
-    x, y = input_text_pos_arr[i]
+    x, y = input_label_pos_arr[i]
     pr.draw_rectangle_rec(rec, pr.LIGHTGRAY)
-    pr.draw_rectangle_lines(
-      int(rec.x), int(rec.y), int(rec.width), int(rec.height), pr.BLUE
-    )
-    pr.draw_text_ex(font, text, pr.Vector2(int(x), int(y)), cons.FONT_SIZE, 1, pr.WHITE)
+    colour = pr.BLUE
+    if enable_numpad and input_index == i:
+      colour = pr.RED
+    pr.draw_rectangle_lines_ex(rec, 5, colour)
+    pr.draw_text_ex(font, label, pr.Vector2(x, y), cons.FONT_SIZE, 1, pr.WHITE)
+    x, y = input_content_pos_arr[i]
+    pr.draw_text_ex(font, content, pr.Vector2(x, y), cons.FONT_SIZE, 1, pr.BLACK)
 
   for i in range(len_but):
     rec: pr.Rectangle = but_arr[i]
@@ -497,7 +577,7 @@ def draw_screen(
 
     x, y = but_text_pos_arr[i]
     pr.draw_rectangle_rec(rec, pr.LIGHTGRAY)
-    pr.draw_text_ex(font, text, pr.Vector2(int(x), int(y)), cons.FONT_SIZE, 1, pr.BLACK)
+    pr.draw_text_ex(font, text, pr.Vector2(x, y), cons.FONT_SIZE, 1, pr.BLACK)
 
   match page:
     case 0:
@@ -617,17 +697,12 @@ def create_screen_elements(
     if is_input:
       rec_x += text_size.x + margin
 
-    rec = pr.Rectangle(
-      rec_x,
-      rec_y,
-      rec_width,
-      rec_height
-    )
+    rec = pr.Rectangle(rec_x, rec_y, rec_width, rec_height)
 
     actions.append(action)
     recs.append(rec)
     texts["strings"].append(text)
-    texts["pos"].append((aligned_text_x, aligned_text_y))
+    texts["pos"].append((int(aligned_text_x), int(aligned_text_y)))
 
     return rec
 
@@ -643,7 +718,8 @@ def create_screen_elements(
       "actions": [],
     }
     draw_input_info[i] = {
-      "texts": {"strings": [], "pos": []},
+      "labels": {"strings": [], "pos": []},
+      "content": {"strings": [], "pos": []},
       "inputs": [],
       "actions": [],
     }
@@ -688,18 +764,26 @@ def create_screen_elements(
   # --INPUTS--
   recs = []
   texts = {"strings": [], "pos": []}
+  content = {"strings": [], "pos": []}
   actions = []
 
   # x & y inputs for point input
   gen_pointy_x = 10
   gen_pointy_y = sidebar.height / 6
   rec = align_info("X:", "gen_y", gen_pointy_x, gen_pointy_y, margin, 0, True, 100)
+  content["strings"].append("")
+  content["pos"].append((int(rec.x + margin / 2), int(rec.y + margin / 2)))
 
   gen_pointx_x = 10
   gen_pointx_y = rec.y + rec.height * 2
-  gen_y_rec = align_info("Y:", "gen_x", gen_pointx_x, gen_pointx_y, margin, 0, True, 100)
+  gen_y_rec = align_info(
+    "Y:", "gen_x", gen_pointx_x, gen_pointx_y, margin, 0, True, 100
+  )
+  content["strings"].append("")
+  content["pos"].append((int(gen_y_rec.x + margin / 2), int(gen_y_rec.y + margin / 2)))
 
-  draw_input_info[page]["texts"] = texts
+  draw_input_info[page]["labels"] = texts
+  draw_input_info[page]["content"] = content
   draw_input_info[page]["inputs"] = recs
   draw_input_info[page]["actions"] = actions
 
@@ -707,6 +791,13 @@ def create_screen_elements(
   recs = []
   texts = {"strings": [], "pos": []}
   actions = []
+
+  # Generate New Point
+  new_point_submit_x = gen_pointx_x
+  new_point_submit_y = gen_y_rec.y + gen_y_rec.height + margin * 2
+  align_info(
+    "GENERATE POINT", "gen_point", new_point_submit_x, new_point_submit_y, margin, 0
+  )
 
   # Back Button
   back_x = margin
@@ -727,8 +818,6 @@ def create_screen_elements(
   gen_track_x = sidebar.width / 2
   gen_track_y = screen_height * 3 / 4 + 50
   align_info("GENERATE TRACK", "gen_track", gen_track_x, gen_track_y, margin, 1)
-
-  # Generate Point
 
   # Toggle Grid
   toggle_grid_x = sidebar.width - margin

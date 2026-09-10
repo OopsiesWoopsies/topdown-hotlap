@@ -109,7 +109,7 @@ class RenderTrack:
 
       render_offset = pr.Vector2(-cx * CHUNK_SIZE, -cy * CHUNK_SIZE)
 
-      # Draw pavement and boundary lines ONLY for segments in this chunk
+      # Draw pavement and boundary lines for segments in this chunk
       for i in chunk_segments.get((cx, cy), []):
         j = (i + 1) % num_pts
 
@@ -122,7 +122,7 @@ class RenderTrack:
           pr.vector2_scale(right_bound_pts[i], cons.PPM), render_offset
         )
 
-        # Pavement (Will work perfectly if uncommented now)
+        # Pavement
         pr.draw_triangle(a, b, c, pr.DARKGRAY)
         pr.draw_triangle(a, c, d, pr.DARKGRAY)
 
@@ -130,7 +130,7 @@ class RenderTrack:
         pr.draw_line_ex(a, b, line_thickness, pr.WHITE)
         pr.draw_line_ex(d, c, line_thickness, pr.WHITE)
 
-      # Draw Sectors ONLY if they fall in this chunk
+      # Draw sectors if they fall in this chunk
       for sector_line in chunk_sectors.get((cx, cy), []):
         pr.draw_line_ex(
           pr.vector2_add(pr.vector2_scale(sector_line[0], cons.PPM), render_offset),
@@ -139,7 +139,7 @@ class RenderTrack:
           pr.WHITE,
         )
 
-      # Draw Finish line ONLY if it falls in this chunk
+      # Draw finish line if it falls in this chunk
       if (cx, cy) in chunk_finish:
         pr.draw_line_ex(
           pr.vector2_add(pr.vector2_scale(finish_line[0], cons.PPM), render_offset),
