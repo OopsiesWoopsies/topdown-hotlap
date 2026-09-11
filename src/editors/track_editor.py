@@ -494,11 +494,14 @@ def check_button_screen_click(
         edit_points = True
         draw_chunks = False
       case "gen_track":
-        draw_chunks = True
-        edit_points = False
+        if len(points) < 4:
+          print("Not enough points. Generate at least 4 points.")
+        else:
+          draw_chunks = True
+          edit_points = False
 
-        physics_track.create_track(track_info["track"], track_info["finish"])
-        render_track.render_chunks(cons, physics_track.get_track_components())
+          physics_track.create_track(track_info["track"], track_info["finish"])
+          render_track.render_chunks(cons, physics_track.get_track_components())
       case "toggle_grid":
         is_draw_grid = not is_draw_grid
       case "gen_point":
@@ -507,10 +510,18 @@ def check_button_screen_click(
         y_found = False
         for i in range(len(content)):
           if content[i]["type"] == "x_point":
-            x = int(content[i]["string"])
+            if content[i]["string"] == "":
+              x = 0
+            else:
+              x = int(content[i]["string"])
+              content[i]["string"] = ""
             x_found = True
           elif content[i]["type"] == "y_point":
-            y = int(content[i]["string"])
+            if content[i]["string"] == "":
+              y = 0
+            else:
+              y = int(content[i]["string"])
+              content[i]["string"] = ""
             y_found = True
           if x_found and y_found:
             break
@@ -525,6 +536,8 @@ def check_button_screen_click(
         track_index = (track_index + 1) % track_amount
       case "new_track":
         page = 1
+        edit_points = True
+        draw_chunks = False
       case "print":
         track_info["track"] = tuple(track_info["track"])
         print(track_info)
@@ -597,7 +610,9 @@ def draw_screen(
     pr.draw_rectangle_lines_ex(rec, 5, colour)
     pr.draw_text_ex(font, label, pr.Vector2(x, y), cons.FONT_SIZE, 1, pr.WHITE)
     x, y = content["str_pos"]
-    pr.draw_text_ex(font, content["string"], pr.Vector2(x, y), cons.FONT_SIZE, 1, pr.BLACK)
+    pr.draw_text_ex(
+      font, content["string"], pr.Vector2(x, y), cons.FONT_SIZE, 1, pr.BLACK
+    )
 
   for i in range(len_but):
     rec: pr.Rectangle = but_arr[i]
@@ -801,7 +816,7 @@ def create_screen_elements(
   rec = align_info("X:", "gen_y", gen_pointy_x, gen_pointy_y, margin, 0, True, 100)
   content[0] = {
     "string": "",
-    "type": "x_point",
+    "type": "y_point",
     "str_pos": (int(rec.x + margin / 2), int(rec.y + margin / 2)),
   }
 
@@ -812,7 +827,7 @@ def create_screen_elements(
   )
   content[1] = {
     "string": "",
-    "type": "y_point",
+    "type": "x_point",
     "str_pos": (int(gen_y_rec.x + margin / 2), int(gen_y_rec.y + margin / 2)),
   }
 
