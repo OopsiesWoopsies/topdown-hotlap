@@ -149,7 +149,9 @@ def main():
 
   render_car = RenderCar(cons, car_texture, car)
 
-  draw_info = create_screen_elements(cons, sidebar, screen_width, screen_height)
+  draw_info = create_screen_elements(
+    cons, sidebar, screen_width, screen_height, track_info
+  )
 
   while not pr.window_should_close():
     # Toggle fullscreen
@@ -168,7 +170,9 @@ def main():
         camera.zoom *= scale
         camera.offset = (screen_width / 2, screen_height / 2)
         sidebar = pr.Rectangle(0, 0, 350, screen_height)
-        draw_info = create_screen_elements(cons, sidebar, screen_width, screen_height)
+        draw_info = create_screen_elements(
+          cons, sidebar, screen_width, screen_height, track_info
+        )
       else:
         old_screen_height = screen_height
         screen_width = cons.SCREEN_WIDTH
@@ -180,7 +184,9 @@ def main():
         camera.zoom *= scale
         camera.offset = (screen_width / 2, screen_height / 2)
         sidebar = pr.Rectangle(0, 0, 350, screen_height)
-        draw_info = create_screen_elements(cons, sidebar, screen_width, screen_height)
+        draw_info = create_screen_elements(
+          cons, sidebar, screen_width, screen_height, track_info
+        )
 
     # Static dt
     current_time = time.perf_counter()
@@ -258,6 +264,7 @@ def main():
       page,
       input_index,
       enable_numpad,
+      track_info,
     )
 
     # Drawing
@@ -391,6 +398,7 @@ def check_input_screen_click(
   page: int,
   input_index: int,
   enable_numpad: bool,
+  track_info: dict[str, str | int | list[tuple[float, float]]],
 ) -> tuple[bool, bool, int]:
   input_hovering = False
 
@@ -407,17 +415,36 @@ def check_input_screen_click(
       return input_hovering, enable_numpad, input_index
 
     if pr.is_key_pressed(pr.KEY_ENTER) or check_left_mouse_point:
-      if len(input_content_details["string"]) != 0:
-        num = int(input_content_details["string"])
-        if num < -10000:
-          num = -10000
-        elif num > 10000:
-          num = 10000
-        input_content_details["string"] = str(num)
+      action = input_actions[input_index]
+      string = input_content_details["string"]
+      match action:
+        case "finish_i":
+          if len(string) != 0:
+            point_num = len(track_info["track"])
+            num = int(string)
+            if num < 0:
+              num = 0
+            elif num >= point_num:
+              num = point_num - 1
+            track_info["finish"] = num
+            input_content_details["string"] = str(num)
 
-      enable_numpad = False
-      input_index = None
-      return input_hovering, enable_numpad, input_index
+          enable_numpad = False
+          input_index = None
+          return input_hovering, enable_numpad, input_index
+
+        case "gen_x" | "gen_y":
+          if len(string) != 0:
+            num = int(string)
+            if num < -10000:
+              num = -10000
+            elif num > 10000:
+              num = 10000
+            input_content_details["string"] = str(num)
+
+          enable_numpad = False
+          input_index = None
+          return input_hovering, enable_numpad, input_index
 
     if (
       pr.is_key_pressed(pr.KEY_BACKSPACE)
@@ -447,10 +474,7 @@ def check_input_screen_click(
       continue
 
     match input_actions[i]:
-      case "gen_x":
-        enable_numpad = True
-        input_index = i
-      case "gen_y":
+      case "gen_x" | "gen_y" | "finish_i":
         enable_numpad = True
         input_index = i
 
@@ -505,31 +529,34 @@ def check_button_screen_click(
       case "toggle_grid":
         is_draw_grid = not is_draw_grid
       case "gen_point":
-        content = input_info[page]["content"]
-        x_found = False
-        y_found = False
-        for i in range(len(content)):
-          if content[i]["type"] == "x_point":
-            if content[i]["string"] == "":
-              x = 0
-            else:
-              x = int(content[i]["string"])
-              content[i]["string"] = ""
-            x_found = True
-          elif content[i]["type"] == "y_point":
-            if content[i]["string"] == "":
-              y = 0
-            else:
-              y = int(content[i]["string"])
-              content[i]["string"] = ""
-            y_found = True
-          if x_found and y_found:
-            break
+        if edit_points:
+          content = input_info[page]["content"]
+          actions = input_info[page]["actions"]
+          x_found = False
+          y_found = False
+          for i in range(len(content)):
+            match actions[i]:
+              case "gen_x":
+                if content[i]["string"] == "":
+                  x = 0
+                else:
+                  x = int(content[i]["string"])
+                  content[i]["string"] = ""
+                x_found = True
+              case "gen_y":
+                if content[i]["string"] == "":
+                  y = 0
+                else:
+                  y = int(content[i]["string"])
+                  content[i]["string"] = ""
+                y_found = True
+            if x_found and y_found:
+              break
 
-        coord = (x, y)
-        point = Point(cons, len(points), coord)
-        points.append(point)
-        track_info["track"].append(coord)
+          coord = (x, y)
+          point = Point(cons, len(points), coord)
+          points.append(point)
+          track_info["track"].append(coord)
       case "prev_track":
         track_index = (track_index - 1) % track_amount
       case "next_track":
@@ -681,7 +708,11 @@ def control_screen(
 
 
 def create_screen_elements(
-  cons: Constants, sidebar: pr.Rectangle, screen_width: int, screen_height: int
+  cons: Constants,
+  sidebar: pr.Rectangle,
+  screen_width: int,
+  screen_height: int,
+  track_info: dict[str, str | int | list[tuple[int, int]]],
 ) -> tuple[dict[int, dict[str, any]], dict[int, dict[str, any]]]:
   def align_info(
     text: str,
@@ -691,6 +722,7 @@ def create_screen_elements(
     margin: int,
     alignment: int,
     is_input: bool = False,
+    index: int = -1,
     width: int = 10,
   ) -> pr.Rectangle:
     """Aligns the button relative to the point, so if it is centered aligned at the given position,
@@ -705,6 +737,7 @@ def create_screen_elements(
       margin: The margin between the text and edge of the button.
       alignment: 0-2, indicating left, center, right alignment respectively.
       is_input: Change how alignment is calculated since inputs are drawn differently.
+      index: Only applies to inputs.
       width: Only applies to inputs (width of the input box).
 
     Returns:
@@ -739,6 +772,11 @@ def create_screen_elements(
 
     if is_input:
       rec_x += text_size.x + margin
+
+      content[index] = {
+        "string": "",
+        "str_pos": (int(rec_x + margin / 2), int(rec_y + margin / 2)),
+      }
 
     rec = pr.Rectangle(rec_x, rec_y, rec_width, rec_height)
 
@@ -788,13 +826,11 @@ def create_screen_elements(
 
   right_arrow_x = edit_track_x + edit_track_but.width / 2 + margin
   right_arrow_y = edit_track_y
-
   align_info("->", "next_track", right_arrow_x, right_arrow_y, margin, 0)
 
   # Create Track
   create_x = sidebar.width - margin
   create_y = screen_height - margin * 2
-
   align_info("CREATE TRACK", "new_track", create_x, create_y, margin, 2)
 
   # Append arrays
@@ -813,23 +849,21 @@ def create_screen_elements(
   # x & y inputs for point input
   gen_pointy_x = 10
   gen_pointy_y = sidebar.height / 6
-  rec = align_info("X:", "gen_y", gen_pointy_x, gen_pointy_y, margin, 0, True, 100)
-  content[0] = {
-    "string": "",
-    "type": "y_point",
-    "str_pos": (int(rec.x + margin / 2), int(rec.y + margin / 2)),
-  }
+  rec = align_info("X:", "gen_y", gen_pointy_x, gen_pointy_y, margin, 0, True, 0, 100)
 
   gen_pointx_x = 10
   gen_pointx_y = rec.y + rec.height * 2
   gen_y_rec = align_info(
-    "Y:", "gen_x", gen_pointx_x, gen_pointx_y, margin, 0, True, 100
+    "Y:", "gen_x", gen_pointx_x, gen_pointx_y, margin, 0, True, 1, 100
   )
-  content[1] = {
-    "string": "",
-    "type": "x_point",
-    "str_pos": (int(gen_y_rec.x + margin / 2), int(gen_y_rec.y + margin / 2)),
-  }
+
+  # Finish index
+  finish_i_x = sidebar.width - margin
+  finish_i_y = gen_pointx_y
+  rec = align_info(
+    "Finish Index:", "finish_i", finish_i_x, finish_i_y, margin, 2, True, 2, 50
+  )
+  content[2]["string"] = str(track_info["finish"])
 
   draw_input_info[page]["labels"] = texts
   draw_input_info[page]["content"] = content
