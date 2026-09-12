@@ -25,6 +25,7 @@ class Point:
     self.physics_pos = physics_pos
     self.world_pos = (physics_pos[0] * cons.PPM, physics_pos[1] * cons.PPM)
     self.hitbox_size = hitbox_size
+    self.colour = pr.RED
 
     pos_x, pos_y = self.physics_pos
     self.hitbox = pr.Rectangle(
@@ -59,12 +60,8 @@ class Point:
       hitbox_size,
     )
 
-  def draw_point(self, finish_index: int):
-    if finish_index == self.index:
-      colour = pr.BLUE
-    else:
-      colour = pr.RED
-    pr.draw_rectangle_rec(self.draw_hitbox, colour)
+  def draw(self):
+    pr.draw_rectangle_rec(self.draw_hitbox, self.colour)
     pr.draw_rectangle_lines_ex(self.draw_hitbox, 0.2 * self.cons.PPM, pr.WHITE)
 
     font = pr.get_font_default()
@@ -122,7 +119,7 @@ def main():
   track_index = 2
 
   # World states
-  possess_point = False
+  point_selected = None
   possessed_point = None
 
   # Screen elements
@@ -218,7 +215,7 @@ def main():
     _, input_info = draw_info
 
     if not enable_numpad:
-      possess_point, possessed_point = check_world_click(
+      point_selected, possessed_point = check_world_click(
         cons,
         camera,
         screen_mouse_point,
@@ -226,9 +223,10 @@ def main():
         check_right_mouse_point,
         sidebar,
         edit_points,
-        possess_point,
+        point_selected,
         possessed_point,
-        track_info["track"],
+        input_info,
+        track_info,
         points,
       )
 
@@ -264,7 +262,9 @@ def main():
       page,
       input_index,
       enable_numpad,
+      point_selected,
       track_info,
+      points,
     )
 
     # Drawing
@@ -278,7 +278,6 @@ def main():
       render_track,
       page,
       draw_chunks,
-      track_info,
       points,
     )
     if is_draw_grid:
@@ -292,6 +291,7 @@ def main():
       page,
       track_index,
       enable_numpad,
+      point_selected,
       input_index,
     )
     pr.draw_fps(screen_width - 100, 5)
@@ -312,13 +312,26 @@ def check_world_click(
   check_right_mouse_point: bool,
   sidebar: pr.Rectangle,
   edit_points: bool,
-  possess_point: bool,
+  point_selected: Point,
   possessed_point: Point,
-  track_points: list[tuple[int, int]],
+  input_info: dict[int, dict[str, any]],
+  track_info: dict[str, str | int | list[tuple[int, int]]],
   points: list[Point],
-) -> tuple[bool, Point]:
+) -> tuple[Point, Point]:
   # Check for possessed point moving
-  if possess_point:  # Follow mouse
+  if point_selected != None:
+    if check_left_mouse_point and not pr.check_collision_point_rec(
+      screen_mouse_point, sidebar
+    ):
+      point_selected.colour = (
+        pr.BLUE if track_info["finish"] == point_selected.index else pr.RED
+      )
+      action_i = find_action_index(input_info[1]["actions"], "change_i")
+      input_info[1]["content"][action_i]["string"] = "NAN"
+      return None, None
+    return point_selected, None
+
+  if possessed_point != None:  # Follow mouse
     world_pos = pr.get_screen_to_world_2d(pr.get_mouse_position(), camera)
     physics_pos = (round(world_pos.x / cons.PPM), round(world_pos.y / cons.PPM))
     possessed_point.update_pos(physics_pos)
@@ -326,10 +339,9 @@ def check_world_click(
 
     if check_left_mouse_point:  # Save position
       index = possessed_point.index
-      track_points[index] = physics_pos
-      return False, None
-    else:
-      return possess_point, possessed_point
+      track_info["track"][index] = physics_pos
+      return None, None
+    return None, possessed_point
 
   # Check for any mouse updates
   if (
@@ -337,7 +349,7 @@ def check_world_click(
     or not (check_left_mouse_point or check_right_mouse_point)
     or pr.check_collision_point_rec(screen_mouse_point, sidebar)
   ):
-    return False, None
+    return None, None
 
   world_pos = pr.get_screen_to_world_2d(screen_mouse_point, camera)
   physics_pos = (round(world_pos.x / cons.PPM), round(world_pos.y / cons.PPM))
@@ -347,29 +359,43 @@ def check_world_click(
   for point in reversed(points):
     if pr.check_collision_point_rec(physics_pos, point.hitbox):
       point_clicked = True
-      possessed_point = point
+      if pr.is_key_down(pr.KEY_LEFT_CONTROL):
+        possessed_point = point
+      else:
+        point_selected = point
+        point_selected.colour = pr.MAGENTA
+        action_i = find_action_index(input_info[1]["actions"], "change_i")
+        input_info[1]["content"][action_i]["string"] = str(point_selected.index)
       break
 
   if check_left_mouse_point:  # Point addition
-    if point_clicked:  # Unless point clicked, leading to existing point movement
-      possess_point = True
-    else:
+    if not point_clicked:  # Unless point clicked, leading to existing point movement
       new_point = Point(cons, len(points), physics_pos)
       points.append(new_point)
-      track_points.append(physics_pos)
+      track_info["track"].append(physics_pos)
   elif check_right_mouse_point and point_clicked:  # Point deletion
-    index = possessed_point.index
+    num = track_info["finish"]
+    index = point_selected.index
+
+    if num == index:
+      points[num].colour = pr.RED
+      track_info["finish"] -= 1
+      points[track_info["finish"]].colour = pr.BLUE
+
+      action_i = find_action_index(input_info[1]["actions"], "finish_i")
+      input_info[1]["content"][action_i]["string"] = str(track_info["finish"])
+
     for i in range(
       index + 1, len(points)
     ):  # Update indexes after the impending deletion
       points[i].index -= 1
 
-    point = track_points.pop(index)
+    point = track_info["track"].pop(index)
     points.pop(index)
-    possess_point = False
+    point_selected = None
     possessed_point = None
 
-  return possess_point, possessed_point
+  return point_selected, possessed_point
 
 
 def draw_world(
@@ -378,7 +404,6 @@ def draw_world(
   render_track: RenderTrack,
   page: int,
   draw_chunks: bool,
-  track_info: dict[str, str | int | list[tuple[float, float]]],
   points: list[Point],
 ):
   if draw_chunks:
@@ -386,9 +411,8 @@ def draw_world(
   render_car.draw_car()
 
   if page == 1:
-    finish_i = track_info["finish"]
     for point in points:
-      point.draw_point(finish_i)
+      point.draw()
 
 
 def check_input_screen_click(
@@ -398,7 +422,9 @@ def check_input_screen_click(
   page: int,
   input_index: int,
   enable_numpad: bool,
+  point_selected: Point,
   track_info: dict[str, str | int | list[tuple[float, float]]],
+  points: list[Point],
 ) -> tuple[bool, bool, int]:
   input_hovering = False
 
@@ -417,20 +443,74 @@ def check_input_screen_click(
     if pr.is_key_pressed(pr.KEY_ENTER) or check_left_mouse_point:
       action = input_actions[input_index]
       string = input_content_details["string"]
-      match action:
-        case "finish_i":
-          if len(string) != 0:
-            point_num = len(track_info["track"])
-            num = int(string)
-            if num < 0:
-              num = 0
-            elif num >= point_num:
-              num = point_num - 1
-            track_info["finish"] = num
-            input_content_details["string"] = str(num)
+      enable_numpad = False
+      input_index = None
 
-          enable_numpad = False
-          input_index = None
+      match action:
+        case "change_i":
+          if len(string) == 0:
+            input_content_details["string"] = str(point_selected.index)
+            return input_hovering, enable_numpad, input_index
+
+          # Validate index and check if it is the finish index
+          point_num = len(track_info["track"])
+          new_index = int(string)
+          old_index = point_selected.index
+          if new_index < 0:
+            new_index = 0
+          elif new_index >= point_num:
+            new_index = point_num - 1
+
+          if new_index == track_info["finish"]:
+            point_selected.colour = pr.BLUE
+            points[new_index].colour = pr.RED
+
+          elif old_index == track_info["finish"]:
+            point_selected.colour = pr.RED
+            points[new_index].colour = pr.BLUE
+
+          # Update index and sync with array
+          pos = track_info["track"].pop(old_index)
+          track_info["track"].insert(new_index, pos)
+          points.pop(old_index)
+          points.insert(new_index, point_selected)
+
+          start_index = min(old_index, new_index)
+          end_index = max(old_index, new_index)
+          for i in range(start_index, end_index + 1):
+            points[i].index = i
+
+          # Update input strings
+          if track_info["finish"] >= start_index and track_info["finish"] <= end_index:
+            action_i = find_action_index(input_actions, "finish_i")
+            diff = old_index - new_index
+            if diff == 0:
+              op = 0
+            else:
+              op = diff / abs(diff)
+            points[track_info["finish"]].colour = pr.RED
+            track_info["finish"] += int(op)
+            input_info[page]["content"][action_i]["string"] = str(track_info["finish"])
+            points[track_info["finish"]].colour = pr.BLUE
+
+          return input_hovering, enable_numpad, input_index
+
+        case "finish_i":
+          if len(string) == 0:
+            input_content_details["string"] = str(track_info["finish"])
+            return input_hovering, enable_numpad, input_index
+
+          point_num = len(track_info["track"])
+          num = int(string)
+          if num < 0:
+            num = 0
+          elif num >= point_num:
+            num = point_num - 1
+
+          points[track_info["finish"]].colour = pr.RED
+          points[num].colour = pr.BLUE
+          track_info["finish"] = num
+          input_content_details["string"] = str(num)
           return input_hovering, enable_numpad, input_index
 
         case "gen_x" | "gen_y":
@@ -441,9 +521,6 @@ def check_input_screen_click(
             elif num > 10000:
               num = 10000
             input_content_details["string"] = str(num)
-
-          enable_numpad = False
-          input_index = None
           return input_hovering, enable_numpad, input_index
 
     if (
@@ -474,6 +551,12 @@ def check_input_screen_click(
       continue
 
     match input_actions[i]:
+      case "change_i":
+        if point_selected != None:
+          enable_numpad = True
+          input_index = i
+        else:
+          print("No point selected")
       case "gen_x" | "gen_y" | "finish_i":
         enable_numpad = True
         input_index = i
@@ -587,6 +670,14 @@ def check_button_screen_click(
 
         for i, physics_pos in enumerate(track["track"]):
           points.append(Point(cons, i, physics_pos))
+
+        points[track_info["finish"]].colour = pr.BLUE
+        content = input_info[page]["content"]
+        actions = input_info[page]["actions"]
+
+        action_i = find_action_index(actions, "finish_i")
+        content[action_i]["string"] = str(track_info["finish"])
+
       case "page3":
         page = 2
         edit_points = False
@@ -603,6 +694,7 @@ def draw_screen(
   page: int,
   track_index: int,
   enable_numpad: bool,
+  point_selected: Point,
   input_index: int,
 ) -> tuple[int, int, bool]:
   font = pr.get_font_default()
@@ -615,38 +707,43 @@ def draw_screen(
   but_texts = but_info[page]["texts"]
   but_text_arr = but_texts["strings"]
   but_text_pos_arr = but_texts["pos"]
-  len_but = len(but_arr)
 
   input_arr = input_info[page]["inputs"]
   input_labels = input_info[page]["labels"]
   input_label_arr = input_labels["strings"]
   input_label_pos_arr = input_labels["pos"]
   input_contents = input_info[page]["content"]
-  len_input = len(input_arr)
 
-  for i in range(len_input):
-    rec: pr.Rectangle = input_arr[i]
+  for i, input_elm in enumerate(input_arr):
     label: str = input_label_arr[i]
     content: dict = input_contents[i]
 
     x, y = input_label_pos_arr[i]
-    pr.draw_rectangle_rec(rec, pr.LIGHTGRAY)
     colour = pr.BLUE
     if enable_numpad and input_index == i:
       colour = pr.RED
-    pr.draw_rectangle_lines_ex(rec, 5, colour)
+    if input_info[page]["actions"][i] == "change_i":
+      if point_selected == None:
+        pr.draw_rectangle_rec(input_elm, pr.DARKGRAY)
+        pr.draw_rectangle_lines_ex(input_elm, 5, pr.BLACK)
+      else:
+        pr.draw_rectangle_rec(input_elm, pr.LIGHTGRAY)
+        pr.draw_rectangle_lines_ex(input_elm, 5, colour)
+    else:
+      pr.draw_rectangle_rec(input_elm, pr.LIGHTGRAY)
+      pr.draw_rectangle_lines_ex(input_elm, 5, colour)
+
     pr.draw_text_ex(font, label, pr.Vector2(x, y), cons.FONT_SIZE, 1, pr.WHITE)
     x, y = content["str_pos"]
     pr.draw_text_ex(
       font, content["string"], pr.Vector2(x, y), cons.FONT_SIZE, 1, pr.BLACK
     )
 
-  for i in range(len_but):
-    rec: pr.Rectangle = but_arr[i]
+  for i, but_elm in enumerate(but_arr):
     text: str = but_text_arr[i]
 
     x, y = but_text_pos_arr[i]
-    pr.draw_rectangle_rec(rec, pr.LIGHTGRAY)
+    pr.draw_rectangle_rec(but_elm, pr.LIGHTGRAY)
     pr.draw_text_ex(font, text, pr.Vector2(x, y), cons.FONT_SIZE, 1, pr.BLACK)
 
   match page:
@@ -800,7 +897,7 @@ def create_screen_elements(
     }
     draw_input_info[i] = {
       "labels": {"strings": [], "pos": []},
-      "content": {"strings": [], "pos": []},
+      "content": {},
       "inputs": [],
       "actions": [],
     }
@@ -840,6 +937,7 @@ def create_screen_elements(
 
   # --Pg 2--  (Edit / Create points)
   page = 1
+
   # --INPUTS--
   recs = []
   texts = {"strings": [], "pos": []}
@@ -857,13 +955,21 @@ def create_screen_elements(
     "Y:", "gen_x", gen_pointx_x, gen_pointx_y, margin, 0, True, 1, 100
   )
 
+  # Update Index
+  update_i_x = sidebar.width - margin
+  update_i_y = gen_pointy_y
+  rec = align_info(
+    "Change Index", "change_i", update_i_x, update_i_y, margin, 2, True, 2, 54
+  )
+  content[2]["string"] = "NAN"
+
   # Finish index
-  finish_i_x = sidebar.width - margin
+  finish_i_x = update_i_x
   finish_i_y = gen_pointx_y
   rec = align_info(
-    "Finish Index:", "finish_i", finish_i_x, finish_i_y, margin, 2, True, 2, 50
+    "Finish Index:", "finish_i", finish_i_x, finish_i_y, margin, 2, True, 3, 50
   )
-  content[2]["string"] = str(track_info["finish"])
+  content[3]["string"] = str(track_info["finish"])
 
   draw_input_info[page]["labels"] = texts
   draw_input_info[page]["content"] = content
@@ -932,6 +1038,13 @@ def create_screen_elements(
   draw_but_info[page]["actions"] = actions
 
   return draw_but_info, draw_input_info
+
+
+def find_action_index(input_actions: list[str], desired_action: str) -> int | None:
+  for i, action in enumerate(input_actions):
+    if desired_action == action:
+      return i
+  return None
 
 
 def draw_grid(
