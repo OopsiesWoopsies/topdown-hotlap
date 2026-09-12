@@ -278,6 +278,7 @@ def main():
 
     pr.begin_mode_2d(camera)
     draw_world(
+      cons,
       camera,
       render_car,
       render_track,
@@ -301,7 +302,6 @@ def main():
       point_selected,
       input_index,
       track_info,
-      physics_track,
     )
     pr.draw_fps(screen_width - 100, 5)
     pr.end_drawing()
@@ -417,6 +417,7 @@ def check_world_click(
 
 
 def draw_world(
+  cons: Constants,
   camera: pr.Camera2D,
   render_car: RenderCar,
   render_track: RenderTrack,
@@ -425,6 +426,7 @@ def draw_world(
   points: list[Point],
 ):
   if draw_chunks:
+    render_track.draw_borders(cons, camera)
     render_track.draw(camera)
   render_car.draw_car()
 
