@@ -84,9 +84,10 @@ def main():
   pr.init_window(screen_width, screen_height, "Track Editor")
   # pr.set_target_fps(144)
 
-  track_info: dict[str, str | int | list[tuple[int, int]]] = {
+  track_info: dict[str, str | int | float | list[tuple[int, int]]] = {
     "name": "",
     "finish": 0,
+    "length": 0.0,
     "track": [],
   }
   points: list[Point] = []
@@ -289,6 +290,7 @@ def main():
     pr.end_mode_2d()
     draw_screen(
       cons,
+      camera,
       sidebar,
       draw_info,
       screen_height,
@@ -298,6 +300,8 @@ def main():
       enable_keyboard,
       point_selected,
       input_index,
+      track_info,
+      physics_track,
     )
     pr.draw_fps(screen_width - 100, 5)
     pr.end_drawing()
@@ -544,10 +548,10 @@ def check_input_screen_click(
             return input_hovering, enable_numpad, enable_keyboard, input_index
 
           num = int(string)
-          if num < -10000:
-            num = -10000
-          elif num > 10000:
-            num = 10000
+          if num < -5000:
+            num = -5000
+          elif num > 5000:
+            num = 5000
           input_content_details["string"] = str(num)
           return input_hovering, enable_numpad, enable_keyboard, input_index
 
@@ -704,7 +708,20 @@ def check_button_screen_click(
         point = Point(cons, 0, (0, 0))
         points.append(point)
         point.colour = pr.BLUE
-      case "print":
+      case "print":  # Calculates track length prints track information to terminal
+        physics_track.create_track(track_info["track"], track_info["finish"])
+        sum_length = 0
+        center_points = physics_track.center_pts
+        for i in range(len(physics_track.center_pts) - 1):
+          a_x, a_y = center_points[i]
+          b_x, b_y = center_points[i + 1]
+          length_x = abs(b_x) - abs(a_x)
+          length_y = abs(b_y) - abs(a_y)
+
+          sum_length += math.sqrt(length_x * length_x + length_y * length_y)
+
+        track_info["length"] = round(sum_length, 2)
+
         track_info["track"] = tuple(track_info["track"])
         print(track_info)
         track_info["track"] = list(track_info["track"])
@@ -718,6 +735,7 @@ def check_button_screen_click(
         track_info["name"] = ""
         track_info["track"] = []
         track_info["finish"] = "NAN"
+        track_info["length"] = 0.0
         points.clear()
         action_i = find_action_index(actions, "finish_i")
         input_info[1]["content"][action_i]["string"] = str(0)
@@ -735,6 +753,7 @@ def check_button_screen_click(
           track_info["name"] = track["name"]
           track_info["track"] = list(track["track"])
           track_info["finish"] = track["finish"]
+          track_info["length"] = track["length"]
 
           for i, physics_pos in enumerate(track["track"]):
             points.append(Point(cons, i, physics_pos))
@@ -759,6 +778,7 @@ def check_button_screen_click(
 
 def draw_screen(
   cons: Constants,
+  camera: pr.Camera2D,
   sidebar: pr.Rectangle,
   draw_info: tuple[dict[int, dict[str, any]], dict[int, dict[str, any]]],
   screen_height: int,
@@ -768,9 +788,10 @@ def draw_screen(
   enable_keyboard: bool,
   point_selected: Point,
   input_index: int,
+  track_info: dict[str, str | int | float | list[tuple[int, int]]],
 ) -> tuple[int, int, bool]:
   font = pr.get_font_default()
-  rec_width = sidebar.width
+  sidebar_width = sidebar.width
   pr.draw_rectangle_rec(sidebar, (0, 0, 0, 180))
 
   but_info, input_info = draw_info
@@ -824,17 +845,19 @@ def draw_screen(
       half_text_width = pr.measure_text(text, cons.FONT_SIZE) / 2
       pr.draw_text(
         text,
-        int(rec_width / 2 - half_text_width),
+        int(sidebar_width / 2 - half_text_width),
         int(screen_height / 3),
         cons.FONT_SIZE,
         pr.WHITE,
       )
 
-    case 1:
-      # Draw length of track
-      pass
-    case 2:
-      pass
+    case 1:  # Mouse position
+      pos = pr.get_screen_to_world_2d(pr.get_mouse_position(), camera)
+      text = f"({int(pos.x / cons.PPM)}, {int(pos.y / cons.PPM)})"
+      pr.draw_text(text, 10, int(screen_height / 2), cons.FONT_SIZE, pr.WHITE)
+    case 2:  # Track length
+      text = f"Length: {track_info['length']}m"
+      pr.draw_text(text, 10, int(screen_height / 2), cons.FONT_SIZE, pr.WHITE)
 
 
 def control_screen(
@@ -1122,7 +1145,9 @@ def create_screen_elements(
   # Print main track points to terminal
   print_x = sidebar.width / 2
   print_y = screen_height * 3 / 4
-  align_info("PRINT TRACK", "print", print_x, print_y, margin, 1)
+  align_info(
+    "Print Track & Calculate\nTrack Length", "print", print_x, print_y, margin, 1
+  )
 
   draw_but_info[page]["texts"] = texts
   draw_but_info[page]["buts"] = recs

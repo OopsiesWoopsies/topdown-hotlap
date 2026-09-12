@@ -5,6 +5,7 @@ tracks: list[dict[str, str | int | tuple[int, int]]] = [
   {  # Small square
     "name": "Small Square",
     "finish": 8,
+    "length": 378.94,
     "track": (
       # Bottom straight (going right)
       (0, -90),
@@ -39,6 +40,7 @@ tracks: list[dict[str, str | int | tuple[int, int]]] = [
   {  # Long straights + 2 turns
     "name": "Speed Lanes",
     "finish": 3,
+    "length": 3210.37,
     "track": (
       # Main straight (up)
       (-750, 0),
@@ -71,6 +73,7 @@ tracks: list[dict[str, str | int | tuple[int, int]]] = [
   {  # Half pipe
     "name": "Half Pipe",
     "finish": 2,
+    "length": 0.0,
     "track": (
       (
         # Main straight (up)
