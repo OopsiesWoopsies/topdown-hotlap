@@ -10,7 +10,6 @@ class Engine:
     self.trans_efficiency = 0.95
     self.gear_ratios = [-3.00, 0.0, 3.40, 2.75, 2.30, 1.95, 1.68, 1.46, 1.26, 1.01]
     self.final_drive = 4.6
-    self.gear = 1
     self.overall_inertia = 0.1  # kg*m^2
     self.engine_brake = 75.0  # Nm
     self.max_clutch = 1100.0  # Nm
@@ -30,6 +29,7 @@ class Engine:
     self.clutch_reengage_timer = 0.0
 
     # Vars
+    self.gear = 1
     self.rpm = self.idle_rpm
     self.omega = self.idle_omega
     self.trans_omega = 0.0
@@ -38,6 +38,23 @@ class Engine:
     self.clutch = 1.0
 
     # Cases
+    self.is_locked = True
+    self.is_downshifting = False
+    self.is_stalled = False
+    self.anti_stall = False
+
+  def reset(self):
+    self.gear = 1
+    self.rpm = self.idle_rpm
+    self.omega = self.idle_omega
+    self.trans_omega = 0.0
+    self.clutch_t = 0.0
+    self.net_engine_t = 0.0
+    self.clutch = 1.0
+
+    self.shift_timer = 0.0
+    self.clutch_reengage_timer = 0.0
+
     self.is_locked = True
     self.is_downshifting = False
     self.is_stalled = False

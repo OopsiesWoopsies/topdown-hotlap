@@ -2,10 +2,10 @@ import argparse
 import time
 
 from audio.engine import play_eng_sound
-from game.constants import Constants
 from game.world import World
 from input.control import Control
 from render.renderer import Renderer
+from utils.constants import Constants
 
 
 def main():
@@ -23,8 +23,8 @@ def main():
   fixed_dt = 1.0 / 360.0
 
   if is_human:
-    renderer = Renderer(cons, ctrls, world)
     eng_audio = play_eng_sound.PlaySound(world.car.engine)
+    renderer = Renderer(cons, ctrls, world, eng_audio)
     eng_audio.start_eng()
 
     last_time = time.perf_counter()

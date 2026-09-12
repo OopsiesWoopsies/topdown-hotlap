@@ -1,7 +1,7 @@
 import math
 
 from game.car.tire import Tire
-from game.constants import Constants
+from utils.constants import Constants
 
 
 class Axle:

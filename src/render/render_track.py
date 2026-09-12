@@ -3,7 +3,7 @@ from collections import defaultdict
 
 import pyray as pr
 
-from game.constants import Constants
+from utils.constants import Constants
 
 CHUNK_SIZE = 1024
 
@@ -12,15 +12,23 @@ class RenderTrack:
   def __init__(self):
     self.chunks: dict[tuple[int, int], pr.RenderTexture] = {}
 
-  def render_chunks(
-    self,
-    cons: Constants,
-    center_pts: list[tuple[float, float]],
-    left_bound_pts: list[pr.Vector2],
-    right_bound_pts: list[pr.Vector2],
-    sector_lines: list[tuple[float, float]],
-    finish_line: tuple[float, float],
-  ):
+  def unload_chunks(self):
+    num_chunks = len(self.chunks)
+    for i, chunk_tex in enumerate(self.chunks.values()):
+      pr.begin_drawing()
+      pr.clear_background(pr.BLACK)
+      pr.draw_text(f"Unloading chunks... {i} / {num_chunks}", 10, 10, 20, pr.RED)
+      pr.end_drawing()
+      pr.unload_render_texture(chunk_tex)
+
+  def render_chunks(self, cons: Constants, track_components: dict[list | tuple]):
+    center_pts = track_components["center"]
+    left_bound_pts = track_components["left"]
+    right_bound_pts = track_components["right"]
+    sector_lines = track_components["sectors"]
+    finish_line = track_components["finish"]
+
+    self.unload_chunks()
     self.chunks = {}
     line_thickness = 0.1 * cons.PPM  # pixels
     num_pts = len(center_pts)
@@ -87,11 +95,11 @@ class RenderTrack:
     )
     num_chunks = len(active_chunk_keys)
 
-    for idx, (cx, cy) in enumerate(active_chunk_keys):
+    for i, (cx, cy) in enumerate(active_chunk_keys):
       pr.begin_drawing()
       pr.clear_background(pr.BLACK)
       pr.draw_text(
-        f"Generating chunks... {idx} / {num_chunks} chunks", 10, 10, 20, pr.WHITE
+        f"Generating chunks... {i} / {num_chunks} chunks", 10, 10, 20, pr.WHITE
       )
       pr.end_drawing()
       chunk_tex = pr.load_render_texture(CHUNK_SIZE, CHUNK_SIZE)
@@ -101,7 +109,7 @@ class RenderTrack:
 
       render_offset = pr.Vector2(-cx * CHUNK_SIZE, -cy * CHUNK_SIZE)
 
-      # Draw pavement and boundary lines ONLY for segments in this chunk
+      # Draw pavement and boundary lines for segments in this chunk
       for i in chunk_segments.get((cx, cy), []):
         j = (i + 1) % num_pts
 
@@ -114,7 +122,7 @@ class RenderTrack:
           pr.vector2_scale(right_bound_pts[i], cons.PPM), render_offset
         )
 
-        # Pavement (Will work perfectly if uncommented now)
+        # Pavement
         pr.draw_triangle(a, b, c, pr.DARKGRAY)
         pr.draw_triangle(a, c, d, pr.DARKGRAY)
 
@@ -122,7 +130,7 @@ class RenderTrack:
         pr.draw_line_ex(a, b, line_thickness, pr.WHITE)
         pr.draw_line_ex(d, c, line_thickness, pr.WHITE)
 
-      # Draw Sectors ONLY if they fall in this chunk
+      # Draw sectors if they fall in this chunk
       for sector_line in chunk_sectors.get((cx, cy), []):
         pr.draw_line_ex(
           pr.vector2_add(pr.vector2_scale(sector_line[0], cons.PPM), render_offset),
@@ -131,7 +139,7 @@ class RenderTrack:
           pr.WHITE,
         )
 
-      # Draw Finish line ONLY if it falls in this chunk
+      # Draw finish line if it falls in this chunk
       if (cx, cy) in chunk_finish:
         pr.draw_line_ex(
           pr.vector2_add(pr.vector2_scale(finish_line[0], cons.PPM), render_offset),
@@ -175,12 +183,46 @@ class RenderTrack:
         world_x = cx * CHUNK_SIZE
         world_y = cy * CHUNK_SIZE
         source_rec = pr.Rectangle(0, 0, CHUNK_SIZE, -CHUNK_SIZE)
+
+        pr.draw_texture_rec(
+          tex.texture, source_rec, (world_x, world_y), pr.WHITE
+        )
+
+  def draw_borders(self, cons: Constants, camera: pr.Camera2D):
+    screen_w = pr.get_screen_width()
+    screen_h = pr.get_screen_height()
+
+    p1 = pr.get_screen_to_world_2d(pr.Vector2(0, 0), camera)
+    p2 = pr.get_screen_to_world_2d(pr.Vector2(screen_w, 0), camera)
+    p3 = pr.get_screen_to_world_2d(pr.Vector2(0, screen_h), camera)
+    p4 = pr.get_screen_to_world_2d(pr.Vector2(screen_w, screen_h), camera)
+
+    cam_min_x = min(p1.x, p2.x, p3.x, p4.x)
+    cam_max_x = max(p1.x, p2.x, p3.x, p4.x)
+    cam_min_y = min(p1.y, p2.y, p3.y, p4.y)
+    cam_max_y = max(p1.y, p2.y, p3.y, p4.y)
+
+    # Get bounding chunk coords
+    min_cx = math.floor(cam_min_x / CHUNK_SIZE)
+    max_cx = math.floor(cam_max_x / CHUNK_SIZE)
+
+    min_cy = math.floor(cam_min_y / CHUNK_SIZE)
+    max_cy = math.floor(cam_max_y / CHUNK_SIZE)
+
+    # Draw only those coords
+    for cx in range(min_cx, max_cx + 1):
+      for cy in range(min_cy, max_cy + 1):
+        tex = self.chunks.get((cx, cy))
+        if tex is None:
+          continue
+
+        world_x = cx * CHUNK_SIZE
+        world_y = cy * CHUNK_SIZE
         dest_rec = pr.Rectangle(world_x, world_y, CHUNK_SIZE, CHUNK_SIZE)
 
-        pr.draw_texture_pro(
-          tex.texture, source_rec, dest_rec, pr.Vector2(0, 0), 0.0, pr.WHITE
+        pr.draw_rectangle_lines_ex(
+          dest_rec, 0.3 * cons.PPM, pr.PINK
         )
 
   def close(self):
-    for chunk_tex in self.chunks.values():
-      pr.unload_render_texture(chunk_tex)
+    self.unload_chunks()

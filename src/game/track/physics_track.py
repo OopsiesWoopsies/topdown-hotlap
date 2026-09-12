@@ -3,76 +3,7 @@ import math
 import pyray as pr
 
 from game.car.tire import Tire
-
-# Comments are based off of starting position (0, 0) and a starting rotation of 180 deg
-# Make sure points are >= 10m apart to avoid boundary loops if turning and points don't create a jagged inner corner
-# Add more points in between if jagged to smoothen it out
-tracks = [
-  {
-    "finish": 8,
-    "track": (
-      # Bottom straight (going right)
-      (0, 90),
-      (0, 70),
-      (0, 55),
-      (0, 45),
-      (0, 30),
-      (0, 10),
-      # Main straight (going up)
-      (-10, 0),
-      (-30, 0),
-      (-45, 0),  # finish line
-      (-55, 0),
-      (-70, 0),
-      (-90, 0),
-      # Top straight (going Left)
-      (-100, 10),
-      (-100, 30),
-      (-100, 45),
-      (-100, 55),
-      (-100, 70),
-      (-100, 90),
-      # Left straight (going down)
-      (-90, 100),
-      (-70, 100),
-      (-55, 100),
-      (-45, 100),
-      (-30, 100),
-      (-10, 100),
-    ),
-  },
-  {
-    "finish": 3,
-    "track": (
-      # Main straight (up)
-      (750, 0),
-      (720, 0),
-      (680, 0),
-      (0, 0),  # Finish line
-      (-680, 0),
-      (-720, 0),
-      (-750, 0),
-      # Top hairpin (up -> left -> down)
-      (-775, 5),
-      (-790, 15),
-      (-790, 30),
-      (-775, 40),
-      # Straight 2 (down)
-      (-750, 30),
-      (-720, 30),
-      (-680, 30),
-      (0, 30),
-      (680, 30),
-      (720, 30),
-      (750, 30),
-      # Bottom hairpin (down -> right -> up)
-      (775, 25),
-      (790, 15),
-      (790, 0),
-      (775, -10),
-    ),
-  },
-]
+from utils.layouts import tracks
 
 
 def catmull_rom(
@@ -176,21 +107,26 @@ def segments_intersect(
 
 
 class PhysicsTrack:
-  def __init__(self):
+  def __init__(
+    self,
+    width: float = 17.0,
+    track_selection: int = 2,
+    MPP: int = 0.25,
+  ):
     # Track size
-    self.width = 17  # m
+    self.width = width  # m
     self.half_width = self.width / 2.0  # m
+
+    # Track selection
+    self.track_selection = track_selection
+    self.track_amount = len(tracks)
 
     # In-game Track vars
     self.curr_sector = 1
     self.start_lap = False
 
-    # Render Track Vars
-    self.render_position = (0, 0)
-
     # Track points
-    self.track_selection = 1
-    self.center_line_pts = tracks[self.track_selection][
+    self.center_line_pts: tuple[int, int] = tracks[self.track_selection][
       "track"
     ]  # Dictates the main path of the track
 
@@ -199,7 +135,7 @@ class PhysicsTrack:
     self.sector_indexes = []
     self.sector_lines = []
 
-    self.mpp = 0.25  # meters per point (approx)
+    self.MPP = MPP  # meters per point (approx)
     self.center_pts: list[tuple[float, float]] = []
     self.left_bound_pts: list[pr.Vector2] = []
     self.right_bound_pts: list[pr.Vector2] = []
@@ -208,12 +144,22 @@ class PhysicsTrack:
     self.render_texture = None
     self.create_track()
 
-  def create_track(self):
-    self.center_line_pts = tracks[self.track_selection]["track"]
+  def create_track(
+    self,
+    custom_track: list[tuple[int, int]] | None = None,
+    custom_finish_index: int | None = None,
+  ):
+    if custom_track == None:
+      self.center_line_pts = tracks[self.track_selection]["track"]
+    else:
+      self.center_line_pts = custom_track
     num_pts = len(self.center_line_pts)
     sector_index = num_pts // 3
 
-    self.finish_index = tracks[self.track_selection]["finish"]
+    if custom_finish_index == None:
+      self.finish_index = tracks[self.track_selection]["finish"]
+    else:
+      self.finish_index = custom_finish_index
     self.sector_indexes = [
       int((sector_index * i + self.finish_index) % num_pts) for i in range(1, 3)
     ]
@@ -237,7 +183,7 @@ class PhysicsTrack:
       precision = max(
         1,
         round(
-          ((cen_p2_x - cen_p1_x) ** 2 + (cen_p2_y - cen_p1_y) ** 2) ** 0.5 / self.mpp
+          ((cen_p2_x - cen_p1_x) ** 2 + (cen_p2_y - cen_p1_y) ** 2) ** 0.5 / self.MPP
         ),
       )
 
@@ -370,7 +316,7 @@ class PhysicsTrack:
       bool: True if tire is on track and the track index respectively
     """
     margin = 2
-    index_offset = math.ceil(car_speed / self.mpp * dt) + margin
+    index_offset = math.ceil(car_speed / self.MPP * dt) + margin
     tire_on_track = False
     new_track_indices = []
 
@@ -383,6 +329,18 @@ class PhysicsTrack:
         tire_on_track = True
 
     return tire_on_track, new_track_indices
+
+  def get_track_components(
+    self,
+  ) -> dict[list | tuple]:
+    track_components = {
+      "center": self.center_pts,
+      "left": self.left_bound_pts,
+      "right": self.right_bound_pts,
+      "sectors": self.sector_lines,
+      "finish": self.finish_line,
+    }
+    return track_components
 
   def stop_lap(self):
     self.start_lap = False
