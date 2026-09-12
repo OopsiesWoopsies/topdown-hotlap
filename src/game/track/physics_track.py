@@ -110,7 +110,7 @@ class PhysicsTrack:
   def __init__(
     self,
     width: float = 17.0,
-    track_selection: int = 2,
+    track_selection: int = 0,
     MPP: int = 0.25,
   ):
     # Track size

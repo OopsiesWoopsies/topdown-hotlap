@@ -118,7 +118,7 @@ def main():
   enable_numpad = False
   enable_keyboard = False
   input_index = None
-  track_index = 2
+  track_index = 0
 
   # World states
   point_selected = None
@@ -872,8 +872,11 @@ def draw_screen(
 
     case 1:  # Mouse position
       pos = pr.get_screen_to_world_2d(pr.get_mouse_position(), camera)
-      text = f"({int(pos.x / cons.PPM)}, {int(pos.y / cons.PPM)})"
-      pr.draw_text(text, 10, int(screen_height / 2), cons.FONT_SIZE, pr.WHITE)
+      physics_text = f"({int(pos.x / cons.PPM)}m, {int(pos.y / cons.PPM)}m)"
+      world_text = f"({round(pos.x, 3)}px, {round(pos.y, 3)}px)"
+      height = int(screen_height / 2)
+      pr.draw_text(physics_text, 10, height, cons.FONT_SIZE, pr.WHITE)
+      pr.draw_text(world_text, 10, height + 25, 18, pr.WHITE)
     case 2:  # Track length
       text = f"Length: {track_info['length']}m"
       pr.draw_text(text, 10, int(screen_height / 2), cons.FONT_SIZE, pr.WHITE)
