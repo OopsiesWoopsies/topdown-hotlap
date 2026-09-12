@@ -365,7 +365,6 @@ def check_world_click(
 
   world_pos = pr.get_screen_to_world_2d(screen_mouse_point, camera)
   physics_pos = (round(world_pos.x / cons.PPM), round(world_pos.y / cons.PPM))
-  print(physics_pos)
 
   point_clicked = False
   for point in reversed(points):
@@ -376,6 +375,9 @@ def check_world_click(
           possessed_point = point
         else:
           point_selected = point
+        break
+      if check_right_mouse_point:
+        point_selected = point
         break
 
   if check_left_mouse_point:  # Point addition
@@ -436,7 +438,7 @@ def draw_world(
     render_track.draw(camera)
   render_car.draw_car()
 
-  if page == 1:
+  if page == 1 or page == 2:
     for point in points:
       point.draw()
 
@@ -753,8 +755,6 @@ def check_button_screen_click(
         input_info[2]["content"][action_i]["string"] = ""
       case "page2":
         page = 1
-        edit_points = True
-        draw_chunks = False
 
         if len(points) == 0:
           track = tracks[track_index]
@@ -779,7 +779,6 @@ def check_button_screen_click(
       case "page3":
         page = 2
         edit_points = False
-        draw_chunks = False
 
   return page, track_index, edit_points, draw_chunks, is_draw_grid, hovering
 
