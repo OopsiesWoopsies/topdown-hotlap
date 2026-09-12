@@ -347,6 +347,9 @@ def check_world_click(
     possessed_point.update_hitbox(physics_pos)
 
     if check_left_mouse_point:  # Save position
+      possessed_point.colour = (
+        pr.BLUE if track_info["finish"] == possessed_point.index else pr.RED
+      )
       index = possessed_point.index
       track_info["track"][index] = physics_pos
       return None, None
@@ -381,9 +384,12 @@ def check_world_click(
       points.append(new_point)
       track_info["track"].append(physics_pos)
     else:
-      point_selected.colour = pr.MAGENTA
-      action_i = find_action_index(input_info[1]["actions"], "change_i")
-      input_info[1]["content"][action_i]["string"] = str(point_selected.index)
+      if pr.is_key_down(pr.KEY_LEFT_CONTROL):
+        possessed_point.colour = pr.YELLOW
+      else:
+        point_selected.colour = pr.MAGENTA
+        action_i = find_action_index(input_info[1]["actions"], "change_i")
+        input_info[1]["content"][action_i]["string"] = str(point_selected.index)
   elif check_right_mouse_point and point_clicked:  # Point deletion
     if len(points) == 1:  # Always keep one point in the world
       point_selected = None
