@@ -297,6 +297,8 @@ def main():
       screen_height,
       page,
       track_index,
+      edit_points,
+      draw_chunks,
       enable_numpad,
       enable_keyboard,
       point_selected,
@@ -791,6 +793,8 @@ def draw_screen(
   screen_height: int,
   page: int,
   track_index: int,
+  edit_points: bool,
+  draw_chunks: bool,
   enable_numpad: bool,
   enable_keyboard: bool,
   point_selected: Point,
@@ -845,6 +849,14 @@ def draw_screen(
     x, y = but_text_pos_arr[i]
     pr.draw_rectangle_rec(but_elm, pr.LIGHTGRAY)
     pr.draw_text_ex(font, text, pr.Vector2(x, y), cons.FONT_SIZE, 1, pr.BLACK)
+
+    if (
+      edit_points
+      and but_info[page]["actions"][i] == "edit_points"
+      or draw_chunks
+      and but_info[page]["actions"][i] == "gen_track"
+    ):
+      pr.draw_rectangle_lines_ex(but_elm, 5, pr.RED)
 
   match page:
     case 0:
