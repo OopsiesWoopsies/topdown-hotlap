@@ -56,7 +56,7 @@ class Renderer:
     self.render_car_data = RenderCarData(car, self.screen_width, self.screen_height)
 
     # Track
-    self.render_track = RenderTrack()
+    self.render_track = RenderTrack(cons)
     self.create_track_chunks(world.track)
 
     # Timer
@@ -174,10 +174,7 @@ class Renderer:
     self.base_cam_zoom = self.base_cam_zoom * scale
 
   def create_track_chunks(self, track: PhysicsTrack):
-    self.render_track.render_chunks(
-      self.cons,
-      track.get_track_components()
-    )
+    self.render_track.render_chunks(track.get_track_components())
 
   def draw_world(self):
     self.render_track.draw(self.camera)

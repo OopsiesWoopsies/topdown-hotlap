@@ -2,7 +2,8 @@
 # Make sure points are >= 10m apart to avoid boundary loops if turning and points don't create a jagged inner corner
 # Add more points in between if jagged to smoothen it out
 tracks: list[dict[str, str | int | tuple[int, int]]] = [
-  {  # Small square
+  # Small square
+  {
     "name": "Small Square",
     "finish": 8,
     "length": 378.94,
@@ -37,7 +38,8 @@ tracks: list[dict[str, str | int | tuple[int, int]]] = [
       (10, -100),
     ),
   },
-  {  # Long straights + 2 turns
+  # Long straights + 2 turns
+  {
     "name": "Speed Lanes",
     "finish": 3,
     "length": 3210.37,
@@ -70,30 +72,70 @@ tracks: list[dict[str, str | int | tuple[int, int]]] = [
       (-775, -10),
     ),
   },
-  {  # Half pipe
+  {
     "name": "Half Pipe",
     "finish": 2,
-    "length": 0.0,
+    "length": 2542.57,
     "track": (
-      (
-        # Main straight (up)
-        (-550, 0),
-        (-500, 0),
-        (0, 0),  # Finish line
-        (500, 0),
-        (550, 0),
-        # T1, 90 deg (right)
-        (570, 0),
-        # (586, 10),
-        (580, 25),
-        # (610, 40),
-        (590, 70),
-        # Straight (right)
-        (630, 100),
-        (630, 200),
-        (630, 220),
-        (630, 210),
-      )
+      # Main straight
+      (-550, 0),
+      (-500, 0),
+      (0, 0),  # Finish line
+      (500, 0),
+      (550, 0),
+      # T1 (up -> right)
+      (576, 1),
+      (590, 5),  # Apex 1/2
+      (600, 15),  # Apex 2/2
+      (604, 30),
+      (605, 45),
+      # Short straight
+      (605, 65),
+      (605, 115),
+      # T2 (right -> down)
+      (604, 135),
+      (600, 150),
+      # Connector
+      (590, 160),  # Apex 1/2
+      (558, 160),  # Apex 2/2
+      # T3 (down -> left)
+      (548, 150),
+      (544, 135),
+      (543, 115),
+      # T4 (left -> down)
+      (543, 80),
+      (542, 63),
+      (535, 50),  # Apex
+      (523, 44),
+      # Back straight
+      (508, 43),
+      (497, 43),
+      (-493, 43),
+      (-508, 43),
+      # T5 (down -> right)
+      (-523, 44),
+      (-535, 50),  # Apex
+      (-542, 63),
+      # T6 (right -> down)
+      (-543, 80),
+      (-543, 115),
+      (-544, 135),
+      (-548, 150),
+      # Connector
+      (-558, 160),  # Apex 1/2
+      (-590, 160),  # Apex 2/2
+      # T7 (down -> left)
+      (-600, 150),
+      (-604, 135),
+      # Short straight
+      (-605, 115),
+      (-605, 65),
+      # T8 (left -> up)
+      (-605, 45),
+      (-604, 30),
+      (-600, 15),  # Apex 1/2
+      (-590, 5),  # Apex 2/2
+      (-576, 1),
     ),
   },
 ]
