@@ -1066,12 +1066,12 @@ def create_screen_elements(
   # x & y inputs for point input
   gen_pointy_x = 10
   gen_pointy_y = sidebar.height / 6
-  rec = align_info("X:", "gen_y", gen_pointy_x, gen_pointy_y, margin, 0, True, 0, 100)
+  rec = align_info("X:", "gen_x", gen_pointy_x, gen_pointy_y, margin, 0, True, 0, 100)
 
   gen_pointx_x = 10
   gen_pointx_y = rec.y + rec.height * 2
   gen_y_rec = align_info(
-    "Y:", "gen_x", gen_pointx_x, gen_pointx_y, margin, 0, True, 1, 100
+    "Y:", "gen_y", gen_pointx_x, gen_pointx_y, margin, 0, True, 1, 100
   )
 
   # Update Index
