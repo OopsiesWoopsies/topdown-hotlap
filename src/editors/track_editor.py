@@ -83,6 +83,7 @@ def main():
   screen_height = cons.SCREEN_HEIGHT
   pr.init_window(screen_width, screen_height, "Track Editor")
   pr.set_target_fps(144)
+  pr.set_exit_key(0)
 
   track_info: dict[str, str | int | float | list[tuple[int, int]]] = {
     "name": "",
