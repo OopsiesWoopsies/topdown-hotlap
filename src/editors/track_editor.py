@@ -301,6 +301,7 @@ def main():
       enable_numpad,
       enable_keyboard,
       point_selected,
+      possessed_point,
       input_index,
       track_info,
     )
@@ -782,6 +783,7 @@ def draw_screen(
   enable_numpad: bool,
   enable_keyboard: bool,
   point_selected: Point | None,
+  possessed_point: Point | None,
   input_index: int,
   track_info: dict[str, str | int | float | list[tuple[int, int]]],
 ) -> tuple[int, int, bool]:
@@ -818,8 +820,12 @@ def draw_screen(
         pr.draw_rectangle_rec(input_elm, pr.LIGHTGRAY)
         pr.draw_rectangle_lines_ex(input_elm, 5, colour)
     else:
-      pr.draw_rectangle_rec(input_elm, pr.LIGHTGRAY)
-      pr.draw_rectangle_lines_ex(input_elm, 5, colour)
+      if point_selected == None:
+        pr.draw_rectangle_rec(input_elm, pr.LIGHTGRAY)
+        pr.draw_rectangle_lines_ex(input_elm, 5, colour)
+      else:
+        pr.draw_rectangle_rec(input_elm, pr.DARKGRAY)
+        pr.draw_rectangle_lines_ex(input_elm, 5, pr.BLACK)
 
     pr.draw_text_ex(font, label, pr.Vector2(x, y), cons.FONT_SIZE, 1, pr.WHITE)
     x, y = content["str_pos"]
@@ -854,7 +860,7 @@ def draw_screen(
         pr.WHITE,
       )
 
-    case 1:  
+    case 1:
       # Mouse position
       pos = pr.get_screen_to_world_2d(pr.get_mouse_position(), camera)
       physics_text = f"({round(pos.x / cons.PPM, 1)}m, {round(pos.y / cons.PPM, 1)}m)"
@@ -866,18 +872,23 @@ def draw_screen(
       # Selected point coordinate
       if point_selected != None:
         text = f"{point_selected.physics_pos}"
-        text_width = pr.measure_text(text, cons.FONT_SIZE)
-        pr.draw_text(text, int(sidebar_width / 2 - text_width / 2), 10, cons.FONT_SIZE, pr.WHITE)
+      elif possessed_point != None:
+        text = f"{possessed_point.physics_pos}"
       else:
         text = "Point: (x, y)"
-        text_width = pr.measure_text(text, cons.FONT_SIZE)
-        pr.draw_text(text, int(sidebar_width / 2 - text_width / 2), 10, cons.FONT_SIZE, pr.WHITE)
+
+      text_width = pr.measure_text(text, cons.FONT_SIZE)
+      pr.draw_text(
+        text, int(sidebar_width / 2 - text_width / 2), 10, cons.FONT_SIZE, pr.WHITE
+      )
 
       # Total points
-      text = f"# pts: {len(track_info["track"])}"
+      text = f"# pts: {len(track_info['track'])}"
       text_width = pr.measure_text(text, cons.FONT_SIZE)
-      pr.draw_text(text, int(sidebar_width / 2 - text_width / 2), 35, cons.FONT_SIZE, pr.WHITE)
-    case 2:  
+      pr.draw_text(
+        text, int(sidebar_width / 2 - text_width / 2), 35, cons.FONT_SIZE, pr.WHITE
+      )
+    case 2:
       # Track length
       text = f"Length: {track_info['length']}m"
       pr.draw_text(text, 10, int(screen_height / 2), cons.FONT_SIZE, pr.WHITE)
