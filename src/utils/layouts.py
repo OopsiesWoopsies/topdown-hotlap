@@ -2,7 +2,8 @@
 # Make sure points are >= 10m apart to avoid boundary loops if turning and points don't create a jagged inner corner
 # Add more points in between if jagged to smoothen it out
 tracks: list[dict[str, str | int | tuple[int, int]]] = [
-  {  # Small square
+  # Small square
+  {
     "name": "Small Square",
     "finish": 8,
     "length": 378.94,
@@ -37,7 +38,8 @@ tracks: list[dict[str, str | int | tuple[int, int]]] = [
       (10, -100),
     ),
   },
-  {  # Long straights + 2 turns
+  # Long straights + 2 turns
+  {
     "name": "Speed Lanes",
     "finish": 3,
     "length": 3210.37,
@@ -70,30 +72,25 @@ tracks: list[dict[str, str | int | tuple[int, int]]] = [
       (-775, -10),
     ),
   },
-  {  # Half pipe
+  {
     "name": "Half Pipe",
     "finish": 2,
-    "length": 0.0,
+    "length": 2465.82,
     "track": (
-      (
-        # Main straight (up)
-        (-550, 0),
-        (-500, 0),
-        (0, 0),  # Finish line
-        (500, 0),
-        (550, 0),
-        # T1, 90 deg (right)
-        (570, 0),
-        # (586, 10),
-        (580, 25),
-        # (610, 40),
-        (590, 70),
-        # Straight (right)
-        (630, 100),
-        (630, 200),
-        (630, 220),
-        (630, 210),
-      )
+      (-550, 0),
+      (-500, 0),
+      (0, 0),
+      (500, 0),
+      (550, 0),
+      (570, 1),
+      (585, 5),
+      (595, 15),
+      (599, 30),
+      (600, 45),
+      (600, 65),
+      (600, 130),
+      (595, 156),
+      (600, 145),
     ),
   },
 ]

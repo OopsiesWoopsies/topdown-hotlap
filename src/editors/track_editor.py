@@ -858,11 +858,20 @@ def draw_screen(
 
     case 1:  # Mouse position
       pos = pr.get_screen_to_world_2d(pr.get_mouse_position(), camera)
-      physics_text = f"({int(pos.x / cons.PPM)}m, {int(pos.y / cons.PPM)}m)"
+      physics_text = f"({round(pos.x / cons.PPM, 1)}m, {round(pos.y / cons.PPM, 1)}m)"
       world_text = f"({round(pos.x, 3)}px, {round(pos.y, 3)}px)"
       height = int(screen_height / 2)
       pr.draw_text(physics_text, 10, height, cons.FONT_SIZE, pr.WHITE)
       pr.draw_text(world_text, 10, height + 25, 18, pr.WHITE)
+
+      if point_selected != None:
+        text = f"{point_selected.physics_pos}"
+        text_width = pr.measure_text(text, cons.FONT_SIZE)
+        pr.draw_text(text, int(sidebar_width / 2 - text_width / 2), 10, cons.FONT_SIZE, pr.WHITE)
+      else:
+        text = "Point: (x, y)"
+        text_width = pr.measure_text(text, cons.FONT_SIZE)
+        pr.draw_text(text, int(sidebar_width / 2 - text_width / 2), 10, cons.FONT_SIZE, pr.WHITE)
     case 2:  # Track length
       text = f"Length: {track_info['length']}m"
       pr.draw_text(text, 10, int(screen_height / 2), cons.FONT_SIZE, pr.WHITE)
