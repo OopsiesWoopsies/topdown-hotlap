@@ -597,6 +597,8 @@ def check_input_screen_click(
       if input_actions[i] == "change_i":
         enable_numpad = True
         input_index = i
+        input_content_details = input_info[page]["content"][input_index]
+        input_content_details["string"] = ""
     else:
       match input_actions[i]:
         case "gen_x" | "gen_y" | "finish_i":
