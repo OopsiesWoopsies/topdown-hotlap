@@ -330,9 +330,7 @@ def check_world_click(
 ) -> tuple[Point, Point]:
   # Check for possessed point moving
   if point_selected != None:
-    if check_left_mouse_point and not pr.check_collision_point_rec(
-      screen_mouse_point, sidebar
-    ):
+    if check_left_mouse_point:
       point_selected.colour = (
         pr.BLUE if track_info["finish"] == point_selected.index else pr.RED
       )
@@ -448,7 +446,7 @@ def check_input_screen_click(
   input_index: int | None,
   enable_numpad: bool,
   enable_keyboard: bool,
-  point_selected: Point,
+  point_selected: Point | None,
   track_info: dict[str, str | int | list[tuple[float, float]]],
   points: list[Point],
 ) -> tuple[bool, bool, bool, int | None]:
@@ -783,7 +781,7 @@ def draw_screen(
   draw_chunks: bool,
   enable_numpad: bool,
   enable_keyboard: bool,
-  point_selected: Point,
+  point_selected: Point | None,
   input_index: int,
   track_info: dict[str, str | int | float | list[tuple[int, int]]],
 ) -> tuple[int, int, bool]:
@@ -856,7 +854,8 @@ def draw_screen(
         pr.WHITE,
       )
 
-    case 1:  # Mouse position
+    case 1:  
+      # Mouse position
       pos = pr.get_screen_to_world_2d(pr.get_mouse_position(), camera)
       physics_text = f"({round(pos.x / cons.PPM, 1)}m, {round(pos.y / cons.PPM, 1)}m)"
       world_text = f"({round(pos.x, 3)}px, {round(pos.y, 3)}px)"
@@ -864,6 +863,7 @@ def draw_screen(
       pr.draw_text(physics_text, 10, height, cons.FONT_SIZE, pr.WHITE)
       pr.draw_text(world_text, 10, height + 25, 18, pr.WHITE)
 
+      # Selected point coordinate
       if point_selected != None:
         text = f"{point_selected.physics_pos}"
         text_width = pr.measure_text(text, cons.FONT_SIZE)
@@ -872,7 +872,13 @@ def draw_screen(
         text = "Point: (x, y)"
         text_width = pr.measure_text(text, cons.FONT_SIZE)
         pr.draw_text(text, int(sidebar_width / 2 - text_width / 2), 10, cons.FONT_SIZE, pr.WHITE)
-    case 2:  # Track length
+
+      # Total points
+      text = f"# pts: {len(track_info["track"])}"
+      text_width = pr.measure_text(text, cons.FONT_SIZE)
+      pr.draw_text(text, int(sidebar_width / 2 - text_width / 2), 35, cons.FONT_SIZE, pr.WHITE)
+    case 2:  
+      # Track length
       text = f"Length: {track_info['length']}m"
       pr.draw_text(text, 10, int(screen_height / 2), cons.FONT_SIZE, pr.WHITE)
 
