@@ -8,7 +8,7 @@ from utils.constants import Constants
 class World:
   def __init__(self, cons: Constants, ctrls: Control, is_human: bool):
     self.controls = ctrls
-    self.car = Car(cons, pos=(550.0, 0.0), angle_deg=0, size=(5.6, 2.0))
+    self.car = Car(cons, pos=(0.0, 0.0), angle_deg=0, size=(5.6, 2.0))
     self.track = PhysicsTrack()
     self.timer = Timer(is_human)
 

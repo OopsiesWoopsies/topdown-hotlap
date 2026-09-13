@@ -78,11 +78,11 @@ class Point:
 def main():
   cons = Constants()
   physics_track = PhysicsTrack()
-  render_track = RenderTrack()
+  render_track = RenderTrack(cons)
   screen_width = cons.SCREEN_WIDTH
   screen_height = cons.SCREEN_HEIGHT
   pr.init_window(screen_width, screen_height, "Track Editor")
-  # pr.set_target_fps(144)
+  pr.set_target_fps(144)
 
   track_info: dict[str, str | int | float | list[tuple[int, int]]] = {
     "name": "",
@@ -278,7 +278,6 @@ def main():
 
     pr.begin_mode_2d(camera)
     draw_world(
-      cons,
       camera,
       render_car,
       render_track,
@@ -403,7 +402,6 @@ def check_world_click(
     num = track_info["finish"]
     index = point_selected.index
 
-
     if num >= index and num != 0:
       track_info["finish"] -= 1
       action_i = find_action_index(input_info[1]["actions"], "finish_i")
@@ -425,7 +423,6 @@ def check_world_click(
 
 
 def draw_world(
-  cons: Constants,
   camera: pr.Camera2D,
   render_car: RenderCar,
   render_track: RenderTrack,
@@ -434,7 +431,7 @@ def draw_world(
   points: list[Point],
 ):
   if draw_chunks:
-    render_track.draw_borders(cons, camera)
+    render_track.draw_borders(camera)
     render_track.draw(camera)
   render_car.draw_car()
 
@@ -661,7 +658,7 @@ def check_button_screen_click(
           edit_points = False
 
           physics_track.create_track(track_info["track"], track_info["finish"])
-          render_track.render_chunks(cons, physics_track.get_track_components())
+          render_track.render_chunks(physics_track.get_track_components())
       case "toggle_grid":
         is_draw_grid = not is_draw_grid
       case "gen_point":
