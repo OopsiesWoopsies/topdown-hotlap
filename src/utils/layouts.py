@@ -2,7 +2,7 @@
 # Make sure points are >= 10m apart to avoid boundary loops if turning and points don't create a jagged inner corner
 # Add more points in between if jagged to smoothen it out
 tracks: list[dict[str, str | int | tuple[int, int]]] = [
-  # Small square
+  # Small square  (Track 1)
   {
     "name": "Small Square",
     "finish": 8,
@@ -38,7 +38,7 @@ tracks: list[dict[str, str | int | tuple[int, int]]] = [
       (10, -100),
     ),
   },
-  # Long straights + 2 turns
+  # Long straights + 2 turns (Track 2)
   {
     "name": "Speed Lanes",
     "finish": 3,
@@ -72,6 +72,7 @@ tracks: list[dict[str, str | int | tuple[int, int]]] = [
       (-775, -10),
     ),
   },
+  # Like a stubby table (Track 3)
   {
     "name": "Half Pipe",
     "finish": 2,
@@ -136,6 +137,115 @@ tracks: list[dict[str, str | int | tuple[int, int]]] = [
       (-600, 15),  # Apex 1/2
       (-590, 5),  # Apex 2/2
       (-576, 1),
+    ),
+  },
+  # Chicanes (Track 4)
+  {
+    "name": "Chicane City",
+    "finish": 1,
+    "length": 1196.33,
+    "track": (
+      # Main straight
+      (-254, 0),
+      (0, 0),
+      (16, 0),
+      # T1, chicane entrance (up -> right)
+      (36, 0),
+      (43, 3),
+      (46, 8),
+      (46, 16),
+      # T2, chicane exit (right -> up)
+      (46, 24),
+      (49, 29),
+      (57, 33),
+      # T3, hairpin (up -> down)
+      (85, 36),
+      (92, 42),
+      (94, 50),
+      (92, 58),
+      (85, 65),
+      (78, 67),
+      (71, 66),
+      # Straight
+      (55, 62),
+      (38, 61),
+      (28, 61),
+      (-209, 61),
+      # T4, chicane entrance (down -> right)
+      (-227, 61),
+      (-233, 64),
+      (-237, 70),
+      (-236, 81),
+      # T5, chicane exit (right -> down)
+      (-236, 87),
+      (-239, 93),
+      (-244, 97),
+      (-251, 98),
+      # T6 (down -> SW)
+      (-262, 97),
+      (-284, 90),
+      # Straight
+      (-298, 79),
+      (-326, 46),
+      # T7, chicance entrance (SW -> up)
+      (-336, 34),
+      (-339, 29),
+      (-340, 24),
+      (-338, 18),
+      (-330, 12),
+      (-323, 11),
+      # T8, chicane exit into mini hairpin (up -> SW)
+      (-315, 12),
+      (-309, 12),
+      (-301, 9),
+      (-294, 0),
+      (-294, -8),
+      (-302, -19),
+      (-322, -31),
+      # T9, wide hairpin (SW -> NW)
+      (-334, -43),
+      (-339, -54),
+      (-337, -74),
+      # Straight
+      (-327, -90),
+      (247, -124),
+      # T10, chicane entrance (NW -> right)
+      (255, -121),
+      (258, -116),
+      (258, -108),
+      # T11, chicane exit (right -> up)
+      (258, -100),
+      (261, -95),
+      (266, -92),
+      # T12, wide hairpin (up -> SW)
+      (274, -90),
+      (280, -86),
+      (286, -76),
+      (286, -49),
+      (279, -39),
+      (265, -32),
+      (247, -33),
+      (225, -43),
+      # T13
+      (-201, -72),
+      (-221, -85),
+      # T14, chicane entrance (SW -> right)
+      (-232, -87),
+      (-239, -83),
+      (-242, -76),
+      (-242, -68),
+      # T15, chicane exit (right -> down)
+      (-243, -60),
+      (-248, -54),
+      # T16, wide hairpin (down -> up)
+      (-261, -50),
+      (-267, -45),
+      (-271, -38),
+      (-272, -32),
+      (-272, -16),
+      (-271, -9),
+      (-268, -4),
+      (-262, -1),
     ),
   },
 ]

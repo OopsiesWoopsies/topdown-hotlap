@@ -26,6 +26,8 @@ class RenderTrack:
       pr.end_drawing()
       pr.unload_render_texture(chunk_tex)
 
+    self.chunks = {}
+
   def render_chunks(self, track_components: dict[list | tuple]):
     center_pts = track_components["center"]
     left_bound_pts = track_components["left"]
