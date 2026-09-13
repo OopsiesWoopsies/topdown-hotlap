@@ -36,6 +36,10 @@ class RenderTrack:
     chunk_segments = defaultdict(list)
     margin = line_thickness
 
+    all_pts = left_bound_pts + right_bound_pts
+    self.grid_offset_x = min(p.x for p in all_pts) * cons.PPM - margin
+    self.grid_offset_y = min(p.y for p in all_pts) * cons.PPM - margin
+
     for i in range(num_pts):
       j = (i + 1) % num_pts
 
@@ -49,8 +53,10 @@ class RenderTrack:
       min_py = min(p1.y, p2.y, p3.y, p4.y) * cons.PPM - margin
       max_py = max(p1.y, p2.y, p3.y, p4.y) * cons.PPM + margin
 
-      min_cx, max_cx = int(min_px // CHUNK_SIZE), int(max_px // CHUNK_SIZE)
-      min_cy, max_cy = int(min_py // CHUNK_SIZE), int(max_py // CHUNK_SIZE)
+      min_cx = int((min_px - self.grid_offset_x) // CHUNK_SIZE)
+      max_cx = int((max_px - self.grid_offset_x) // CHUNK_SIZE)
+      min_cy = int((min_py - self.grid_offset_y) // CHUNK_SIZE)
+      max_cy = int((max_py - self.grid_offset_y) // CHUNK_SIZE)
 
       for cx in range(min_cx, max_cx + 1):
         for cy in range(min_cy, max_cy + 1):
@@ -66,8 +72,10 @@ class RenderTrack:
       min_py = min(sector_line1[1], sector_line2[1]) * cons.PPM - margin
       max_py = max(sector_line1[1], sector_line2[1]) * cons.PPM + margin
 
-      min_cx, max_cx = int(min_px // CHUNK_SIZE), int(max_px // CHUNK_SIZE)
-      min_cy, max_cy = int(min_py // CHUNK_SIZE), int(max_py // CHUNK_SIZE)
+      min_cx = int((min_px - self.grid_offset_x) // CHUNK_SIZE)
+      max_cx = int((max_px - self.grid_offset_x) // CHUNK_SIZE)
+      min_cy = int((min_py - self.grid_offset_y) // CHUNK_SIZE)
+      max_cy = int((max_py - self.grid_offset_y) // CHUNK_SIZE)
 
       for cx in range(min_cx, max_cx + 1):
         for cy in range(min_cy, max_cy + 1):
@@ -82,8 +90,10 @@ class RenderTrack:
     min_py = min(finish_line1[1], finish_line2[1]) * cons.PPM - margin
     max_py = max(finish_line1[1], finish_line2[1]) * cons.PPM + margin
 
-    min_cx, max_cx = int(min_px // CHUNK_SIZE), int(max_px // CHUNK_SIZE)
-    min_cy, max_cy = int(min_py // CHUNK_SIZE), int(max_py // CHUNK_SIZE)
+    min_cx = int((min_px - self.grid_offset_x) // CHUNK_SIZE)
+    max_cx = int((max_px - self.grid_offset_x) // CHUNK_SIZE)
+    min_cy = int((min_py - self.grid_offset_y) // CHUNK_SIZE)
+    max_cy = int((max_py - self.grid_offset_y) // CHUNK_SIZE)
 
     for cx in range(min_cx, max_cx + 1):
       for cy in range(min_cy, max_cy + 1):
@@ -107,7 +117,9 @@ class RenderTrack:
       pr.begin_texture_mode(chunk_tex)
       pr.clear_background(pr.BLANK)
 
-      render_offset = pr.Vector2(-cx * CHUNK_SIZE, -cy * CHUNK_SIZE)
+      chunk_world_x = cx * CHUNK_SIZE + self.grid_offset_x
+      chunk_world_y = cy * CHUNK_SIZE + self.grid_offset_y
+      render_offset = pr.Vector2(-chunk_world_x, -chunk_world_y)
 
       # Draw pavement and boundary lines for segments in this chunk
       for i in chunk_segments.get((cx, cy), []):
@@ -167,11 +179,10 @@ class RenderTrack:
     cam_max_y = max(p1.y, p2.y, p3.y, p4.y)
 
     # Get bounding chunk coords
-    min_cx = math.floor(cam_min_x / CHUNK_SIZE)
-    max_cx = math.floor(cam_max_x / CHUNK_SIZE)
-
-    min_cy = math.floor(cam_min_y / CHUNK_SIZE)
-    max_cy = math.floor(cam_max_y / CHUNK_SIZE)
+    min_cx = math.floor((cam_min_x - self.grid_offset_x) / CHUNK_SIZE)
+    max_cx = math.floor((cam_max_x - self.grid_offset_x) / CHUNK_SIZE)
+    min_cy = math.floor((cam_min_y - self.grid_offset_y) / CHUNK_SIZE)
+    max_cy = math.floor((cam_max_y - self.grid_offset_y) / CHUNK_SIZE)
 
     # Draw only those coords
     for cx in range(min_cx, max_cx + 1):
@@ -180,13 +191,11 @@ class RenderTrack:
         if tex is None:
           continue
 
-        world_x = cx * CHUNK_SIZE
-        world_y = cy * CHUNK_SIZE
+        world_x = cx * CHUNK_SIZE + self.grid_offset_x
+        world_y = cy * CHUNK_SIZE + self.grid_offset_y
         source_rec = pr.Rectangle(0, 0, CHUNK_SIZE, -CHUNK_SIZE)
 
-        pr.draw_texture_rec(
-          tex.texture, source_rec, (world_x, world_y), pr.WHITE
-        )
+        pr.draw_texture_rec(tex.texture, source_rec, (world_x, world_y), pr.WHITE)
 
   def draw_borders(self, cons: Constants, camera: pr.Camera2D):
     screen_w = pr.get_screen_width()
@@ -203,11 +212,10 @@ class RenderTrack:
     cam_max_y = max(p1.y, p2.y, p3.y, p4.y)
 
     # Get bounding chunk coords
-    min_cx = math.floor(cam_min_x / CHUNK_SIZE)
-    max_cx = math.floor(cam_max_x / CHUNK_SIZE)
-
-    min_cy = math.floor(cam_min_y / CHUNK_SIZE)
-    max_cy = math.floor(cam_max_y / CHUNK_SIZE)
+    min_cx = math.floor((cam_min_x - self.grid_offset_x) / CHUNK_SIZE)
+    max_cx = math.floor((cam_max_x - self.grid_offset_x) / CHUNK_SIZE)
+    min_cy = math.floor((cam_min_y - self.grid_offset_y) / CHUNK_SIZE)
+    max_cy = math.floor((cam_max_y - self.grid_offset_y) / CHUNK_SIZE)
 
     # Draw only those coords
     for cx in range(min_cx, max_cx + 1):
@@ -216,13 +224,11 @@ class RenderTrack:
         if tex is None:
           continue
 
-        world_x = cx * CHUNK_SIZE
-        world_y = cy * CHUNK_SIZE
+        world_x = cx * CHUNK_SIZE + self.grid_offset_x
+        world_y = cy * CHUNK_SIZE + self.grid_offset_y
         dest_rec = pr.Rectangle(world_x, world_y, CHUNK_SIZE, CHUNK_SIZE)
 
-        pr.draw_rectangle_lines_ex(
-          dest_rec, 0.3 * cons.PPM, pr.PINK
-        )
+        pr.draw_rectangle_lines_ex(dest_rec, 0.3 * cons.PPM, pr.PINK)
 
   def close(self):
     self.unload_chunks()

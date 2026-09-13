@@ -118,7 +118,7 @@ def main():
   enable_numpad = False
   enable_keyboard = False
   input_index = None
-  track_index = 2
+  track_index = 0
 
   # World states
   point_selected = None
@@ -403,11 +403,9 @@ def check_world_click(
     num = track_info["finish"]
     index = point_selected.index
 
-    if num >= index and index != 0:
-      points[num].colour = pr.RED
-      track_info["finish"] -= 1
-      points[track_info["finish"]].colour = pr.BLUE
 
+    if num >= index and num != 0:
+      track_info["finish"] -= 1
       action_i = find_action_index(input_info[1]["actions"], "finish_i")
       input_info[1]["content"][action_i]["string"] = str(track_info["finish"])
 
@@ -502,14 +500,6 @@ def check_input_screen_click(
           elif new_index >= point_num:
             new_index = point_num - 1
 
-          if new_index == track_info["finish"]:
-            point_selected.colour = pr.BLUE
-            points[new_index].colour = pr.RED
-
-          elif old_index == track_info["finish"]:
-            point_selected.colour = pr.RED
-            points[new_index].colour = pr.BLUE
-
           # Update index and sync with array
           pos = track_info["track"].pop(old_index)
           track_info["track"].insert(new_index, pos)
@@ -521,7 +511,7 @@ def check_input_screen_click(
           for i in range(start_index, end_index + 1):
             points[i].index = i
 
-          # Update input strings
+          # Update change index string
           if track_info["finish"] >= start_index and track_info["finish"] <= end_index:
             action_i = find_action_index(input_actions, "finish_i")
             diff = old_index - new_index
@@ -529,7 +519,8 @@ def check_input_screen_click(
               op = 0
             else:
               op = diff / abs(diff)
-            points[track_info["finish"]].colour = pr.RED
+            if point_selected.index != track_info["finish"]:
+              points[track_info["finish"]].colour = pr.RED
             track_info["finish"] += int(op)
             input_info[page]["content"][action_i]["string"] = str(track_info["finish"])
             points[track_info["finish"]].colour = pr.BLUE
@@ -549,8 +540,7 @@ def check_input_screen_click(
             num = point_num - 1
 
           points[track_info["finish"]].colour = pr.RED
-          if point_selected.index != num:
-            points[num].colour = pr.BLUE
+          points[num].colour = pr.BLUE
           track_info["finish"] = num
           input_content_details["string"] = str(num)
           return input_hovering, enable_numpad, enable_keyboard, input_index
@@ -607,23 +597,22 @@ def check_input_screen_click(
       continue
 
     # Find which input
-    match input_actions[i]:
-      case "change_i":
-        if point_selected != None:
-          enable_numpad = True
-          input_index = i
-        else:
-          print("No point selected")
-      case "gen_x" | "gen_y" | "finish_i":
+    if point_selected != None:
+      if input_actions[i] == "change_i":
         enable_numpad = True
         input_index = i
-      case "set_name":
-        enable_keyboard = True
-        input_index = i
+    else:
+      match input_actions[i]:
+        case "gen_x" | "gen_y" | "finish_i":
+          enable_numpad = True
+          input_index = i
+        case "set_name":
+          enable_keyboard = True
+          input_index = i
 
-    if input_index != None:
-      input_content_details = input_info[page]["content"][input_index]
-      input_content_details["string"] = ""
+      if input_index != None:
+        input_content_details = input_info[page]["content"][input_index]
+        input_content_details["string"] = ""
 
   return input_hovering, enable_numpad, enable_keyboard, input_index
 
@@ -872,8 +861,11 @@ def draw_screen(
 
     case 1:  # Mouse position
       pos = pr.get_screen_to_world_2d(pr.get_mouse_position(), camera)
-      text = f"({int(pos.x / cons.PPM)}, {int(pos.y / cons.PPM)})"
-      pr.draw_text(text, 10, int(screen_height / 2), cons.FONT_SIZE, pr.WHITE)
+      physics_text = f"({int(pos.x / cons.PPM)}m, {int(pos.y / cons.PPM)}m)"
+      world_text = f"({round(pos.x, 3)}px, {round(pos.y, 3)}px)"
+      height = int(screen_height / 2)
+      pr.draw_text(physics_text, 10, height, cons.FONT_SIZE, pr.WHITE)
+      pr.draw_text(world_text, 10, height + 25, 18, pr.WHITE)
     case 2:  # Track length
       text = f"Length: {track_info['length']}m"
       pr.draw_text(text, 10, int(screen_height / 2), cons.FONT_SIZE, pr.WHITE)
