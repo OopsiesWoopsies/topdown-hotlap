@@ -2,13 +2,12 @@ from game.car.car_body import Car
 from game.track.physics_track import PhysicsTrack
 from game.track.timer import Timer
 from input.control import Control
-from utils.constants import Constants
 
 
 class World:
-  def __init__(self, cons: Constants, ctrls: Control, is_human: bool):
+  def __init__(self, ctrls: Control, is_human: bool):
     self.controls = ctrls
-    self.car = Car(cons, pos=(0.0, 0.0), angle_deg=0, size=(5.6, 2.0))
+    self.car = Car(pos=(0.0, 0.0), angle_deg=0.0, size=(5.6, 2.0))
     self.track = PhysicsTrack()
     self.timer = Timer(is_human)
 

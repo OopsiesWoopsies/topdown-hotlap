@@ -3,7 +3,6 @@ import math
 from game.car.axle import Axle
 from game.car.engine.engine import Engine
 from game.track.physics_track import PhysicsTrack
-from utils.constants import Constants
 
 _GRAVITY = -9.81  # m/s^2
 
@@ -31,13 +30,11 @@ DEBUG_VALS = {
 class Car:
   def __init__(
     self,
-    cons: Constants,
     pos: tuple[float, float],
     angle_deg: float,
     size: tuple[float, float],
   ):
     self.engine = Engine()
-    self.cons = cons
     # Car body constants
     self.size = size
     self.pos = pos
@@ -174,7 +171,6 @@ class Car:
       pos_y - forward_y * self.dist_cg_rear_axle,
     )
     self.front_axle = Axle(
-      cons,
       front_axle_pos,
       self.dist_cg_front_axle,
       self.track_width,
@@ -186,7 +182,6 @@ class Car:
       f_ax_config,
     )
     self.rear_axle = Axle(
-      cons,
       rear_axle_pos,
       -self.dist_cg_rear_axle,
       self.track_width,

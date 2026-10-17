@@ -1,13 +1,11 @@
 import math
 
 from game.car.tire import Tire
-from utils.constants import Constants
 
 
 class Axle:
   def __init__(
     self,
-    cons: Constants,
     local_pos: tuple[float, float],
     distance_to_cg: float,
     track_width: float,
@@ -18,8 +16,6 @@ class Axle:
     powered: bool,
     config: dict[str, any],
   ):
-    self.cons = cons
-
     self.local_pos = local_pos
     self.prev_local_pos = local_pos
     self.distance_to_cg = distance_to_cg
@@ -64,7 +60,6 @@ class Axle:
     ]
 
     self.left_tire = Tire(
-      cons,
       left_tire_pos,
       tire_width,
       tire_radius,
@@ -76,7 +71,6 @@ class Axle:
       config,
     )
     self.right_tire = Tire(
-      cons,
       right_tire_pos,
       tire_width,
       tire_radius,

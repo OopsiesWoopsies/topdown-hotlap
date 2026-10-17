@@ -1,7 +1,5 @@
 import math
 
-from utils.constants import Constants
-
 RIGHT_ANGLE = math.pi / 2
 
 
@@ -32,7 +30,6 @@ def pacejka_model(
 class Tire:
   def __init__(
     self,
-    cons: Constants,
     local_pos: tuple[float, float],
     width: float,
     radius: float,
@@ -43,7 +40,6 @@ class Tire:
     powered: bool,
     config: dict[str, any],
   ):
-    self.cons = cons
     # Constants
     self.powered = powered
     self.local_pos = local_pos
