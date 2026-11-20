@@ -485,27 +485,27 @@ class Car:
     )
     self.engine.update_shift(is_slipping, inputs, auto_shift=False)
 
-    # DEBUG_VALS["Throt"] = f"{throttle:>4.3f}"
-    # DEBUG_VALS["Brake"] = f"{brake:>4.3f}"
-    # DEBUG_VALS["Accel"] = [f"{accel_x:>12.3f}", f"{accel_y:>12.3f}"]
-    # DEBUG_VALS["LAccel"] = [
-    #   f"{self.local_accel[0]:>12.3f}",
-    #   f"{self.local_accel[1]:>12.3f}",
-    # ]
-    # DEBUG_VALS["Velo"] = [f"{velo_x:>12.3f}", f"{velo_y:>12.3f}"]
-    # DEBUG_VALS["LVelo"] = [f"{local_velo_x:>12.3f}", f"{local_velo_y:>12.3f}"]
-    # DEBUG_VALS["Speed"] = f"{self.speed:>12.3f}"
-    # DEBUG_VALS["DragF"] = [f"{drag_f_x:>12.3f}", f"{drag_f_y:>12.3f}"]
-    # DEBUG_VALS["DriveT"] = (
-    #   f"{self.rear_axle.left_tire.drive_t + self.rear_axle.right_tire.drive_t:>13.3f}"
-    # )
-    # DEBUG_VALS["BrakeT"] = f"{brake_t:>13.3f}"
-    # DEBUG_VALS["EngRPM"] = f"{self.engine.rpm:>12.3f}"
-    # DEBUG_VALS["Gear"] = f"{self.engine.gear - 1:>1}"
-    # DEBUG_VALS["Steer"] = f"{steer:>12.3f}"
-    # DEBUG_VALS["YawRate"] = f"{math.degrees(self.yaw_rate):>12.3f}"
-    # DEBUG_VALS["YawAccel"] = f"{yaw_accel:>12.3f}"
-    # DEBUG_VALS["Iner"] = f"{self.inertia:>12.3f}"
+    DEBUG_VALS["Throt"] = f"{throttle:>4.3f}"
+    DEBUG_VALS["Brake"] = f"{brake:>4.3f}"
+    DEBUG_VALS["Accel"] = [f"{accel_x:>12.3f}", f"{accel_y:>12.3f}"]
+    DEBUG_VALS["LAccel"] = [
+      f"{self.local_accel[0]:>12.3f}",
+      f"{self.local_accel[1]:>12.3f}",
+    ]
+    DEBUG_VALS["Velo"] = [f"{velo_x:>12.3f}", f"{velo_y:>12.3f}"]
+    DEBUG_VALS["LVelo"] = [f"{local_velo_x:>12.3f}", f"{local_velo_y:>12.3f}"]
+    DEBUG_VALS["Speed"] = f"{self.speed:>12.3f}"
+    DEBUG_VALS["DragF"] = [f"{drag_f_x:>12.3f}", f"{drag_f_y:>12.3f}"]
+    DEBUG_VALS["DriveT"] = (
+      f"{self.rear_axle.left_tire.drive_t + self.rear_axle.right_tire.drive_t:>13.3f}"
+    )
+    DEBUG_VALS["BrakeT"] = f"{brake_t:>13.3f}"
+    DEBUG_VALS["EngRPM"] = f"{self.engine.rpm:>12.3f}"
+    DEBUG_VALS["Gear"] = f"{self.engine.gear - 1:>1}"
+    DEBUG_VALS["Steer"] = f"{steer:>12.3f}"
+    DEBUG_VALS["YawRate"] = f"{math.degrees(self.yaw_rate):>12.3f}"
+    DEBUG_VALS["YawAccel"] = f"{yaw_accel:>12.3f}"
+    DEBUG_VALS["Iner"] = f"{self.inertia:>12.3f}"
 
     return curr_sector
 

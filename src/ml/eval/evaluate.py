@@ -3,10 +3,10 @@ from pathlib import Path
 import torch
 
 from ml.environment.racing_env import RacingEnv
-from ml.models.policy import PolicyNetwork
+from ml.models.policy import PolicyNetwork, select_action
 
 
-def evaluate():
+def evaluate(deterministic=True):
   checkpoint_path = (
     Path(__file__).resolve().parents[1] / "models" / "racing_ppo_checkpoint.pt"
   )
@@ -31,11 +31,13 @@ def evaluate():
 
   with torch.no_grad():
     while True:
-      obs_tensor = torch.as_tensor(observation, dtype=torch.float32)
-
       # Use the policy's mean action instead of sampling.
-      distribution = policy(obs_tensor)
-      action = torch.tanh(distribution.mean).cpu().numpy()
+      if deterministic:
+        obs_tensor = torch.as_tensor(observation, dtype=torch.float32)
+        distribution = policy(obs_tensor)
+        action = torch.tanh(distribution.mean).cpu().numpy()
+      else:  # Uses sampling
+        action, _, _ = select_action(policy, observation)
 
       observation, reward, terminated, truncated, info = env.step(action)
 

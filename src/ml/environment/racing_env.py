@@ -42,6 +42,9 @@ class RacingEnv(gym.Env):
       low=-1.0, high=1.0, shape=(16,), dtype=np.float32
     )
 
+    # penalties
+    self.low_speed_steps = 0
+
     # Related vars
     self.ctrls = Control()
     self.car = Car((0.0, 0.0), 0.0, (5.6, 2.0))
@@ -248,11 +251,44 @@ class RacingEnv(gym.Env):
     progress_m = progress_points * self.physics_track.MPP
     reward = float(progress_m)
 
-    # Punish and terminate if off track
-    terminated = bool(self.car.off_track)
+    # Penalties
+    if abs(self.car.speed) < 2.0:
+      self.low_speed_steps += 1
+    else:
+      self.low_speed_steps = 0
 
-    if terminated:
-      reward -= 50.0
+    low_speed_penalty = 0.0
+    if self.low_speed_steps > 30:
+      low_speed_penalty = 0.1
+      reward -= low_speed_penalty
+
+    all_tires = self.car.front_tires + self.car.rear_tires
+    max_slip_angle = max(abs(tire.slip_angle) for tire in all_tires)
+    max_slip_ratio = max(abs(tire.slip_ratio) for tire in all_tires)
+
+    slip_penalty = 0.0
+
+    if abs(self.car.speed) > 5.0:
+      # no penalty below 0.5 radians | slip angle
+      angle_excess = max(0.0, max_slip_angle - 0.5)
+      slip_penalty += min(0.1, 0.1 * angle_excess / 0.5)
+
+      # no penalty below 1.0 | slip ratio
+      ratio_excess = max(0.0, max_slip_ratio - 1.0)
+      slip_penalty += min(0.05, 0.05 * ratio_excess)
+
+    reward -= slip_penalty
+
+    # anti stall penalty
+    anti_stall_penalty = 0.0
+
+    if self.car.engine.anti_stall:
+      anti_stall_penalty = 0.2
+      reward -= anti_stall_penalty
+
+    terminated = bool(self.car.off_track)
+    off_track_penalty = 50.0 if terminated else 0.0
+    reward -= off_track_penalty
 
     truncated = self.episode_steps >= self.max_episode_steps
     total_points = self.episode_progress_points
@@ -294,5 +330,8 @@ class RacingEnv(gym.Env):
 
     self.episode_steps = 0
     self.episode_progress_points = 0
+
+    # penalties
+    self.low_speed_steps = 0
 
     return self._get_observation(), {}

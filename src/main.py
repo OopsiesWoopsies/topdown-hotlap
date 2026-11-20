@@ -1,6 +1,7 @@
 import argparse
 import math
 import time
+from collections import deque
 from pathlib import Path
 
 import numpy as np
@@ -12,12 +13,14 @@ from game.world import World
 from input.control import Control
 from ml.agent_control import AgentControl
 from ml.environment.racing_env import RacingEnv
-from ml.models.policy import PolicyNetwork
+from ml.models.policy import PolicyNetwork, select_action
 from render.renderer import Renderer
 from utils.constants import Constants
 
+recent_logs = deque(maxlen=20)
 
-def evaluate():
+
+def evaluate(deterministic=True):
   cons = Constants()
   human_controls = Control()
   agent_controls = AgentControl(human_controls)
@@ -79,21 +82,13 @@ def evaluate():
   env.throttle_amt = agent_controls.throttle_amt
   env.brake_amt = agent_controls.brake_amt
   observation = env._get_observation()
+  obs_tensor = torch.as_tensor(observation, dtype=torch.float32)
 
   with torch.no_grad():
-    action = (
-      torch.tanh(
-        policy(
-          torch.as_tensor(
-            observation,
-            dtype=torch.float32,
-          )
-        ).mean
-      )
-      .cpu()
-      .numpy()
-      .astype(np.float32)
-    )
+    if deterministic:
+      action = torch.tanh(policy(obs_tensor).mean).cpu().numpy().astype(np.float32)
+    else:
+      action, _, _ = select_action(policy, observation)
 
   agent_controls.set_action(action)
 
@@ -130,18 +125,31 @@ def evaluate():
           env.throttle_amt = agent_controls.throttle_amt
           env.brake_amt = agent_controls.brake_amt
           observation = env._get_observation()
+          obs_tensor = torch.as_tensor(observation, dtype=torch.float32)
 
           with torch.no_grad():
-            distribution = policy(
-              torch.as_tensor(
-                observation,
-                dtype=torch.float32,
-              )
-            )
-            action = torch.tanh(distribution.mean).cpu().numpy().astype(np.float32)
+            if deterministic:
+              distribution = policy(obs_tensor)
+              action = torch.tanh(distribution.mean).cpu().numpy().astype(np.float32)
+            else:
+              action, _, _ = select_action(policy, observation)
 
           agent_controls.set_action(action)
           steps += 1
+
+          # log_agent_state(observation, action)
+          recent_logs.append(
+            {
+              "step": steps,
+              "speed": world.car.speed * 3.6,
+              "steering": float(action[0]),
+              "longitudinal": float(action[1]),
+              "shift": float(action[2]),
+              "gear": world.car.engine.gear - 1,
+              "position": tuple(world.car.pos),
+              "observation": observation.copy(),
+            }
+          )
 
       alpha = accumulator / fixed_dt
       if renderer.render_screen(alpha, frame_time):
@@ -156,6 +164,21 @@ def evaluate():
   print(f"Off track: {world.car.off_track}")
   print(f"Final speed: {world.car.speed * 3.6:.1f} km/h")
   print(f"Final pos: {world.car.pos}")
+
+  print(f"Debug:\n{world.car.get_debug_vals()}")
+  print("\n===== LAST 20 DECISIONS BEFORE CRASH =====")
+
+  for log in recent_logs:
+    print(
+      f"Step: {log['step']:4d} | "
+      f"Speed: {log['speed']:6.1f} km/h | "
+      f"Steer: {log['steering']:+.3f} | "
+      f"Long: {log['longitudinal']:+.3f} | "
+      f"Shift: {log['shift']:+.3f} | "
+      f"Gear: {log['gear']} | "
+      f"Pos: {log['position']} | "
+      f"Obs: {np.round(log['observation'], 3)}"
+    )
 
 
 def main():

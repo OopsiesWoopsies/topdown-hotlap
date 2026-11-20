@@ -110,7 +110,7 @@ def train(
   policy = PolicyNetwork()
   value_network = ValueNetwork()
 
-  policy_optimizer = torch.optim.Adam(policy.parameters(), lr=3e-4)
+  policy_optimizer = torch.optim.Adam(policy.parameters(), lr=5e-4)
   value_optimizer = torch.optim.Adam(value_network.parameters(), lr=1e-3)
 
   checkpoint_path = (
@@ -135,6 +135,14 @@ def train(
     value_network.load_state_dict(checkpoint["value_state_dict"])
     policy_optimizer.load_state_dict(checkpoint["policy_optimizer_state_dict"])
     value_optimizer.load_state_dict(checkpoint["value_optimizer_state_dict"])
+
+    # Update exisiting learning rates if modification is desired
+    # for param_group in policy_optimizer.param_groups:
+    #   print(param_group["lr"])
+    #   param_group["lr"] = 5e-4
+
+    # for param_group in value_optimizer.param_groups:
+    #   param_group["lr"] = 1e-3
 
     total_steps = checkpoint["total_steps"]
     print(f"Resuming from checkpoint at step {total_steps}")
@@ -180,12 +188,26 @@ def train(
         episode_rewards.append(episode_reward)
 
         print(
-          f"Episode ended | Steps: {total_steps} | Length: {episode_length} "
+          f"\nEpisode ended | Steps: {total_steps} | Length: {episode_length} "
           f"| Reward: {episode_reward:.2f} "
           f"| Laps: {info['completed_laps']} "
           f"| Track progress: {info['track_progress_pct']:.1f}% "
           f"| Net progress: {info['net_progress_m']:.1f} m"
         )
+
+        car = env.car
+        debug = car.get_debug_vals()
+        print(
+          f"Final car state | "
+          f"Speed: {car.speed:.2f} m/s | "
+          f"Gear: {car.engine.gear - 1} | "
+          f"RPM: {round(car.engine.rpm)} | "
+          f"AS: {car.engine.anti_stall} | "
+          f"Throttle: {debug['Throt']} | "
+          f"Brake: {debug['Brake']}"
+        )
+
+        # Keep your existing episode summary and reset logic here.
 
         observation, info = env.reset()
         episode_reward = 0.0
@@ -212,7 +234,10 @@ def train(
     advantages_tensor = torch.as_tensor(advantages, dtype=torch.float32)
 
     # Reuse the same rollout for several PPO optimization epochs.
-    for _ in range(update_epochs):
+    epoch_metrics = []
+    print()
+
+    for epoch in range(update_epochs):
       (
         policy_loss,
         value_loss,
@@ -231,6 +256,21 @@ def train(
         advantages_tensor,
       )
 
+      epoch_metrics.append((policy_loss, value_loss, entropy, approx_kl, clip_fraction))
+
+      print(
+        f"  Epoch {epoch + 1}/{update_epochs} | "
+        f"Policy loss: {policy_loss:.4f} | "
+        f"Value loss: {value_loss:.4f} | "
+        f"KL: {approx_kl:.5f} | "
+        f"Clip fraction: {clip_fraction:.3f}"
+      )
+
+    return_std = returns_tensor.std(unbiased=False).item()
+    value_rmse = value_loss**0.5
+
+    print(f"Return std: {return_std:.2f} | Value RMSE: {value_rmse:.2f}")
+
     if not np.isfinite([policy_loss, value_loss, entropy]).all():
       raise RuntimeError("Non-finite PPO training metric detected")
 
@@ -245,7 +285,8 @@ def train(
       checkpoint_path,
     )
 
-    print(f"Checkpoint saved: {checkpoint_path}")
+    # print(f"Checkpoint saved: {checkpoint_path}")
+    print("Checkpoint saved!")
 
     recent_rewards = episode_rewards[-10:]
     mean_reward = float(np.mean(recent_rewards)) if recent_rewards else float("nan")
@@ -253,13 +294,17 @@ def train(
     print(
       f"Steps: {total_steps} | "
       f"Mean episode reward (last 10): {mean_reward:.2f} | "
-      f"Policy loss: {policy_loss:.4f} | "
-      f"Value loss: {value_loss:.4f} | "
-      f"Entropy: {entropy:.4f} | "
-      f"Approx KL: {approx_kl:.5f} | "
-      f"Clip fraction: {clip_fraction:.3f}"
+      f"Entropy: {entropy:.4f}"
     )
 
+  std = torch.exp(policy.log_std).detach().cpu().numpy()
+
+  print(
+    f"\nAction std | "
+    f"Steering: {std[0]:.3f} | "
+    f"Longitudinal: {std[1]:.3f} | "
+    f"Shifting: {std[2]:.3f}"
+  )
   env.close()
   return policy, value_network
 
