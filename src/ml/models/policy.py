@@ -16,14 +16,16 @@ class PolicyNetwork(nn.Module):
     )
 
     self.mean_layer = nn.Linear(128, action_dim)
-    self.log_std = nn.Parameter(torch.zeros(action_dim))
+    self.log_std_layer = nn.Linear(128, action_dim)
 
   def forward(self, observation):
     features = self.network(observation)
 
     mean = self.mean_layer(features)
+    log_std = self.log_std_layer(features)
 
-    std = torch.exp(self.log_std)
+    log_std = -0.75 + 1.25 * torch.tanh(log_std)
+    std = torch.exp(log_std)
 
     return Normal(mean, std)
 

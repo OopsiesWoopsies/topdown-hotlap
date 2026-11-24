@@ -251,6 +251,13 @@ class RacingEnv(gym.Env):
     progress_m = progress_points * self.physics_track.MPP
     reward = float(progress_m)
 
+    if self.throttle_pressed and self.car.engine.gear > 1:
+      reward += 0.005
+    elif self.car.engine.gear == 1:
+      reward -= 0.005
+    elif self.car.engine.gear == 0:
+      reward -= 0.01
+
     # Penalties
     if abs(self.car.speed) < 2.0:
       self.low_speed_steps += 1
@@ -283,7 +290,7 @@ class RacingEnv(gym.Env):
     anti_stall_penalty = 0.0
 
     if self.car.engine.anti_stall:
-      anti_stall_penalty = 0.2
+      anti_stall_penalty = 0.6
       reward -= anti_stall_penalty
 
     terminated = bool(self.car.off_track)

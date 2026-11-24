@@ -4,12 +4,11 @@ import torch
 
 from ml.environment.racing_env import RacingEnv
 from ml.models.policy import PolicyNetwork, select_action
+from utils.constants import CHECKPOINT_FILE
 
 
 def evaluate(deterministic=True):
-  checkpoint_path = (
-    Path(__file__).resolve().parents[1] / "models" / "racing_ppo_checkpoint.pt"
-  )
+  checkpoint_path = Path(__file__).resolve().parents[1] / "models" / CHECKPOINT_FILE
 
   if not checkpoint_path.exists():
     raise FileNotFoundError(f"No checkpoint found at {checkpoint_path}")

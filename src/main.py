@@ -15,7 +15,7 @@ from ml.agent_control import AgentControl
 from ml.environment.racing_env import RacingEnv
 from ml.models.policy import PolicyNetwork, select_action
 from render.renderer import Renderer
-from utils.constants import Constants
+from utils.constants import CHECKPOINT_FILE, Constants
 
 recent_logs = deque(maxlen=20)
 
@@ -49,9 +49,7 @@ def evaluate(deterministic=True):
   env.physics_track = world.track
   env.car_last_index = 0
 
-  checkpoint_path = (
-    Path(__file__).resolve().parent / "ml" / "models" / "racing_ppo_checkpoint.pt"
-  )
+  checkpoint_path = Path(__file__).resolve().parent / "ml" / "models" / CHECKPOINT_FILE
 
   if not checkpoint_path.exists():
     raise FileNotFoundError(f"No trained checkpoint found at {checkpoint_path}")
@@ -128,8 +126,11 @@ def evaluate(deterministic=True):
           obs_tensor = torch.as_tensor(observation, dtype=torch.float32)
 
           with torch.no_grad():
+            distribution = policy(obs_tensor)
+            mean = distribution.mean.cpu().numpy()
+            std = distribution.scale.cpu().numpy()
+
             if deterministic:
-              distribution = policy(obs_tensor)
               action = torch.tanh(distribution.mean).cpu().numpy().astype(np.float32)
             else:
               action, _, _ = select_action(policy, observation)
@@ -148,6 +149,8 @@ def evaluate(deterministic=True):
               "gear": world.car.engine.gear - 1,
               "position": tuple(world.car.pos),
               "observation": observation.copy(),
+              "means": f"{float(mean[0]):.3f}, {float(mean[1]):.3f}, {float(mean[2]):.3f}",
+              "stds": f"{float(std[0]):.3f}, {float(std[1]):.3f}, {float(std[2]):.3f}",
             }
           )
 
@@ -166,18 +169,20 @@ def evaluate(deterministic=True):
   print(f"Final pos: {world.car.pos}")
 
   print(f"Debug:\n{world.car.get_debug_vals()}")
-  print("\n===== LAST 20 DECISIONS BEFORE CRASH =====")
+  print("\n===== LAST 20 DECISIONS BEFORE TERMINATON =====")
 
   for log in recent_logs:
     print(
-      f"Step: {log['step']:4d} | "
-      f"Speed: {log['speed']:6.1f} km/h | "
-      f"Steer: {log['steering']:+.3f} | "
-      f"Long: {log['longitudinal']:+.3f} | "
-      f"Shift: {log['shift']:+.3f} | "
-      f"Gear: {log['gear']} | "
-      f"Pos: {log['position']} | "
-      f"Obs: {np.round(log['observation'], 3)}"
+      f"Step: {log['step']:4d}\n"
+      f"Speed: {log['speed']:6.1f} km/h\n"
+      f"Steer: {log['steering']:+.3f}\n"
+      f"Long: {log['longitudinal']:+.3f}\n"
+      f"Shift: {log['shift']:+.3f}\n"
+      f"Gear: {log['gear']}\n"
+      f"Pos: {log['position']}\n"
+      f"Obs: {np.round(log['observation'], 3)}\n"
+      f"Means: {log['means']}\n"
+      f"Stds: {log['stds']}\n"
     )
 
 

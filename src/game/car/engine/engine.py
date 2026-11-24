@@ -29,7 +29,7 @@ class Engine:
     self.clutch_reengage_timer = 0.0
 
     # Vars
-    self.gear = 2
+    self.gear = 2  #TODO CHANGE THIS BACK TO 1
     self.rpm = self.idle_rpm
     self.omega = self.idle_omega
     self.trans_omega = 0.0
@@ -44,7 +44,7 @@ class Engine:
     self.anti_stall = False
 
   def reset(self):
-    self.gear = 2
+    self.gear = 2  #TODO CHANGE THIS BACK TO 1
     self.rpm = self.idle_rpm
     self.omega = self.idle_omega
     self.trans_omega = 0.0
@@ -54,6 +54,8 @@ class Engine:
 
     self.shift_timer = 0.0
     self.clutch_reengage_timer = 0.0
+    self.shift_cd = 0.025  # s
+    self.clutch_reengage_cd = 0.04  # s
 
     self.is_locked = True
     self.is_downshifting = False

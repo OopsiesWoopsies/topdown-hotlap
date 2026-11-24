@@ -9,6 +9,28 @@ from ml.environment.racing_env import RacingEnv
 from ml.models.policy import PolicyNetwork, select_action
 from ml.models.value import ValueNetwork
 from ml.training.rollout_buffer import RolloutBuffer
+from utils.constants import CHECKPOINT_FILE
+
+
+def log_action_std(policy, env):
+  observations = {
+    "Current": env._get_observation(),
+  }
+
+  std_values = {}
+
+  for name, observation in observations.items():
+    observation = torch.as_tensor(
+      observation,
+      dtype=torch.float32,
+    )
+
+    with torch.no_grad():
+      std = policy(observation).scale.numpy()
+
+    std_values[name] = std
+
+  return std_values
 
 
 def compute_ppo_losses(
@@ -62,7 +84,7 @@ def ppo_update(
   returns,
   advantages,
   value_coef=0.5,
-  entropy_coef=0.01,
+  entropy_coef=0.005,
 ):
   policy_optimizer.zero_grad()
   value_optimizer.zero_grad()
@@ -86,6 +108,8 @@ def ppo_update(
   total_loss = policy_loss + value_coef * value_loss - entropy_coef * entropy
 
   total_loss.backward()
+  torch.nn.utils.clip_grad_norm_(policy.parameters(), 0.5)
+  torch.nn.utils.clip_grad_norm_(value_network.parameters(), 0.5)
 
   policy_optimizer.step()
   value_optimizer.step()
@@ -110,12 +134,10 @@ def train(
   policy = PolicyNetwork()
   value_network = ValueNetwork()
 
-  policy_optimizer = torch.optim.Adam(policy.parameters(), lr=5e-4)
-  value_optimizer = torch.optim.Adam(value_network.parameters(), lr=1e-3)
+  policy_optimizer = torch.optim.Adam(policy.parameters(), lr=3e-4)
+  value_optimizer = torch.optim.Adam(value_network.parameters(), lr=8e-4)
 
-  checkpoint_path = (
-    Path(__file__).resolve().parents[1] / "models" / "racing_ppo_checkpoint.pt"
-  )
+  checkpoint_path = Path(__file__).resolve().parents[1] / "models" / CHECKPOINT_FILE
   checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
   total_steps = 0
 
@@ -176,7 +198,7 @@ def train(
         log_prob,
         value,
         reward,
-        done,
+        terminated,
       )
 
       total_steps += 1
@@ -207,7 +229,15 @@ def train(
           f"Brake: {debug['Brake']}"
         )
 
-        # Keep your existing episode summary and reset logic here.
+        # Standard deviations
+        std_values = log_action_std(policy, env)
+        for name, std in std_values.items():
+          print(
+            f"{name} action std | "
+            f"Steering: {std[0]:.3f} | "
+            f"Longitudinal: {std[1]:.3f} | "
+            f"Shifting: {std[2]:.3f}"
+          )
 
         observation, info = env.reset()
         episode_reward = 0.0
@@ -285,8 +315,8 @@ def train(
       checkpoint_path,
     )
 
-    # print(f"Checkpoint saved: {checkpoint_path}")
-    print("Checkpoint saved!")
+    print(f"Checkpoint saved: {checkpoint_path}")
+    # print("Checkpoint saved!")
 
     recent_rewards = episode_rewards[-10:]
     mean_reward = float(np.mean(recent_rewards)) if recent_rewards else float("nan")
@@ -296,15 +326,16 @@ def train(
       f"Mean episode reward (last 10): {mean_reward:.2f} | "
       f"Entropy: {entropy:.4f}"
     )
+    # Standard deviations
+    std_values = log_action_std(policy, env)
+    for name, std in std_values.items():
+      print(
+        f"{name} action std | "
+        f"Steering: {std[0]:.3f} | "
+        f"Longitudinal: {std[1]:.3f} | "
+        f"Shifting: {std[2]:.3f}"
+      )
 
-  std = torch.exp(policy.log_std).detach().cpu().numpy()
-
-  print(
-    f"\nAction std | "
-    f"Steering: {std[0]:.3f} | "
-    f"Longitudinal: {std[1]:.3f} | "
-    f"Shifting: {std[2]:.3f}"
-  )
   env.close()
   return policy, value_network
 

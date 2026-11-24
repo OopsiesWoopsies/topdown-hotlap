@@ -1,3 +1,5 @@
+CHECKPOINT_FILE = "racing_ppo_state_dependent.pt"
+
 class Constants:
   def __init__(
     self,
